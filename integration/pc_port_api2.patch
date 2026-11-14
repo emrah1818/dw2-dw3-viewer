@@ -1,5 +1,5 @@
 diff --git a/host/main.c b/host/main.c
-index 580ecbe..f66f307 100644
+index 580ecbe..fb239ac 100644
 --- a/host/main.c
 +++ b/host/main.c
 @@ -11,9 +11,20 @@
@@ -93,12 +93,19 @@ index 580ecbe..f66f307 100644
      vblanks++;
      Host_TraceTick(vblanks);
      Host_SceneTick();
-@@ -448,7 +497,14 @@ HOST_ENTRY int main(int argc, char **argv) {
+@@ -448,7 +497,21 @@ HOST_ENTRY int main(int argc, char **argv) {
  #endif
      SDL_SetAppMetadata("DW2-PC", DW2_VERSION, NULL);
      for (i = 1; i < argc; i++) {
 -        if (strcmp(argv[i], "--vblanks") == 0 && i + 1 < argc) {
 +        if (strcmp(argv[i], "--mod-api") == 0) {
++            uintptr_t base = (uintptr_t)Ps1_Ram & ~(uintptr_t)0xFFFFFF;
++            if (((uintptr_t)Dw2_ModHeap & ~(uintptr_t)0xFFFFFF) != base ||
++                (((uintptr_t)Dw2_ModHeap+DW2_MOD_HEAP_SIZE-1) & ~(uintptr_t)0xFFFFFF) != base ||
++                ((uintptr_t)main & ~(uintptr_t)0xFFFFFF) != base) {
++                fprintf(stderr, "[mods] native image / heap exceeds the 16 MiB GPU link window\n");
++                return 1;
++            }
 +            puts("{\"mod_api\":2,\"max_file_bytes\":2097152,\"virtual_cd_limit\":450000}");
 +            return 0;
 +        } else if (strcmp(argv[i], "--check-model") == 0 && i+2 < argc) {
