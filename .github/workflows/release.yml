@@ -91,6 +91,8 @@ jobs:
           $b = 'pc-port/build/native64_rel_nodisc'
           $api = & "$b/dw2.exe" --mod-api | ConvertFrom-Json
           if ($LASTEXITCODE -ne 0 -or $api.mod_api -ne 2) { throw 'Overlay API 2 check failed' }
+          & "$b/dw2.exe" --check-cache
+          if ($LASTEXITCODE -ne 0) { throw 'Full CD-cache regression test failed' }
           & "$b/fonts_test.exe"
           if ($LASTEXITCODE -ne 0) { throw 'Font tests failed' }
           & "$b/textscript_test.exe"
