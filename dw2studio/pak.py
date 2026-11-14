@@ -4,7 +4,7 @@ from pathlib import Path
 import hashlib
 import struct
 
-MAGIC = b"DW2PAK\x1a\\x00"
+MAGIC = b"DW2PAK\x1a\x00"
 HEADER_SIZE = 80
 ENTRY_SIZE = 64
 
