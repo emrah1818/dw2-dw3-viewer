@@ -1,0 +1,25 @@
+wait 3
+key load
+wait 6
+snap map
+key circle
+wait 2
+key right
+wait 1
+key down
+wait 1
+key down
+wait 1
+snap savemenu
+key cross
+wait 6
+repeat 20
+key cross
+wait 1.5
+end
+snap saved
+repeat 15
+key triangle
+wait 1.5
+end
+quit

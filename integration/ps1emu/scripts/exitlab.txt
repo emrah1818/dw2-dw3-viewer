@@ -1,0 +1,11 @@
+wait 3
+key load
+wait 4
+repeat 4
+key triangle
+wait 2
+end
+wait 4
+key save
+wait 3
+quit

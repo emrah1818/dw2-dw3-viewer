@@ -1,9 +1,13 @@
-# DW2 Mod Studio 1.0.0-rc2 (Release-Kandidat) mit passendem PC-Port
+# DW2 Mod Studio 1.0.0-rc3 (Release-Kandidat) mit passendem PC-Port
 
-**Kein 1.0.0 FINAL.** Die neuen Funktionen sind im Spiel geprüft (PC-Port unter Linux, PS1-Image im Emulator).
-Für FINAL fehlen noch geprüfte Punkte: echter Windows-PC mit Grafikkarten-Renderer, dein echtes PS1-Abbild,
-DNA-Digitation, Spieltests auf weiteren Domains. DW3-Effekte, -Töne und -Kamerafahrten werden weiterhin
-**nicht** übertragen (es gibt einen DW2-Ersatz). Details: `EINSCHRAENKUNGEN_1.0.0-rc2.md`, `TESTERGEBNISSE_1.0.0-rc2.md`.
+**Kein 1.0.0 FINAL.** Neu im Spiel geprüft: DNA-Digitation mit importierten Digimon, geänderte Gegner auf drei
+weiteren Domains, im PS1-Emulator Digitation in ein importiertes Digimon, DNA und ein vom PS1-Spiel geschriebener
+Spielstand. Für FINAL fehlen weiterhin Tests auf einem echten Windows-PC (Grafikkarten-Renderer, HD bis 2048×4096)
+und mit deiner Original-BIN. DW3-Effekte, -Töne und -Kamerafahrten werden nicht übertragen.
+Details: `EINSCHRAENKUNGEN_1.0.0-rc3.md`, `TESTERGEBNISSE_1.0.0-rc3.md`.
+
+## Neu gegenüber 1.0.0-rc2
+- **Behoben:** Der DW3-Import brach bei großen Modellen mit „Mehr als 256 Normalen in einem Knochen“ ab.
 
 ## Neu gegenüber 1.0.0-rc1
 - **PC-Port (Mod-Studio-Zweig):** Der Port liest `Mods\digivolve_levels.json` (eigene Mindestlevel im Digi-Labor) und
@@ -20,8 +24,8 @@ DNA-Digitation, Spieltests auf weiteren Domains. DW3-Effekte, -Töne und -Kamera
 - Die grüne Gitter-Darstellung bei der Befehlswahl ist ein normales DW2-Merkmal und bleibt unverändert.
 
 ## Dateien
-- `DW2_Mod_Studio_1.0.0-rc2_Windows_x64.zip`: das Programm (entpacken, `DW2_3D_Viewer_Studio.exe` starten).
-- `DW2_PC_Port_API2_1.0.0-rc2_Windows_x64.zip`: passender PC-Port (Zweig `development/mod-studio-1.0`), ohne Spieldaten.
+- `DW2_Mod_Studio_1.0.0-rc3_Windows_x64.zip`: das Programm (entpacken, `DW2_3D_Viewer_Studio.exe` starten).
+- `DW2_PC_Port_API2_1.0.0-rc3_Windows_x64.zip`: passender PC-Port (Zweig `development/mod-studio-1.0`), ohne Spieldaten.
 - `test-results.xml`, `test-summary.txt`, `windows-smoke.json`, `SHA256SUMS.txt`.
 - Anleitung, Änderungsprotokoll, Testergebnisse und Einschränkungen liegen im Programm-ZIP.
 

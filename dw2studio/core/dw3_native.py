@@ -445,8 +445,9 @@ def encode_model(source, folder, scale=1., hd_scale=4, face=None):
                 k = normal_index(nv)
                 if k is None:              # table full: the face normal, which is often shared
                     k = normal_index(fn)
-                if k is None:
-                    raise ValueError('Mehr als 256 Normalen in einem Knochen.')
+                if k is None:              # still full: the closest stored normal (shading only)
+                    table = np.asarray(normals, dtype=float)
+                    k = int(np.argmax(table @ nv))
                 corner_n.append(k)
             uv=[]
             for k in corners:

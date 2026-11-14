@@ -1,0 +1,49 @@
+wait 3
+ff on
+wait 25
+ff off
+key start
+wait 4
+key start
+wait 3
+snap title
+key cross
+wait 5
+snap cont
+key cross
+wait 6
+snap slot
+repeat 12
+key cross
+wait 2
+end
+wait 8
+snap city
+key down 2.5
+wait 5
+snap map
+key circle
+wait 2
+snap menu
+key right
+wait 1
+key down
+wait 1
+key down
+wait 1
+snap savemenu
+key cross
+wait 6
+snap cardscene
+repeat 20
+key cross
+wait 1.5
+end
+snap saved
+repeat 15
+key triangle
+wait 1.5
+end
+wait 3
+snap after
+quit

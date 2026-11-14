@@ -1,15 +1,16 @@
-# Bekannte Einschränkungen 1.0.0-rc2
+# Bekannte Einschränkungen 1.0.0-rc3
 
 Diese Version ist ein **Release-Kandidat**, kein 1.0.0 FINAL.
 
 ## Warum noch nicht FINAL
-1. **Nicht auf einem echten Windows-PC im Spiel geprüft.** Port und Studio werden unter Windows gebaut und
-   automatisch geprüft. Die Spieltests liefen unter Linux mit dem Software-Renderer. Der Grafikkarten-Renderer und
-   HD bis 2048×4096 im laufenden Spiel sind ungeprüft.
-2. **PS1-Modus nicht mit deinem Original-BIN geprüft.** Getestet wurde ein aus der `dw2.pak` neu gebautes Abbild im
-   Emulator (Mednafen mit freiem BIOS). Andere Abbilder mit anderem Aufbau können abweichen. Das Studio lehnt nicht
-   unterstützte Aufbauten ab (mehrere Spuren in der CUE, Mode 2 Form 2 im Dateisystem, unbekannte Sektorgröße).
-3. **DNA-Digitation** und Gegner auf weiteren Domains sind im Spiel nicht geprüft.
+1. **Nicht auf einem echten Windows-PC im Spiel geprüft.** Studio und Port werden unter Windows gebaut und
+   automatisch geprüft (Startprüfung, Port-Tests). Die Spieltests liefen unter Linux mit dem Software-Renderer.
+   Grafikkarten-Renderer und HD bis 2048×4096 im laufenden Spiel sind ungeprüft.
+2. **PS1-Modus nicht mit deiner Original-BIN geprüft.** Getestet wurde ein aus der `dw2.pak` neu gebautes Abbild im
+   Emulator (Mednafen mit freiem BIOS), nicht auf echter Hardware. Andere Abbilder können abweichen. Das Studio lehnt
+   nicht unterstützte Aufbauten ab (mehrere Spuren in der CUE, Mode 2 Form 2 im Dateisystem, unbekannte Sektorgröße).
+3. Im PS1-Test wurde der Weg ins Digi-Labor und zur Stadtkarte über einen geänderten Emulator-Zustand abgekürzt
+   (nur der nächste Spielmodus, wie `warp=` im Port). Labor, DNA und Speichern liefen über die Menüs des Spiels.
 
 ## DW3-Effekte, -Töne, -Kamerafahrten (Teil C)
 Nicht übertragen. DW3 speichert sie in eigenen Formaten, abgespielt von DW3-eigenem Code. Der DW2-Port bräuchte dafür

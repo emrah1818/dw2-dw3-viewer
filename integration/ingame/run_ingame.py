@@ -266,9 +266,13 @@ def scene_partner(args, check):
     tech = api.technique_create(84, 0x1F, 'Pyro Sphere', None, {'mp': 7, 'power': 90}, True, [])
     check(scene, 'Eigene Technik für Guilmon angelegt', tech['id'] > 0, id=tech['id'])
     export(port, check, scene)
-    check(scene, 'battle_camera.json mit beiden Digimon geschrieben',
-          os.path.isfile(os.path.join(port, 'Mods', 'battle_camera.json')) and
-          {'84', '131'} <= set(json.load(open(os.path.join(port, 'Mods', 'battle_camera.json')))['digimon']))
+    # Nur Digimon, deren automatische Kamera vom Original abweicht, stehen in der Datei (ein kleines
+    # Digimon, das schon ganz im Bild ist, braucht keinen Eintrag).
+    need = {str(j['target']) for j in jobs if (j.get('battle_camera') or {}).get('setting')}
+    cam_file = os.path.join(port, 'Mods', 'battle_camera.json')
+    written = set(json.load(open(cam_file))['digimon']) if os.path.isfile(cam_file) else set()
+    check(scene, 'battle_camera.json enthält jedes Digimon mit angepasster Kamera', need and need == written,
+          need=sorted(need), written=sorted(written))
 
     sys.path.insert(0, args.autoplay)
     import policy  # noqa: E402
@@ -351,7 +355,7 @@ def scene_partner(args, check):
     alive, end_mode = g.proc.poll() is None, g.mode()
     g.close()
     glog = open(os.path.join(args.work, scene, 'run', 'game.log'), errors='replace').read()
-    check(scene, 'Port hat die Kampfkameras gelesen', 'battle cameras for 2 Digimon' in glog)
+    check(scene, 'Port hat die Kampfkameras gelesen', f'battle cameras for {len(need)} Digimon' in glog, need=len(need))
     party = [v for k2, v in found.items() if k2 < 3]
     check(scene, 'Guilmon (#84) kämpft als Partner mit eigener Technik', any(p['digi'] == 84 and tech['id'] in p['skills'] for p in party),
           party=party)
@@ -419,7 +423,178 @@ def shots_on_screen(views, digis_of_interest):
     return out
 
 
-SCENES = {'evo': scene_evo, 'domain': scene_domain, 'partner': scene_partner}
+
+# --- Szene 4: DNA-Digitation mit importierten Digimon -----------------------------------------
+# Greymon (#5, Champion) + importiertes Growlmon (#48, Champion) ergibt nach der DNA-Tabelle des Spiels
+# (Stg20_DnaResultTbl: zwei Champions -> Rookie) Platz #84 = importiertes Guilmon. Also DNA mit einem
+# importierten Elternteil und ein importiertes Ergebnis.
+def dna_menu(g, tag, steps):
+    """steps: (Taste, Wartezeit) im Digi-Labor; nach jedem Schritt ein Bild."""
+    for k, (key, wait) in enumerate(steps):
+        g.tap(key, 3, wait)
+        g.shot(f'{tag}_{k:02d}_{key}')
+
+
+def scene_dna(args, check):
+    scene = 'dna'
+    port = port_dir(args, scene)
+    open_studio(args, scene)
+    models = {m['name']: m['id'] for m in api.open_dw3(args.dw3)['models']}
+    jobs = api.dw3_batch_apply([{'source': models[n], 'target': t, 'name': name} for n, t, name in LINE[:2]])['jobs']
+    check(scene, 'DW3-Guilmon (#84) und -Growlmon (#48) importiert', len(jobs) == 2)
+    export(port, check, scene)
+    sys.path.insert(0, args.autoplay)
+    from to_city import to_city  # noqa: E402
+    g, _ = to_city(os.path.join(port, os.path.basename(args.port)), os.path.join(port, 'dw2.pak'),
+                   os.path.join(args.work, scene, 'run'), extra=('--cheats',))
+    check(scene, 'Stadt erreicht', g.mode() == 0x32D, mode=hex(g.mode()))
+    for spec in ('adddigi=5,25', 'adddigi=48,25'):
+        g.devedit(spec); g.run(10)
+    before = [roster(g, i) for i in range(6)]
+    parents = [i for i, r in enumerate(before) if r['state'] and r['digi'] in (5, 48)]
+    if not check(scene, 'Eltern angelegt: Greymon Lv25 und importiertes Growlmon Lv25', len(parents) == 2, roster=before):
+        g.close(); return
+    g.devedit('warp=0x301,0'); g.run(400)
+    g.devedit('warp=0x32F,0'); g.run(300)
+    check(scene, 'Digi-Labor geöffnet', g.mode() == 0x32F, mode=hex(g.mode()))
+    dna_menu(g, 'dna', DNA_STEPS)
+    after = [roster(g, i) for i in range(8)]
+    g.close()
+    alive = [r for r in after if r['state']]
+    got = [r for r in alive if r['digi'] == 84]
+    gone = not any(r['digi'] in (5, 48) for r in alive)
+    check(scene, 'DNA: Greymon + importiertes Growlmon -> importiertes Guilmon (#84), Eltern verschmolzen',
+          bool(got) and gone, roster=alive)
+
+
+DNA_STEPS = [('Right', 90), ('Cross', 200)] + [('Cross', 150)] * 4 + [('Down', 60), ('Cross', 150)] + \
+            [('Cross', 150)] * 6 + [('Cross', 400)] * 4
+
+# --- Szene 5: geänderte Gegner auf anderen Domains und Etagen, importiertes Digimon als Gegner -----------
+# Je Domain eine Gruppe der Etage kopieren, erstes Mitglied = importiertes MegaloGrowmon (#12) mit eigenem
+# Level/HP, alle Gruppenplätze der Etage auf die Kopie. Im Spiel: Domain betreten, auf die Etage springen
+# (Entwickler-Bearbeitung floor=), bis zum ersten Kampf laufen und den Kampfspeicher lesen.
+DOMAIN_TESTS = ((0, 1), (15, 2), (27, 3))     # (Domain-Index, Etage ab 0): SCSI 2F, Laser 3F, Core Tower 4F
+
+
+def enter(g, d, f):
+    """Aus der Stadt in Domain D, dann auf Etage F springen (Entwickler-Bearbeitung). Der Digi-Beetle
+    bekommt volle HP (Testaufbau): mit 0 HP bricht jeder Schritt die Domain ab."""
+    for spec in ('beetle=maxhp,9999', 'beetle=hp,9999', 'beetle=maxep,9999', 'beetle=ep,9999'):
+        g.devedit(spec); g.run(6)
+    for _ in range(30):
+        g.devedit('warp=0x200,%d' % d); g.run(60)
+        if g.mode() == 0x200 or (g.mode() >> 8) != 3:
+            break
+    for _ in range(400):
+        if g.mode() == 0x200 and g.dung() is not None:
+            break
+        g.tap('Cross', 3, 7)
+    for _ in range(40):            # floor= nur beim Laufen (nicht während des Eingangsereignisses)
+        d0 = g.dung()
+        if d0 is not None and d0['floor'] == f:
+            break
+        g.devedit('floor=%d' % f); g.run(200)
+        g.tap('Cross', 3, 30)
+    g.shot('floor')
+
+
+def scene_domains(args, check):
+    scene = 'domains'
+    port = port_dir(args, scene)
+    open_studio(args, scene)
+    models = {m['name']: m['id'] for m in api.open_dw3(args.dw3)['models']}
+    api.dw3_batch_apply([{'source': models['M368MGRW'], 'target': 12, 'name': 'MegaloGrowmon'}])
+    ov = api.domains_overview()
+    want = {}
+    for k, (d, f) in enumerate(DOMAIN_TESTS):
+        sets = ov['domains'][d]['floors'][f]['sets']
+        src = next(x for x in sets[1:] if x)
+        new = api.group_clone(src)['id']
+        members = api.group_info(new)['members']
+        members[0].update({'digimon': 12, 'level': 7 + k, 'hp': 171 + k})
+        for m in members:
+            m.pop('name', None)
+        api.group_set(new, members=members)
+        api.domain_set_floor(d, f, [sets[0], new, new, new, new])
+        want[d] = {'digi': 12, 'level': 7 + k, 'maxHp': 171 + k, 'group': new, 'floor': f}
+    check(scene, 'Gruppen kopiert, importiertes MegaloGrowmon als Gegner, Etagen zugewiesen', len(want) == 3, want=want)
+    export(port, check, scene)
+
+    sys.path.insert(0, args.autoplay)
+    from to_city import to_city  # noqa: E402
+    from save_test import save_menu, load_slot1  # noqa: E402
+    import policy  # noqa: E402
+    from dw2bot import Game  # noqa: E402
+    exe, pak = os.path.join(port, os.path.basename(args.port)), os.path.join(port, 'dw2.pak')
+    base = os.path.join(args.work, scene, 'base')
+    g, _ = to_city(exe, pak, base, extra=('--cheats',))
+    for sp in (3, 4, 5):     # starke Testgruppe (nur Testaufbau), Plätze 3..5 = Kampfgruppe
+        g.devedit('adddigi=%d,40,99,999,999,700,700,700' % sp); g.run(10)
+    pos = 3
+    for i in range(0x24):
+        if pos > 5:
+            break
+        if g.u8('Save_GameState', ROSTER + i * ENTRY) != 0:
+            g.poke('Save_GameState', ROSTER + i * ENTRY, bytes([pos])); pos += 1
+    g.run(30)
+    save_menu(g)
+    g.close()
+    card = os.path.join(base, 'saves', 'card1.mcd')
+    for d, f in DOMAIN_TESTS:
+        work = os.path.join(args.work, scene, 'd%02d' % d)
+        os.makedirs(os.path.join(work, 'saves'), exist_ok=True)
+        shutil.copy(card, os.path.join(work, 'saves', 'card1.mcd'))
+        g = Game(exe, pak, work, extra=('--cheats',))
+        found, info = {}, {}
+        try:
+            load_slot1(g); g.run(240)
+            enter(g, d, f)
+            info['floor'] = (g.dung() or {}).get('floor')
+            st = policy.Stats()
+            orig = policy.battle
+
+            def battle(g, st, *a, **k):
+                if not found:
+                    g.run(400)
+                    g.shot('battle')
+                    for i in range(6):
+                        raw = g.peek('Stg30_Battle', 0x18 + i * ENTRY, ENTRY)
+                        if raw[0]:
+                            found[i] = {'digi': raw[1], 'level': raw[0x0D], 'maxHp': struct.unpack_from('<h', raw, 0x14)[0]}
+                return orig(g, st, *a, **k)
+            policy.battle = battle
+            start = g.wait
+            while g.wait - start < 30000 and not found:
+                if (g.mode() >> 8) == 3:   # der Weg führte zurück in die Stadt: erneut hinein
+                    info['reentered'] = info.get('reentered', 0) + 1
+                    g.run(300)
+                    enter(g, d, f)
+                elif g.mode() == 0x200:
+                    d1 = g.dung()
+                    if d1 is not None:
+                        info.setdefault('floors', []).append(d1['floor'])
+                        if d1['floor'] != f:   # über eine Treppe weiter: zurück auf die Testetage
+                            g.devedit('floor=%d' % f); g.run(200)
+                            continue
+                    policy.dungeon_floor(g, st, max_waits=1500)
+                elif policy.table(g.mode()) == 5:
+                    policy.battle(g, st)
+                else:
+                    g.tap('Cross', 3, 17)
+            policy.battle = orig
+            info['alive'] = g.proc.poll() is None
+        finally:
+            g.close()
+        w = want[d]
+        enemies = [v for k, v in found.items() if k >= 3]
+        check(scene, f'Domain {d} Etage {f + 1}: importiertes MegaloGrowmon Lv{w["level"]} / {w["maxHp"]} HP im Kampf',
+              info.get('floor') == f and {'digi': 12, 'level': w['level'], 'maxHp': w['maxHp']} in enemies,
+              floor=info.get('floor'), floors=sorted(set(info.get('floors', []))), reentered=info.get('reentered', 0),
+              enemies=enemies)
+
+
+SCENES = {'evo': scene_evo, 'domain': scene_domain, 'partner': scene_partner, 'dna': scene_dna, 'domains': scene_domains}
 
 
 def main():

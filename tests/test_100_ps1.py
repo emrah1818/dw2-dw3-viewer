@@ -68,3 +68,18 @@ def test_iso_export_gets_no_cue(tmp_path, monkeypatch):
     iso = tmp_path / 'neu.iso'; iso.write_bytes(b'\0' * 2048)
     monkeypatch.setattr(api.S, 'session', SimpleNamespace(sector_size=2048), raising=False)
     assert api._write_cue(iso) is None
+
+
+def test_more_than_256_normals_in_one_part(tmp_path):
+    """Ein Teil mit vielen Ecken unterschiedlicher Richtung: mehr als 256 Normalen würden gebraucht.
+    Der Kodierer nimmt dann die nächstliegende gespeicherte Normale statt abzubrechen."""
+    import numpy as np
+    rng = np.random.default_rng(1)
+    verts = (rng.normal(size=(250, 3)) * 100).round().tolist()
+    faces = [{'indices': [int(a), int(b), int(c)], 'uv': [[0, 0], [1, 0], [0, 1]], 'image': 0, 'abr': 0}
+             for a, b, c in rng.integers(0, 250, size=(250, 3)) if len({a, b, c}) == 3]
+    s = source(tmp_path, [{'parent': -1, 'vertices': [], 'faces': []}, {'parent': 0, 'vertices': verts, 'faces': faces}])
+    native, _, rep = encode_model(s, tmp_path)
+    model = NativeModel(native)
+    assert rep['triangles'] == len(faces)
+    assert all(p.normal_count <= 256 for p in model.parts) and max(p.normal_count for p in model.parts) == 256

@@ -1,5 +1,20 @@
 # Änderungsprotokoll
 
+## 1.0.0-rc3 – 14.11.2026 (Release-Kandidat)
+
+Behoben
+- DW3-Import brach bei manchen Modellen mit „Mehr als 256 Normalen in einem Knochen“ ab (z. B. MegaloGrowmon
+  in Platz 12). Die weichen Normalen brauchen je Teil mehr Einträge als vorher. Ist die Tabelle voll, nimmt der
+  Kodierer jetzt die nächstliegende gespeicherte Normale (nur die Schattierung ist minimal gröber), statt abzubrechen.
+  Test: `test_more_than_256_normals_in_one_part`.
+
+Neu geprüft
+- DNA-Digitation mit importierten Digimon (PC-Port und PS1-Emulator).
+- Geänderte Gegner auf drei weiteren Domains und tieferen Etagen (PC-Port).
+- PS1: Digitation in ein importiertes DW3-Digimon im Digi-Labor, Spielstand vom PS1-Spiel geschrieben und vom
+  PC-Port gelesen.
+- Spieltest-Szenen `dna` und `domains`, PS1-Testwerkzeuge unter `integration/ps1emu/`.
+
 ## 1.0.0-rc2 – 14.11.2026 (Release-Kandidat, mit passendem PC-Port)
 
 Neu

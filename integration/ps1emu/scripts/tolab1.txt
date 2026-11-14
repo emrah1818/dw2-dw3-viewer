@@ -1,0 +1,21 @@
+wait 3
+ff on
+wait 25
+ff off
+key start
+wait 4
+key start
+wait 3
+key cross
+wait 5
+key cross
+wait 6
+repeat 12
+key cross
+wait 2
+end
+wait 8
+snap area
+key save
+wait 3
+quit
