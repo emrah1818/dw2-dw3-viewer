@@ -1054,6 +1054,7 @@ async function techDialog(sourceId, editId) {
 // ---------------------------------------------------------------- 5 Digitations-Editor (Linie)
 let evoLine = [];
 async function renderEvoPage() {
+  renderLevels();
   if (state.id == null) { $('#evo-sub').textContent = '· zuerst ein Digimon wählen'; $('#evo-line').innerHTML = ''; return; }
   $('#evo-sub').textContent = `· ab #${pad3(state.id)} ${digiName(state.id)}`;
   try {
@@ -1096,6 +1097,24 @@ $('#evo-add').onclick = async () => {
   const id = await pickBox('Digimon zur Linie', state.catalog.map(c => ({ value: c.id, label: `#${pad3(c.id)} ${c.name}` })), null);
   if (id == null || evoLine.some(d => d.id === id)) return;
   try { const info = await native('evolution_info', id); evoLine.push({ id, rank: info.rank, rows: info.rows, choices: info.choices }); drawEvo(); } catch (e) { await fail(e); }
+};
+async function renderLevels() {
+  try {
+    const r = await native('digivolve_levels_info');
+    $('#lv-note').textContent = r.note + ` Format ${r.format}, Export als Mods\\digivolve_levels.json.`;
+    $('#lv-who').textContent = state.id != null ? `#${pad3(state.id)} ${digiName(state.id)}` : 'kein Digimon gewählt';
+    $('#lv-val').value = state.id != null ? (r.levels[String(state.id)] ?? '') : '';
+    const rows = Object.entries(r.levels);
+    $('#lv-list').textContent = rows.length ? 'Gespeichert (ohne Wirkung im aktuellen Port): ' + rows.map(([k, v]) => `#${pad3(Number(k))} ab ${v}`).join(', ') : 'Keine eigenen Werte gespeichert.';
+  } catch (e) { $('#lv-note').textContent = e.message; }
+}
+$('#lv-set').onclick = async () => {
+  if (state.id == null) return toast('Zuerst ein Digimon wählen.');
+  try { await native('digivolve_level_set', state.id, Number($('#lv-val').value) || null); await afterChange('Digitationslevel gespeichert (Vorbereitung, im aktuellen Port ohne Wirkung)'); renderLevels(); } catch (e) { await fail(e); }
+};
+$('#lv-clear').onclick = async () => {
+  if (state.id == null) return;
+  try { await native('digivolve_level_set', state.id, null); await afterChange('Digitationslevel: Spielregel'); renderLevels(); } catch (e) { await fail(e); }
 };
 $('#evo-check').onclick = async () => {
   try {

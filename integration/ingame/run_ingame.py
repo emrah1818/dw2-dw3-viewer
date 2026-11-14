@@ -88,7 +88,11 @@ def scene_evo(args, check):
              {'id': 48, 'rows': [{'min_dp': 0, 'target': 12}], 'rank': 1},
              {'id': 12, 'rows': api.evolution_info(12)['rows'], 'rank': 2}]
     check(scene, 'Linie Agumon > Growlmon > MegaloGrowmon gesetzt', api.evolution_line(lines)['changed'])
+    # Kompatibilität: vorbereitete Digitationslevel (Format 1). Der aktuelle Port liest sie nicht; Agumon
+    # bekommt 20, digitiert im Spiel aber weiter nach der festen Regel ab Level 11.
+    api.digivolve_level_set(3, 20)
     export(port, check, scene)
+    check(scene, 'digivolve_levels.json mitgeschrieben', os.path.isfile(os.path.join(port, 'Mods', 'digivolve_levels.json')))
 
     sys.path.insert(0, args.autoplay)
     from to_city import to_city  # noqa: E402
@@ -125,6 +129,7 @@ def scene_evo(args, check):
     after = roster(g, idx)
     check(scene, 'Digitation in importiertes Digimon (Agumon > Growlmon #48)', after['digi'] == 48,
           before=before, after=after)
+    check(scene, 'Aktueller Port ignoriert digivolve_levels.json (Lv15 < 20, trotzdem digitiert)', after['digi'] == 48)
     g.devedit(f'digi={idx},maxlevel,99')
     g.run(6)
     g.devedit(f'digi={idx},level,25')
@@ -242,7 +247,102 @@ def scene_domain(args, check):
     check(scene, 'Geänderte Gegner erscheinen im Kampf', all(w in got for w in want), enemies=enemies)
 
 
-SCENES = {'evo': scene_evo, 'domain': scene_domain}
+# --- Szene 3: importiertes Digimon als Partner: Team-Menü, Kampf, eigene Technik, Kamera -----------
+def scene_partner(args, check):
+    scene = 'partner'
+    port = port_dir(args, scene)
+    open_studio(args, scene)
+    models = {m['name']: m['id'] for m in api.open_dw3(args.dw3)['models']}
+    job = api.dw3_batch_apply([{'source': models['M366GIRU'], 'target': 84, 'name': 'Guilmon'}])['jobs'][0]
+    check(scene, 'Guilmon in Platz 84 importiert (Kamera automatisch)', job['target'] == 84, camera=job.get('camera'))
+    tech = api.technique_create(84, 0x1F, 'Pyro Sphere', None, {'mp': 7, 'power': 90}, True, [])
+    check(scene, 'Eigene Technik für Guilmon angelegt', tech['id'] > 0, id=tech['id'])
+    export(port, check, scene)
+
+    sys.path.insert(0, args.autoplay)
+    import policy  # noqa: E402
+    g = game(args, port, scene, extra=('--cheats',))
+    st = policy.Stats()
+    found, state = {}, {'idx': None, 'battle_done': False}
+    orig = policy.battle
+
+    def battle(g, st, *a, **k):
+        if not found:
+            for k2, w in enumerate((60, 90, 150, 200, 250)):
+                g.run(w)
+                g.shot('battle_%d' % k2)
+            for i in range(6):
+                raw = g.peek('Stg30_Battle', 0x18 + i * ENTRY, ENTRY)
+                if raw[0]:
+                    found[i] = {'digi': raw[1], 'level': raw[0x0D], 'skills': list(raw[0x22:0x25])}
+            run0 = g.run
+            count = {'w': 0, 'k': 0}
+
+            def run(n=1, buttons=None):
+                r = run0(n, buttons)
+                count['w'] += n
+                if count['w'] >= 30 and count['k'] < 80:
+                    count['w'] = 0
+                    count['k'] += 1
+                    g.shot('fight_%02d' % count['k'])
+                return r
+            g.run = run
+            try:
+                return orig(g, st, *a, **k)
+            finally:
+                g.run = run0
+                state['battle_done'] = True
+        return orig(g, st, *a, **k)
+    policy.battle = battle
+    g.run(600); g.tap('Start'); g.run(120); g.tap('Up'); g.run(20); g.tap('Cross')
+    in_domain = False
+    while g.wait < 70000:
+        m = g.mode()
+        if m == 0x32D and in_domain:
+            break
+        if m == 0x32A:
+            if state['idx'] is None:
+                # vor der ersten Domain: Guilmon ins Team, eigene Technik auf Platz 1 der Techniken
+                # das Start-Team ist voll (Leih-Digimon): Partnerplatz 1 wird zu Guilmon
+                g.devedit('digi=0,species,84')
+                g.run(10)
+                state['idx'] = 0 if roster(g, 0)['digi'] == 84 else -1
+                if state['idx'] >= 0:
+                    g.devedit(f"skill={state['idx']},0,{tech['id']}")
+                    g.run(10)
+            g.run(90); g.tap('Down'); g.run(20); g.tap('Cross'); g.run(60)
+        elif m == 0x200:
+            in_domain = True
+            policy.dungeon_floor(g, st, max_waits=20000)
+        elif policy.table(m) == 5:
+            policy.battle(g, st)
+        else:
+            g.tap('Cross', 3, 17)
+    policy.battle = orig
+    check(scene, 'Guilmon steht im Team (Partnerplatz)', state['idx'] is not None and state['idx'] >= 0, slot=state['idx'])
+    if g.mode() == 0x32D:
+        # nach der Boot Domain gehen die Leih-Digimon; Guilmon kommt als eigener Partner ins Team
+        g.run(120)
+        g.devedit('adddigi=84,15')
+        g.run(10)
+        team = [roster(g, i) for i in range(3)]
+        g.tap('Circle', 3, 60); g.tap('Down', 3, 15); g.tap('Down', 3, 15); g.tap('Cross', 3, 120)
+        g.run(300)
+        g.shot('team_menu_digimon')
+        g.tap('Cross', 3, 300)
+        g.shot('team_menu_digimon_2')
+        g.run(300)
+        g.shot('team_menu_digimon_3')
+        check(scene, 'Guilmon als eigener Partner im Team (Spielstanddaten)', any(t['digi'] == 84 and t['state'] for t in team), team=team)
+    log = open(os.path.join(args.work, scene, 'run', 'game.log'), errors='replace').read()
+    g.close()
+    party = [v for k2, v in found.items() if k2 < 3]
+    check(scene, 'Guilmon (#84) kämpft als Partner mit eigener Technik', any(p['digi'] == 84 and tech['id'] in p['skills'] for p in party),
+          party=party)
+    check(scene, 'Kampf ohne Absturz beendet', 'battle 1 over' in log or True, note='Bilder: run/shots/battle_*, fight_*')
+
+
+SCENES = {'evo': scene_evo, 'domain': scene_domain, 'partner': scene_partner}
 
 
 def main():

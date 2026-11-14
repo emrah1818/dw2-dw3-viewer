@@ -5,6 +5,7 @@ einen JSON-Text {"ok": true, "data": ...} oder {"ok": false, "error": "..."}.
 Alle Schreibvorgänge nutzen dieselben Kernmodule wie die Windows-Version
 (EditSession, NameRepository, TypeRepository, PropertyRepository, RosterSave ...).
 """
+from dw2studio.version import VERSION
 from pathlib import Path
 import hashlib
 import json
@@ -35,6 +36,7 @@ class State:
         self.props = {}
         self.roster = None
         self.source_names = {}
+        self.digivolve_levels = {}   # 1.0: prepared for a future port interface, no effect today
 
 
 S = State()
@@ -89,7 +91,7 @@ def export_port_mod(port_dir, pak_path=None):
     from dw2studio.port_mod import export
     s = _need_session()
     pak = s.pak if hasattr(s, 'pak') else PakFile(pak_path)
-    return export(s, pak, port_dir, mod_name='DW2 Mod Studio 0.17b')
+    return export(s, pak, port_dir, mod_name='DW2 Mod Studio ' + VERSION)
 
 
 def port_mod_status(port_dir):
@@ -143,6 +145,7 @@ def open_image(path):
         S.image_path, S.session = session.source, session
         S.entries, S.catalog, S.index_key = entries, catalog, key
         S.names = S.attacks = S.types = None
+        S.digivolve_levels = {}
         S.props, S.roster = {}, None
         S.source_names = {c.id: c.name for c in catalog}
         return {'name': S.image_path.name, 'count': len(catalog), 'cached': False,
@@ -442,6 +445,12 @@ def save_project(name):
     folder = _exports()
     target = folder / _unique_name(folder, name if name.endswith('.dw2mod') else name + '.dw2mod')
     s.export_project(target)
+    levels = getattr(S, 'digivolve_levels', {}) or {}
+    if levels:
+        import zipfile
+        from dw2studio.digivolve_levels import dumps, FILENAME
+        with zipfile.ZipFile(target, 'a') as archive:
+            archive.writestr(FILENAME, dumps(levels))
     return {'path': str(target), 'name': target.name}
 
 
@@ -464,6 +473,10 @@ def load_project(path):
         except (ValueError, OSError):
             pass
         s.import_project(path, S.entries)
+        from dw2studio.digivolve_levels import loads, FILENAME
+        with zipfile.ZipFile(path) as archive:
+            if FILENAME in archive.namelist():
+                S.digivolve_levels = loads(archive.read(FILENAME).decode('utf-8'))
         for filename in tables:
             PARSERS[filename](s.current(_props(filename).entry))
         _refresh_names()
@@ -794,19 +807,19 @@ def _pak():
 def mod_check(port_dir):
     from dw2studio.mod_io import check
     s, pak = _pak()
-    return check(s, pak, port_dir)
+    return check(s, pak, port_dir, S.digivolve_levels)
 
 
 def mod_export(port_dir):
     from dw2studio.mod_io import export_checked
     s, pak = _pak()
-    return export_checked(s, pak, port_dir, replace=False, name='DW2 Mod Studio 0.17b')
+    return export_checked(s, pak, port_dir, replace=False, name='DW2 Mod Studio ' + VERSION, levels=S.digivolve_levels)
 
 
 def mod_export_replace(port_dir):
     from dw2studio.mod_io import export_checked
     s, pak = _pak()
-    return export_checked(s, pak, port_dir, replace=True, name='DW2 Mod Studio 0.17b')
+    return export_checked(s, pak, port_dir, replace=True, name='DW2 Mod Studio ' + VERSION, levels=S.digivolve_levels)
 
 
 def mod_import(port_dir):
@@ -920,6 +933,26 @@ def technique_assign(technique, digimon_ids):
 def technique_budget():
     from dw2studio.core.techniques import id_budget
     return id_budget(_techniques())
+
+
+def digivolve_levels_info():
+    from dw2studio.digivolve_levels import DEFAULT, FORMAT
+    return {'levels': {str(k): v for k, v in (getattr(S, 'digivolve_levels', {}) or {}).items()},
+            'default': DEFAULT, 'format': FORMAT, 'effective': False,
+            'note': 'Der aktuelle PC-Port liest diese Werte nicht: im Spiel gilt weiter Rookie ab 11, '
+                    'Champion ab 21, Ultimate ab 31. Die Werte werden für eine künftige Port-Schnittstelle '
+                    'gespeichert und exportiert (DIGITATIONSLEVEL_SCHNITTSTELLE.md).'}
+
+
+def digivolve_level_set(digimon, level=None):
+    from dw2studio.digivolve_levels import validate
+    levels = dict(getattr(S, 'digivolve_levels', {}) or {})
+    if level in (None, '', 0):
+        levels.pop(int(digimon), None)
+    else:
+        levels[int(digimon)] = int(level)
+    S.digivolve_levels = validate(levels)
+    return digivolve_levels_info()
 
 
 def evolution_validate():
@@ -1044,7 +1077,7 @@ def hd_active(identifier):
 
 # --------------------------------------------------------------------------- Verlauf (Rückgängig / Wiederherstellen)
 UNDO, REDO = [], []
-MUTATING = {'dw3_native_apply', 'dw3_batch_apply', 'mod_import', 'mod_import_force', 'technique_copy_parts', 'technique_assign', 'domain_set_floor', 'group_set', 'group_clone',
+MUTATING = {'digivolve_level_set', 'dw3_native_apply', 'dw3_batch_apply', 'mod_import', 'mod_import_force', 'technique_copy_parts', 'technique_assign', 'domain_set_floor', 'group_set', 'group_clone',
             'technique_create', 'technique_edit', 'camera_set', 'evolution_line', 'set_evolution', 'rename', 'set_type', 'set_specialty', 'set_enemy_values', 'apply_attacks', 'roster_change',
             'roster_restore', 'discard', 'load_project', 'png_apply', 'transfer_apply', 'bin_apply',
             'rig_apply', 'restore_original'}
@@ -1052,11 +1085,13 @@ MUTATING = {'dw3_native_apply', 'dw3_batch_apply', 'mod_import', 'mod_import_for
 
 def _snapshot():
     return (dict(S.session.edits) if S.session else {},
-            bytes(S.roster.raw) if S.roster is not None else None)
+            bytes(S.roster.raw) if S.roster is not None else None,
+            dict(getattr(S, 'digivolve_levels', {}) or {}))
 
 
 def _restore(snap):
-    edits, roster = snap
+    edits, roster, levels = snap
+    S.digivolve_levels = dict(levels)
     if S.session is not None:
         S.session.edits = dict(edits)
     if S.roster is not None and roster is not None:
@@ -1121,7 +1156,8 @@ _METHODS = {
     'techniques_catalog': techniques_catalog, 'technique_usage': technique_usage,
     'technique_create': technique_create, 'technique_edit': technique_edit,
     'technique_copy_parts': technique_copy_parts, 'technique_assign': technique_assign,
-    'technique_budget': technique_budget, 'evolution_validate': evolution_validate, 'mod_import_force': mod_import_force,
+    'technique_budget': technique_budget, 'evolution_validate': evolution_validate,
+    'digivolve_levels_info': digivolve_levels_info, 'digivolve_level_set': digivolve_level_set, 'mod_import_force': mod_import_force,
     'hd_preview': hd_preview, 'hd_active': hd_active, 'files_list': files_list, 'file_export': file_export, 'dw3_models': dw3_models,
     'camera_info': camera_info, 'camera_set': camera_set, 'dw3_batch_apply': dw3_batch_apply,
     'open_dw3': open_dw3, 'prepare_dw3': prepare_dw3, 'export_dw3': export_dw3, 'export_port_mod': export_port_mod,

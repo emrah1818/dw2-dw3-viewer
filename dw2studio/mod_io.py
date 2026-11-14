@@ -24,7 +24,7 @@ def _api_level(port):
         return 1
 
 
-def check(session, pak, port_dir):
+def check(session, pak, port_dir, levels=None):
     """What an export would write and what stands in its way. Writes nothing."""
     port = Path(port_dir)
     report = {'files': [], 'errors': [], 'conflicts': [], 'warnings': [], 'api': _api_level(port)}
@@ -33,6 +33,13 @@ def check(session, pak, port_dir):
         return report
     if not (port / 'dw2.exe').is_file() and not (port / 'dw2').is_file():
         report['warnings'].append('Im Ordner liegt keine dw2.exe. Ist das der PC-Port-Ordner?')
+    if levels:
+        from .digivolve_levels import port_supports, FILENAME
+        report['levels'] = len(levels)
+        if not port_supports(port):
+            report['warnings'].append(f'Digitationslevel für {len(levels)} Digimon werden als Mods\\{FILENAME} '
+                                      'mitgeschrieben, wirken aber erst mit einem PC-Port, der diese Datei liest '
+                                      '(der mitgelieferte Port tut das noch nicht).')
     if not session.edits:
         report['errors'].append('Es sind keine Änderungen vorgemerkt.')
         return report
@@ -66,8 +73,8 @@ def check(session, pak, port_dir):
     return report
 
 
-def export_checked(session, pak, port_dir, *, replace=False, name='DW2 Mod Studio'):
-    report = check(session, pak, port_dir)
+def export_checked(session, pak, port_dir, *, replace=False, name='DW2 Mod Studio', levels=None):
+    report = check(session, pak, port_dir, levels)
     if report['errors']:
         raise ValueError(' '.join(report['errors']))
     moved = None
@@ -78,6 +85,11 @@ def export_checked(session, pak, port_dir, *, replace=False, name='DW2 Mod Studi
         moved = disable(port_dir)
     result = export(session, pak, port_dir, mod_name=name)
     result['replaced'] = moved
+    if levels:
+        from .digivolve_levels import dumps, FILENAME
+        (Path(port_dir) / 'Mods' / FILENAME).write_text(dumps(levels), encoding='utf-8')
+        result['digivolve_levels'] = len(levels)
+    result['warnings'] = report['warnings']
     return result
 
 
