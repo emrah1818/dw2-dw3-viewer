@@ -50,7 +50,7 @@ def test_hd_export_accepts_2048x4096(tmp_path):
     assert export(native, picture, port)['scale'] == 16
 
 
-AREAS = ['page-files', 'page-view', 'page-list', 'page-attacks', 'page-evo', 'page-domains', 'page-dw3', 'page-tex', 'page-changes']
+AREAS = ['page-files', 'page-view', 'page-list', 'page-edit', 'page-attacks', 'page-evo', 'page-domains', 'page-dw3', 'page-tex', 'page-changes']
 
 
 def test_window_has_the_nine_areas_and_every_tab_has_a_page():
