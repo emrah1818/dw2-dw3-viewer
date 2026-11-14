@@ -105,3 +105,23 @@ def test_real_native_import_history_project_and_export(tmp_path,monkeypatch):
     result=api.export_port_mod(port)
     assert result['count']==11 and len(list((port/'Mods/Textures').rglob('*.png')))==1
     assert hashlib.sha256(api.S.image_path.read_bytes()).hexdigest()==sha
+
+
+def test_split_rigid_mesh_keeps_parent_and_motion(tmp_path):
+    from copy import deepcopy
+    from dw2studio.core.rig_animation import parents_from_depths
+    s=source(tmp_path)
+    s['bones'][1]['faces']*=257
+    child=deepcopy(s['bones'][1]);child['parent']=1;child['faces']=child['faces'][:1]
+    s['bones'].append(child)
+    for frame in s['motions'][0]['frames']:frame.append(frame[1][:])
+    native,_,report=encode_model(s,tmp_path)
+    model=NativeModel(native)
+    assert report['bones']==3 and report['triangles']==258
+    assert [len(p.primitives) for p in model.parts]==[256,1,1]
+    depths=struct.unpack_from('<3I',native,12+12*3)
+    assert depths==(0,0,1) and parents_from_depths(list(depths))==[-1,-1,1]
+    anim=encode_animation(s,{0:0})
+    parsed=parse_anim_file(anim,3)
+    for row in parsed.clips[0].rows:
+        assert pose_matrix(anim,parsed.pose_offsets[0],row[0])==pose_matrix(anim,parsed.pose_offsets[1],row[1])

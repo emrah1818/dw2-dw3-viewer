@@ -13,6 +13,11 @@ from .native_model import NativeModel
 from .native_anim import parse_anim_file
 
 
+def triangles(bone):
+    return [(face, (0, fan, fan+1)) for face in bone['faces']
+            for fan in range(1, len(face['indices'])-1)]
+
+
 def hierarchy(source):
     bones = source['bones']
     if not 2 <= len(bones) <= 65 or bones[0]['parent'] != -1:
@@ -27,11 +32,18 @@ def hierarchy(source):
     def visit(i, depth):
         if depth > 7:
             raise ValueError('Skelett überschreitet die 8 DW2-Hierarchieebenen.')
-        order.append(i); depths.append(depth)
+        # A native normal index is one byte. Split large rigid meshes into
+        # sibling parts of at most 256 triangles, retaining exact flat normals.
+        # Put the final copy immediately before the children: DW2's depth stack
+        # then uses the same source transform for their parent.
+        copies = max(1, math.ceil(len(triangles(bones[i]))/256))
+        order.extend([i]*copies); depths.extend([depth]*copies)
         for child in children[i]:
             visit(child, depth+1)
     for child in children[0]:
         visit(child, 0)
+    if len(order) > 64:
+        raise ValueError('Teilmesh-Aufteilung benötigt mehr als 64 native Körperknochen.')
     return order, depths
 
 
@@ -121,46 +133,46 @@ def encode_model(source, folder, scale=1., hd_scale=4):
     def block(data):
         out.extend(bytes((-len(out))%4));at=len(out);out.extend(data);return at
     pointers = [[],[],[]]
-    triangles = 0
+    triangle_count = 0
+    chunks = {}
     for bone in order:
         b = source['bones'][bone]
         vertices = np.rint(np.asarray(b['vertices'], dtype=float)*scale).astype(np.int64)
         if len(vertices) > 256 or not len(vertices) or np.abs(vertices).max() > 32767:
             raise ValueError(f'DW3-Knochen {bone}: 1–256 Vertices im 16-Bit-Bereich erforderlich.')
         normals, normal_ids, prims = [], {}, [[],[]]
-        for face in b['faces']:
+        chunk = chunks.get(bone, 0); chunks[bone] = chunk+1
+        for face, corners in triangles(b)[chunk*256:(chunk+1)*256]:
             img = face['image']
             if type(img) is not int or not 0 <= img < len(tiles):
                 raise ValueError('Ungültige Materialzuordnung.')
             tx,ty,tw,th,iw,ih = tiles[img]
-            for fan in range(1,len(face['indices'])-1):
-                corners = (0,fan,fan+1)
-                ids = [face['indices'][k] for k in corners]
-                if any(type(v) is not int or not 0 <= v < len(vertices) for v in ids):
-                    raise ValueError('Ungültiger Vertexindex.')
-                v = vertices[ids]
-                normal = np.cross(v[1]-v[0],v[2]-v[0]).astype(float)
-                normal /= max(np.linalg.norm(normal),1e-9)
-                normal = tuple(np.rint(normal*4096).astype(int))
-                if normal not in normal_ids:
-                    normal_ids[normal] = len(normals);normals.append(normal)
-                if len(normals) > 256:
-                    raise ValueError('Mehr als 256 Normalen in einem Knochen.')
-                uv=[]
-                for k in corners:
-                    u,v=face['uv'][k]
-                    if not 0 <= u < iw or not 0 <= v < ih:
-                        raise ValueError('Wiederholende DW3-UVs müssen vor dem Import aufgeteilt werden.')
-                    uv.append((tx+round(u/max(iw-1,1)*(tw-1)),ty+round(v/max(ih-1,1)*(th-1))))
-                clut = ((224+img//2)<<6) | (img%2)
-                abr = face['abr']
-                if type(abr) is not int or not 0 <= abr <= 4:
-                    raise ValueError('Ungültiger PS1-Mischmodus.')
-                # Input faces are CCW in the exported GLB; DW2 stores reversed triangles.
-                rev=(2,1,0)
-                payload=bytes(ids[k] for k in rev)+bytes([normal_ids[normal]]*3)+bytes(c for k in rev for c in uv[k])+struct.pack('<HH',clut,((abr-1)<<5) if abr else 0)
-                prims[0 if abr else 1].append(payload)
-                triangles+=1
+            ids = [face['indices'][k] for k in corners]
+            if any(type(v) is not int or not 0 <= v < len(vertices) for v in ids):
+                raise ValueError('Ungültiger Vertexindex.')
+            v = vertices[ids]
+            normal = np.cross(v[1]-v[0],v[2]-v[0]).astype(float)
+            normal /= max(np.linalg.norm(normal),1e-9)
+            normal = tuple(np.rint(normal*4096).astype(int))
+            if normal not in normal_ids:
+                normal_ids[normal] = len(normals);normals.append(normal)
+            if len(normals) > 256:
+                raise ValueError('Mehr als 256 Normalen in einem Knochen.')
+            uv=[]
+            for k in corners:
+                u,v=face['uv'][k]
+                if not 0 <= u < iw or not 0 <= v < ih:
+                    raise ValueError('Wiederholende DW3-UVs müssen vor dem Import aufgeteilt werden.')
+                uv.append((tx+round(u/max(iw-1,1)*(tw-1)),ty+round(v/max(ih-1,1)*(th-1))))
+            clut = ((224+img//2)<<6) | (img%2)
+            abr = face['abr']
+            if type(abr) is not int or not 0 <= abr <= 4:
+                raise ValueError('Ungültiger PS1-Mischmodus.')
+            # Input faces are CCW in the exported GLB; DW2 stores reversed triangles.
+            rev=(2,1,0)
+            payload=bytes(ids[k] for k in rev)+bytes([normal_ids[normal]]*3)+bytes(c for k in rev for c in uv[k])+struct.pack('<HH',clut,((abr-1)<<5) if abr else 0)
+            prims[0 if abr else 1].append(payload)
+            triangle_count+=1
         if not normals or not any(prims):
             raise ValueError('DW3-Teilmodell ohne Geometrie.')
         pointers[0].append(block(struct.pack('<IH',len(vertices),0)+vertices.astype('<i2').tobytes()))
@@ -172,7 +184,7 @@ def encode_model(source, folder, scale=1., hd_scale=4):
     out.extend(bytes((-len(out))%4));tim_start=len(out);out.extend(tim)
     struct.pack_into('<III',out,0,tim_start,0,n)
     NativeModel(out)
-    return bytes(out),hd,{'bones':n,'triangles':triangles,'scale':scale,'textures':len(tiles)}
+    return bytes(out),hd,{'bones':n,'triangles':triangle_count,'scale':scale,'textures':len(tiles)}
 
 
 def encode_animation(source, mapping, scale=1., loops=()):
