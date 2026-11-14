@@ -67,6 +67,7 @@
       <label class="row"><input type="checkbox" id="o-grid"> <span data-i18n="Boden-Raster">Boden-Raster</span></label>
       <label class="row"><input type="checkbox" id="o-wire"> <span data-i18n="Drahtgitter">Drahtgitter</span></label>
       <label class="row"><input type="checkbox" id="o-nearest" checked> <span data-i18n="Pixel-Look (PS1)">Pixel-Look (PS1)</span></label>
+      <label class="row"><input type="checkbox" id="o-autohd" checked> <span data-i18n="Modus A: HD-Textur automatisch zeigen">Modus A: HD-Textur automatisch zeigen</span></label>
       <label class="row"><input type="checkbox" id="o-prefetch" checked> <span data-i18n="Nachbarmodelle vorbereiten">Nachbarmodelle vorbereiten</span></label>
       <label class="row"><span data-i18n="Licht">Licht</span> <input type="range" id="o-light" min="0.2" max="3" step="0.1" value="1.2"></label>
       <label class="row"><span data-i18n="Hintergrundfarbe (ohne Original-Hintergrund)">Hintergrundfarbe (ohne Original-Hintergrund)</span> <input type="color" id="o-bg" value="#16243a"></label>
@@ -80,6 +81,12 @@
       <label class="row"><input type="checkbox" id="c-blend" checked> <span data-i18n="PS1-Mischmodi (Halbtransparenz)">PS1-Mischmodi (Halbtransparenz)</span></label>
       <div id="diag-info" class="hint"></div>
       <div class="btns"><button id="b-native-zip" data-i18n="Rohdaten dieses Digimon exportieren (ZIP)">Rohdaten dieses Digimon exportieren (ZIP)</button></div>
+    </details>
+    <details class="card" id="dw3q-card" hidden>
+      <summary data-i18n="DW3-Import: Qualität (gemessen)">DW3-Import: Qualität (gemessen)</summary>
+      <div id="dw3q-info" class="hint"></div>
+      <div class="btns"><button id="b-dw3-source" data-i18n="DW3-Original ansehen">DW3-Original ansehen</button>
+        <button id="b-dw3-back" data-i18n="Konvertiertes Modell ansehen">Konvertiertes Modell ansehen</button></div>
     </details>
     <details class="card" id="tex-card">
       <summary data-i18n="Texturen">Texturen</summary>

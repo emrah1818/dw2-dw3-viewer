@@ -640,7 +640,24 @@ def prepare_model(identifier, original=False):
         animations = model_animation_names(model)
     except Exception:
         animations = []
+    dw3, hd = None, False
+    if not original:
+        job = (getattr(S, 'dw3_imports', {}) or {}).get(c.id)
+        if job and job.get('quality'):
+            dw3 = dict(job['quality'], source_name=job.get('source_name'))
+            view = Path(str(dw3.pop('source_view', '') or ''))
+            try:
+                dw3['source_url'] = view.resolve().relative_to(CACHE.resolve()).as_posix() if view.is_file() else None
+            except ValueError:
+                dw3['source_url'] = None
+        try:
+            from dw2studio.core.native_rom_bridge import native_model_entry
+            hd = bool(getattr(s, 'hd_files', None) and s.hd_files.get(
+                hashlib.sha256(s.current(native_model_entry(S.entries, c))).hexdigest()))
+        except Exception:
+            hd = False
     return {'url': model.relative_to(CACHE).as_posix(), 'name': c.name, 'id': c.id, 'code': c.code,
+            'dw3_quality': dw3, 'hd_available': hd,
             'animations': animations, 'anim_source': family, 'edited': edited, 'original': bool(original),
             **dict(zip(('shadow', 'shadow_error'), _shadow_url())),
             'seconds': round(time.perf_counter() - started, 2)}

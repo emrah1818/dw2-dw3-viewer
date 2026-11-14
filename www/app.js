@@ -193,6 +193,11 @@ async function loadModel(id) {
     if (info.shadow) view.setShadow(BASE + info.shadow).catch(e => log('Schatten: ' + e.message));
     else if (info.shadow_error) log('Schatten: ' + info.shadow_error);
     renderDiag(info);
+    renderDw3Quality(info);
+    if (info.hd_available && state.image?.source_kind === 'pak' && $('#o-autohd').checked) {
+      try { const h = await native('hd_active', id); if (seq === loadSeq && h) { const hi = await view.setHdPreview(BASE + h.url); log(`HD-Textur ${hi.width}×${hi.height} ${t('angezeigt (wie im PC-Port)')}`); } }
+      catch (e) { log('HD: ' + e.message); }
+    }
     log(`${info.name}: ${t('geladen')} (${info.seconds} s)`);
     prefetchNeighbours(id);
   } catch (e) {
@@ -248,6 +253,32 @@ function renderDiag(info) {
   if (c.legacy) rows.push([t('Hinweis'), t('{n} Clips nur tolerant lesbar', { n: c.legacy })]);
   el.innerHTML = rows.map(([k, v]) => `<div><b>${esc(k)}:</b> ${esc(String(v))}</div>`).join('') +
     [...c.warnings, ...(src?.notes || [])].map(w => `<div class="warn">${esc(w)}</div>`).join('');
+}
+// DW3-Import: gemessene Verluste gegen das DW3-Original (dw3_native.quality_report)
+function renderDw3Quality(info) {
+  const q = info?.dw3_quality, card = $('#dw3q-card');
+  card.hidden = !q;
+  if (!q) return;
+  if (q.error) { $('#dw3q-info').innerHTML = `<div class="warn">${esc(q.error)}</div>`; return; }
+  const s = q.source, c = q.converted, x = q.texture;
+  const lost = s.triangles - c.triangles;
+  const db = v => v >= 99 ? t('identisch') : `${v} dB`;
+  const rows = [
+    [t('Quelle'), `${q.source_name || 'DW3'}: ${s.bones} ${t('Knochen')}, ${s.vertices} Vertices, ${s.triangles} ${t('Dreiecke')}, ${s.pages.length} ${t('Seiten')} (${s.pages.map(p => p.join('×')).join(', ')})`],
+    [t('Konvertiert'), `${c.parts} ${t('Teile')}, ${c.triangles} ${t('Dreiecke')}` + (lost ? ` — ${t('{n} Dreiecke weniger (PS1-Optimierung)', { n: lost })}` : ` — ${t('keine Dreiecke verloren')}`)],
+    [t('Atlas 1x'), `128×224, ${x.charts} ${t('Bereiche')} (${x.rotated} ${t('gedreht')}), ${t('Maßstab')} ${x.scale}`],
+    [t('Textur 1x (Pixel-Look/PS1)'), `${db(x.psnr_1x)}, ${Math.round(x.changed_1x * 100)} % ${t('der Texel abweichend')}`],
+    [t('HD-Textur'), x.hd ? `${x.hd.join('×')} (${x.hd_factor}×): ${db(x.psnr_hd)}, ${Math.round(x.changed_hd * 100)} % ${t('der Texel abweichend')}` : t('keine (PS1-Image)')],
+    [t('UV-Abweichung'), `Ø ${q.uv.mean}, max ${q.uv.max} ${t('Quelltexel')}`],
+    [t('Augen / Gesichtsteile'), `${q.face.eyes} / ${q.face.parts}`],
+  ];
+  $('#dw3q-info').innerHTML = rows.map(([k, v]) => `<div><b>${esc(k)}:</b> ${esc(String(v))}</div>`).join('') +
+    (lost ? `<div class="warn">${esc(t('Geometrie wurde für das PS1-Image reduziert. Im Modus A (PC-Port) bleibt das Modell vollständig.'))}</div>` : '');
+  $('#b-dw3-source').disabled = !q.source_url;
+  $('#b-dw3-source').onclick = async () => {
+    try { await view.load(BASE + q.source_url); toast(t('DW3-Original (Quelle, unverändert)')); } catch (e) { await fail(e); }
+  };
+  $('#b-dw3-back').onclick = () => loadModel(state.id);
 }
 $('#b-native-zip').onclick = async () => {
   if (!needDigimon()) return;

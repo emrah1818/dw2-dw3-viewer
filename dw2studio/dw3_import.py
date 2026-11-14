@@ -163,6 +163,13 @@ def apply(api, source_id, target_id, assignments, scale_factor=1., hd_scale=0, c
                 optimized[slot]=f'jedes {step}. Bild'
         changes.append((entry,data,f'DW3-Bewegungen → {slot}'+(f' ({optimized[slot]})' if slot in optimized else '')))
     report['ps1']=ps1
+    from .core.dw3_native import quality_report
+    try:
+        report['quality']=quality_report(source,prepared['folder'],native,None if ps1 else hd,prepared.get('face'),
+                                         original=prepared['source'])
+        report['quality']['source_view']=str(Path(prepared['folder'])/'model.glb')
+    except (ValueError, OSError) as exc:   # the import itself stands; the report says why it is missing
+        report['quality']={'error':str(exc)}
     if optimized:
         report['optimized']=optimized
     buffer=io.BytesIO()
@@ -205,7 +212,7 @@ def apply(api, source_id, target_id, assignments, scale_factor=1., hd_scale=0, c
     if hasattr(api,'S') and hasattr(api.S,'dw3_imports'):
         api.S.dw3_imports[target_id]={'source_name':prepared['info']['name'],'assignments':assignments,
                                       'scale':float(scale_factor),'hd':int(hd_scale),'size':round(scale,4),
-                                      'size_mode':size_mode}
+                                      'size_mode':size_mode,'quality':report.get('quality')}
     if ps1:
         report.update(files=len(changes),hd_size=None,requires_mod_api=None,
                       note='PS1-Image: native Textur (16 Farben je Seite), keine HD-Textur und keine Kampfkamera-Datei')

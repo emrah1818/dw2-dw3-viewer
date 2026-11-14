@@ -280,7 +280,7 @@ export class Viewer {
     const max = this.renderer.capabilities.maxTextureSize;
     if (tex.image.width > max || tex.image.height > max) { tex.dispose(); throw new Error(`Grafikkarte erlaubt höchstens ${max} Pixel Kantenlänge.`); }
     tex.colorSpace = THREE.SRGBColorSpace; tex.flipY = false;
-    tex.generateMipmaps = true; tex.minFilter = THREE.LinearMipmapLinearFilter; tex.magFilter = THREE.LinearFilter;
+    this.filter(tex);   // Pixel-Look gilt auch für HD: Auflösung und Filter sind getrennt
     tex.anisotropy = this.renderer.capabilities.getMaxAnisotropy();
     this.clearHdPreview();
     n.hd = tex;

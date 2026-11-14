@@ -78,3 +78,15 @@ def test_encoded_uvs_land_on_their_source_texels(tmp_path):
             sv = (ax - x + .5) * ch / tw if rot else (ay - y + .5) * ch / th
             assert math.hypot(su - .5 + cx - u, sv - .5 + cy - v) <= 0.5 / scale + 1e-6
     NativeModel(native)
+
+
+def test_quality_report_counts_and_measures(tmp_path):
+    from dw2studio.core.dw3_native import quality_report
+    s = wide_source(tmp_path)
+    native, hd, rep = encode_model(s, tmp_path, hd_scale=0)
+    q = quality_report(s, tmp_path, native, hd)
+    assert q['source']['triangles'] == q['converted']['triangles'] == 4
+    assert q['texture']['psnr_hd'] == 99.0 and q['texture']['changed_hd'] == 0
+    assert q['texture']['texels'] > 0 and q['uv']['max'] < 1.5
+    ps1 = quality_report(s, tmp_path, native, None)
+    assert ps1['texture']['hd'] is None and ps1['texture']['psnr_hd'] is None

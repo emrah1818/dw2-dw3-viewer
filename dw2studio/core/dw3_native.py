@@ -843,3 +843,89 @@ def simplify_source(source, cell):
 
 def triangle_total(source):
     return sum(len(triangles(b)) for b in source['bones'])
+
+
+def quality_report(source, folder, native, hd, face=None, original=None):
+    """Measured DW3 -> DW2 losses of one import, against the DW3 original (ORIGINAL: the source
+    before a PS1 reduction, default SOURCE). Geometry: vertices / triangles / bones. Texture: every
+    texel the polygons sample, read back through the atlas the way the game reads it (1x: native
+    4-bit TIM with its palette; HD: the HD picture), as PSNR in dB (99 = identical) and the share
+    of texels that differ; UV error in source texels (the 1x atlas is an integer grid)."""
+    from .native_model import NativeModel
+    original = original or source
+    parts = face_plan(source, face)[0] if face else []
+    k = hd.width // 128 if hd is not None else 1
+    tim, hd_check, tiles, _, owner, scale = atlas(source, folder, k if k in (1, 2, 4, 8, 16) else 4, parts)
+    m = NativeModel(native)
+    raw = np.frombuffer(native[m.tim_start + 20:m.tim_start + 20 + 16384], np.uint8).reshape(256, 64)
+    idx = np.zeros((256, 128), np.uint8)
+    idx[:, 0::2], idx[:, 1::2] = raw & 15, raw >> 4
+    hda = np.asarray(hd.convert('RGBA') if hd is not None else hd_check).astype(np.int32)
+    pages = _load_pages(source, folder)
+    chart_list, _ = charts(source, [p.size for p in pages], parts)
+    faces_of = {}
+    for b in source['bones']:
+        for f in b['faces']:
+            faces_of.setdefault(owner[id(f)], []).append(f)
+    err1 = errh = 0.
+    n = diff1 = diffh = 0
+    pages_out = []
+    for c, t in enumerate(tiles):
+        x, y, tw, th, cx, cy, cw, ch, rot = t
+        img = chart_list[c]['image']
+        page = np.asarray(pages[img]).astype(np.int32)
+        mask = np.zeros((ch, cw), bool)
+        for f in faces_of.get(c, ()):
+            us, vs = [u for u, _ in f['uv']], [v for _, v in f['uv']]
+            mask[max(0, min(vs) - cy):max(vs) - cy + 1, max(0, min(us) - cx):max(us) - cx + 1] = True
+        vv, uu = np.nonzero(mask)
+        ref = page[vv + cy, uu + cx]
+        keep = ref[:, 3] >= 128
+        vv, uu, ref = vv[keep], uu[keep], ref[keep]
+        if not len(ref):
+            continue
+        fu, fv = (uu + .5) / cw, (vv + .5) / ch
+        if rot:
+            fu, fv = fv, fu
+        ax = x + np.clip((fu * tw).astype(int), 0, tw - 1)
+        ay = y + np.clip((fv * th).astype(int), 0, th - 1)
+        words = np.frombuffer(raw[224 + img // 2].tobytes()[(img % 2) * 32:(img % 2) * 32 + 32], '<u2')
+        pal = np.stack([(words & 31) << 3, (words >> 5 & 31) << 3, (words >> 10 & 31) << 3], 1).astype(np.int32)
+        c1 = pal[idx[ay, ax]]
+        hx = np.clip(((x + fu * tw) * k).astype(int), 0, hda.shape[1] - 1)
+        hy = np.clip(((y + fv * th) * k).astype(int), 0, hda.shape[0] - 1)
+        c2 = hda[hy, hx, :3]
+        r = ref[:, :3] & ~7                     # 15-bit colour (the PS1's): what 1x can hold at best
+        err1 += float(((c1 - r) ** 2).sum()) / 3
+        errh += float(((c2 - ref[:, :3]) ** 2).sum()) / 3
+        diff1 += int(np.any(c1 != r, 1).sum())
+        diffh += int(np.any(c2 != ref[:, :3], 1).sum())
+        n += len(ref)
+    psnr = lambda e: 99.0 if e == 0 else round(10 * math.log10(255 ** 2 / e), 1)
+    uv = []
+    for b in source['bones']:
+        for f in b['faces']:
+            x, y, tw, th, cx, cy, cw, ch, rot = t = tiles[owner[id(f)]]
+            for u, v in f['uv']:
+                ax, ay = tile_uv(t, u, v)
+                su = (ay - y + .5) * cw / th if rot else (ax - x + .5) * cw / tw
+                sv = (ax - x + .5) * ch / tw if rot else (ay - y + .5) * ch / th
+                uv.append(math.hypot(su - .5 + cx - u, sv - .5 + cy - v))
+    uv = np.asarray(uv) if uv else np.zeros(1)
+    sizes = [list(p.size) for p in pages]
+    no_hd = hd is None
+    out = {
+        'source': {'bones': len(original['bones']) - 1, 'vertices': sum(len(b['vertices']) for b in original['bones']),
+                   'triangles': triangle_total(original), 'pages': sizes},
+        'converted': {'parts': len(m.parts), 'vertices': sum(p.vertex_count for p in m.parts),
+                      'triangles': triangle_total(source)},
+        'texture': {'scale': round(scale, 3), 'charts': len(tiles), 'rotated': int(sum(t[8] for t in tiles)),
+                    'atlas': [128, 224], 'hd': [hda.shape[1], hda.shape[0]], 'hd_factor': k,
+                    'texels': n, 'psnr_1x': psnr(err1 / max(n, 1)), 'psnr_hd': psnr(errh / max(n, 1)),
+                    'changed_1x': round(diff1 / max(n, 1), 3), 'changed_hd': round(diffh / max(n, 1), 3)},
+        'uv': {'mean': round(float(uv.mean()), 2), 'max': round(float(uv.max()), 2)},
+        'face': {'parts': len(parts), 'eyes': sum(p['slot'] < 2 for p in parts)},
+    }
+    if no_hd:   # PS1 image: no HD texture exists
+        out['texture'].update(hd=None, hd_factor=None, psnr_hd=None, changed_hd=None)
+    return out
