@@ -1,6 +1,7 @@
 // Headless DW3 -> GLB exporter with a dependency-free RGBA PNG writer.
 #include "model.h"
 #include "gltf.h"
+#include "stage.h"
 #include "SDL3/SDL.h"
 #include <filesystem>
 #include <fstream>
@@ -8,6 +9,67 @@
 #include <iterator>
 #include <vector>
 #include <algorithm>
+
+// Export native coordinates and the same 30 Hz motion samples as gltf.cpp.
+// Numeric JSON only: names and file paths never enter the JSON syntax.
+static bool export_native_source(Model &m, const std::string &dir) {
+    StageEdit stage; StageInfo info; stage.fromModel(m, info);
+    std::ofstream out(dir + "/native_source.json");
+    if (!out) return false;
+    out.precision(9);
+    out << "{\"format\":1,\"fps\":30,\"bones\":[";
+    for (size_t b = 0; b < m.bones.size(); b++) {
+        out << (b ? "," : "") << "{\"parent\":" << (b ? m.bones[b].parent : -1) << ",\"vertices\":[";
+        if (b) {
+            const Mesh &mesh = m.meshes[m.bones[b].mesh];
+            for (size_t v = 0; v < mesh.verts.size(); v++) {
+                const auto &p = mesh.verts[v];
+                out << (v ? "," : "") << '[' << p.x << ',' << p.y << ',' << p.z << ']';
+            }
+        }
+        out << "],\"faces\":[";
+        if (b) {
+            const auto &faces = stage.parts[b-1].faces;
+            for (size_t f = 0; f < faces.size(); f++) {
+                const auto &p = faces[f];
+                out << (f ? "," : "") << "{\"image\":" << p.image << ",\"abr\":" << p.abr << ",\"indices\":[";
+                for (int c = 0; c < p.n; c++) out << (c ? "," : "") << p.v[c];
+                out << "],\"uv\":[";
+                for (int c = 0; c < p.n; c++) out << (c ? "," : "") << '[' << p.uv[c][0] << ',' << p.uv[c][1] << ']';
+                out << "]}";
+            }
+        }
+        out << "]}";
+    }
+    out << "],\"images\":[";
+    for (size_t i = 0; i < stage.images.size(); i++) out << (i ? "," : "") << "\"tex" << i << ".png\"";
+    out << "],\"motions\":[";
+    for (size_t motion = 0; motion < m.motions.size(); motion++) {
+        m.setMotion(int(motion)+1);
+        out << (motion ? "," : "") << "{\"id\":" << motion+1 << ",\"frames\":[";
+        bool comma = false;
+        for (int tick = 0; tick < 1700; tick++) {
+            bool last = m.motionDone || m.keyframe >= m.keyframeCount-1;
+            if (tick % 2 == 0 || last) {
+                out << (comma ? "," : "") << '['; comma = true;
+                for (size_t b = 0; b < m.bones.size(); b++) {
+                    float local[16];
+                    if (b) bone_matrix(m.pose[b].pos, m.pose[b].rot, m.pose[b].scale, local);
+                    else for (int k = 0; k < 16; k++) local[k] = k % 5 == 0;
+                    out << (b ? "," : "") << '[';
+                    for (int k = 0; k < 16; k++) out << (k ? "," : "") << local[k];
+                    out << ']';
+                }
+                out << ']';
+            }
+            if (last) break;
+            m.advance(1, true); m.evaluate();
+        }
+        out << "]}";
+    }
+    out << "]}";
+    return bool(out);
+}
 
 bool SDL_CreateDirectory(const char *path) {
     std::filesystem::create_directories(path); return true;
@@ -71,6 +133,7 @@ int main(int argc, char **argv) {
         }
         std::string error;
         if (!export_gltf(model, argv[2], "model", error)) { std::cerr << error; return 4; }
+        if (!export_native_source(model, argv[2])) return 4;
         std::cout << model.bones.size() << " bones, " << model.meshes.size() << " meshes, " << model.motions.size() << " motions\n";
         return 0;
     } catch (const std::exception &e) { std::cerr << e.what(); return 5; }

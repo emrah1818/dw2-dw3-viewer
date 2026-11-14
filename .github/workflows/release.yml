@@ -1,10 +1,13 @@
-name: Test, build and publish 0.14b
+name: Test, build and publish 0.15b
 on:
   push:
     branches: [main]
   workflow_dispatch:
 permissions:
   contents: write
+concurrency:
+  group: release-015b
+  cancel-in-progress: true
 jobs:
   tests:
     runs-on: ubuntu-latest
@@ -23,9 +26,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: test-results
+          name: test-results-015b
           path: test-results.xml
-  windows:
+  viewer:
     needs: tests
     runs-on: windows-latest
     steps:
@@ -40,41 +43,99 @@ jobs:
           CXX: cl
       - run: python -m PyInstaller --noconfirm --clean DW2_3D_Viewer_Studio.spec
       - run: python tools/smoke_windows.py dist/DW2_3D_Viewer_Studio/DW2_3D_Viewer_Studio.exe
-      - name: Package Windows application
+      - name: Package viewer
         shell: pwsh
         run: |
-          Copy-Item README.md dist/DW2_3D_Viewer_Studio/README.md
-          Copy-Item RELEASE_NOTES_0.14b.md dist/DW2_3D_Viewer_Studio/RELEASE_NOTES_0.14b.md
-          Compress-Archive -Path dist/DW2_3D_Viewer_Studio -DestinationPath DW2_DW3_Viewer_0.14b_Windows_x64.zip
-          Get-FileHash DW2_DW3_Viewer_0.14b_Windows_x64.zip -Algorithm SHA256 | Format-List | Out-File SHA256SUMS.txt
+          Copy-Item README.md, RELEASE_NOTES_0.15b.md, VALIDATION_0.15b.md dist/DW2_3D_Viewer_Studio/
+          Compress-Archive -Path dist/DW2_3D_Viewer_Studio -DestinationPath DW2_DW3_Viewer_0.15b_Windows_x64.zip
       - uses: actions/upload-artifact@v4
         with:
-          name: Windows-0.14b
+          name: viewer-015b
           path: |
-            DW2_DW3_Viewer_0.14b_Windows_x64.zip
+            DW2_DW3_Viewer_0.15b_Windows_x64.zip
             windows-smoke.json
-            SHA256SUMS.txt
-      - name: Publish verified beta release
+  port:
+    needs: tests
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: emrah1818/dw2-pc-port
+          ref: d5b69b997c0c97e01a639a5e0aab62250ec4174c
+          path: pc-port
+      - uses: msys2/setup-msys2@v2
+        id: msys2
+        with:
+          msystem: MINGW64
+          update: false
+          install: mingw-w64-x86_64-gcc
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python tools/apply_port_patch.py pc-port
+      - name: Install native build dependencies
         shell: pwsh
+        run: |
+          python -m pip install ninja
+          Invoke-WebRequest https://github.com/libsdl-org/SDL/releases/download/release-3.4.8/SDL3-devel-3.4.8-mingw.tar.gz -OutFile sdl3.tar.gz
+          tar -xzf sdl3.tar.gz
+          "DW2_SDL3=$((Resolve-Path SDL3-3.4.8).Path)" | Out-File $env:GITHUB_ENV -Append
+          "DW2_MINGW=${{ steps.msys2.outputs.msys2-location }}\mingw64" | Out-File $env:GITHUB_ENV -Append
+      - name: Build compatible PC port without game data
+        working-directory: pc-port
+        run: python tools/build_native.py --arch x64 --release --no-disc
+      - name: Verify API and synthetic engine tests
+        shell: pwsh
+        run: |
+          $b = 'pc-port/build/native64_rel_nodisc'
+          $api = & "$b/dw2.exe" --mod-api | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0 -or $api.mod_api -ne 2) { throw 'Overlay API 2 check failed' }
+          & "$b/fonts_test.exe"
+          if ($LASTEXITCODE -ne 0) { throw 'Font tests failed' }
+          & "$b/textscript_test.exe"
+          if ($LASTEXITCODE -ne 0) { throw 'Text/script tests failed' }
+          $api | ConvertTo-Json | Set-Content dw2_mod_api.json -Encoding utf8
+      - name: Package PC port
+        shell: pwsh
+        run: |
+          $pkg = 'DW2_PC_Port_API2_0.15b'
+          New-Item -ItemType Directory -Force $pkg | Out-Null
+          Copy-Item pc-port/build/native64_rel_nodisc/dw2.exe, pc-port/build/native64_rel_nodisc/SDL3.dll, dw2_mod_api.json $pkg/
+          Copy-Item pc-port/LICENSE "$pkg/LICENSE.txt"
+          Copy-Item integration/README.md "$pkg/README.md"
+          Copy-Item -Recurse pc-port/Languages $pkg/
+          Copy-Item -Recurse pc-port/misc/fonts "$pkg/FontLicenses"
+          Compress-Archive -Path $pkg -DestinationPath DW2_PC_Port_API2_0.15b_Windows_x64.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pc-port-015b
+          path: DW2_PC_Port_API2_0.15b_Windows_x64.zip
+  publish:
+    needs: [viewer, port]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: viewer-015b
+          path: release-assets
+      - uses: actions/download-artifact@v4
+        with:
+          name: pc-port-015b
+          path: release-assets
+      - name: Publish verified beta
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $head = gh api repos/${{ github.repository }}/commits/main --jq .sha
-          if ($head -ne '${{ github.sha }}') {
-            Write-Host 'A newer commit superseded this build; release skipped.'
-            exit 0
-          }
-          gh release view v0.14b --repo ${{ github.repository }} *> $null
-          if ($LASTEXITCODE -ne 0) {
-            gh release create v0.14b DW2_DW3_Viewer_0.14b_Windows_x64.zip windows-smoke.json SHA256SUMS.txt --target ${{ github.sha }} --repo ${{ github.repository }} --title 'DW2 / DW3 Viewer 0.14b' --notes-file RELEASE_NOTES_0.14b.md --prerelease
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          } else {
-            $beta = gh release view v0.14b --repo ${{ github.repository }} --json isPrerelease --jq .isPrerelease
-            if ($beta -ne 'true') { throw 'Refusing to replace a stable release.' }
-            gh api repos/${{ github.repository }}/git/refs/tags/v0.14b --method PATCH -f sha=${{ github.sha }} -F force=true
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            gh release edit v0.14b --repo ${{ github.repository }} --title 'DW2 / DW3 Viewer 0.14b' --notes-file RELEASE_NOTES_0.14b.md --prerelease
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            gh release upload v0.14b DW2_DW3_Viewer_0.14b_Windows_x64.zip windows-smoke.json SHA256SUMS.txt --repo ${{ github.repository }} --clobber
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          }
+          test "$(gh api repos/${{ github.repository }}/commits/main --jq .sha)" = '${{ github.sha }}'
+          cd release-assets
+          sha256sum *.zip windows-smoke.json > SHA256SUMS.txt
+          if gh release view v0.15b --repo '${{ github.repository }}' >/dev/null 2>&1; then
+            test "$(gh release view v0.15b --repo '${{ github.repository }}' --json isPrerelease --jq .isPrerelease)" = true
+            gh api repos/${{ github.repository }}/git/refs/tags/v0.15b --method PATCH -f sha=${{ github.sha }} -F force=true
+            gh release edit v0.15b --repo '${{ github.repository }}' --title 'DW2 / DW3 Viewer 0.15b' --notes-file ../RELEASE_NOTES_0.15b.md --prerelease
+            gh release upload v0.15b *.zip windows-smoke.json SHA256SUMS.txt --repo '${{ github.repository }}' --clobber
+          else
+            gh release create v0.15b *.zip windows-smoke.json SHA256SUMS.txt --target '${{ github.sha }}' --repo '${{ github.repository }}' --title 'DW2 / DW3 Viewer 0.15b' --notes-file ../RELEASE_NOTES_0.15b.md --prerelease
+          fi

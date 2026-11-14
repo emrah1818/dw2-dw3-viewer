@@ -445,15 +445,40 @@ if (window.DW2_DESKTOP) {
       const id = await pickBox(`${info.name} · ${info.models.length} Modelle`, info.models.map(m => ({ value: m.id, label: `${m.name} · ${m.size} B` })), null);
       if (id == null) return;
       const action = await modal((box, close) => {
-        box.innerHTML = '<h3>DW3-Modell</h3><div class="btns"><button data-c="open">Ansehen / DW2-Slot ersetzen</button><button data-c="export">GLB mit Texturen und Animationen exportieren (ZIP)</button><button data-c="cancel">Abbrechen</button></div>';
+        box.innerHTML = '<h3>DW3-Modell</h3><div class="btns"><button data-c="open">Ansehen / bisherige Knochenzuordnung</button><button data-c="native">DW2-Slot mit DW3-Skelett und Bewegungen ersetzen</button><button data-c="export">GLB mit Texturen und Animationen exportieren (ZIP)</button><button data-c="cancel">Abbrechen</button></div>';
         $$('button[data-c]', box).forEach(x => { x.onclick = () => close(x.dataset.c); });
       });
       if (!action || action === 'cancel') return;
+      if (action === 'native') { await nativeDw3Flow(id); return; }
       if (action === 'export') { await exportFile(busy('DW3-Modell wird exportiert …', () => native('export_dw3', id))); return; }
       const model = await busy('DW3-Modell wird konvertiert …', () => native('prepare_dw3', id));
       await import3dFile({ path: model.path, name: model.name, dw3: true });
     } catch (e) { await fail(e); }
   };
+}
+
+$('#b-hd-pack').hidden=!window.DW2_DESKTOP;
+$('#b-hd-pack').onclick=async()=>{
+  if(state.id==null)return toast('Zuerst ein DW2-Modell auswählen.');
+  try{const r=await busy('HD-Texturpack wird exportiert …',()=>native('export_hd_dialog',state.id));if(r)toast(`HD-Texturpack ${r.size.join('×')} exportiert. Im PC-Port HD-Modus verwenden.`);}catch(e){await fail(e);}
+};
+
+async function nativeDw3Flow(sourceId) {
+  if(state.id==null)return toast('Zuerst ein DW2-Ziel auswählen und dw2.pak öffnen.');
+  const targetId=state.id;
+  const p=await busy('Nativer DW3-Import wird geprüft …',()=>native('dw3_native_plan',sourceId,targetId));
+  const choice=await modal((box,close)=>{
+    box.innerHTML=`<h3>${esc(p.name)} → ${esc(p.target)}</h3><p>${p.source_bones} DW3-Knochen ersetzen ${p.target_bones} DW2-Knochen. Benötigt den beiliegenden PC-Port mit Overlay-API 2.</p><p class="hint">Bewegungen werden numerisch zugeordnet. Motion 1 ist der Startwert; keine Zuordnung zu Kampfaktionen wird behauptet. Die gewünschten Motions für jeden Spielplatz auswählen.</p>`+
+    p.assignments.map((a,i)=>`<label>${a.slot}${a.clip}<select data-motion="${i}">${p.motions.map(m=>`<option value="${m.id}">Motion ${m.id} · ${m.frames} Bilder</option>`).join('')}</select><input data-loop="${i}" type="checkbox" ${a.loop?'checked':''}> Schleife</label>`).join('')+
+    `<label>Größenfaktor <input id="d-scale" type="number" min="0.1" max="10" step="0.1" value="1"></label><label>HD-Textur <select id="d-hd"><option value="2">256×512</option><option value="4" selected>512×1024</option><option value="8">1024×2048</option></select></label><div class="btns"><button id="d-cancel">Abbrechen</button><button id="d-apply" class="primary">Prüfen und vormerken</button></div>`;
+    $('#d-cancel',box).onclick=()=>close(null);
+    $('#d-apply',box).onclick=()=>close({assignments:p.assignments.map((a,i)=>({...a,motion:Number($(`[data-motion="${i}"]`,box).value),loop:$(`[data-loop="${i}"]`,box).checked})),scale:Number($('#d-scale',box).value),hd:Number($('#d-hd',box).value)});
+  });
+  if(!choice)return;
+  const r=await busy('Skelett, Geometrie und Bewegungen werden konvertiert …',()=>native('dw3_native_apply',sourceId,targetId,choice.assignments,choice.scale,choice.hd));
+  log(`DW3 nativ: ${r.bones} Knochen, ${r.triangles} Dreiecke, ${r.files} Dateien. HD: ${r.hd_size.join('×')}`);
+  await afterChange('DW3-Modell und Bewegungen vorgemerkt. Unter Änderungen als PC-Port-Mod exportieren.');
+  show('page-view');
 }
 
 $('#b-port-mod').hidden = !window.DW2_DESKTOP;
@@ -495,11 +520,29 @@ async function rigFlow(ins) {
 // ---------------------------------------------------------------- Bearbeiten
 function renderEdit() {
   const id = state.id;
-  const boxes = ['#f-name', '#f-type', '#f-attacks', '#f-enemy', '#f-roster'];
+  const boxes = ['#f-name', '#f-type', '#f-evolution', '#f-attacks', '#f-enemy', '#f-roster'];
   if (id == null || !state.image) { $('#edit-name').textContent = t('Digimon wählen'); $('#edit-sub').textContent = ''; boxes.forEach(s => { $(s).innerHTML = ''; }); return; }
   const c = state.catalog.find(x => x.id === id);
   $('#edit-name').textContent = `#${String(id).padStart(3, '0')} ${c.name}`; $('#edit-sub').textContent = ` · ${c.code}`;
-  renderName(id); renderType(id); renderAttacks(id); renderEnemy(id); renderRoster(id);
+  renderName(id); renderType(id); renderEvolution(id); renderAttacks(id); renderEnemy(id); renderRoster(id);
+}
+async function renderEvolution(id) {
+  const box = $('#f-evolution');
+  try {
+    const info = await native('evolution_info', id);
+    if (state.id !== id) return;
+    let rows = info.rows.map(x => ({...x}));
+    const draw = () => {
+      box.innerHTML = `<label>Stufe <select id="e-rank">${['Rookie','Champion','Ultimate','Mega'].map((x,i)=>`<option value="${i}" ${i===info.rank?'selected':''}>${x}</option>`).join('')}</select></label>` +
+        rows.map((r,i)=>`<div class="row"><label>DP ab <input data-dp="${i}" type="number" min="0" max="255" value="${r.min_dp}" ${i===0?'disabled':''}></label><select data-target="${i}">${info.choices.filter(x=>x!==id).map(x=>`<option value="${x}" ${x===r.target?'selected':''}>#${x} ${esc(nameOf(x))}</option>`).join('')}</select><button data-remove="${i}">Entfernen</button></div>`).join('') +
+        `<div class="btns"><button id="e-add" ${rows.length>=4?'disabled':''}>Ziel hinzufügen</button><button id="e-save" class="primary">Übernehmen</button></div><p class="hint">Bis zu vier vorhandene Ziele. DP-Grenzen beginnen bei 0. Das letzte Ziel gilt auch für höhere DP. Das Digitationslevel ist keine Eigenschaft dieser Tabelle.</p>`;
+      const collect = () => rows.map((r,i)=>({min_dp:i?Number($(`[data-dp="${i}"]`,box).value):0,target:Number($(`[data-target="${i}"]`,box).value)}));
+      $$('[data-remove]',box).forEach(b=>{b.onclick=()=>{rows=collect();rows.splice(Number(b.dataset.remove),1);if(rows.length)rows[0].min_dp=0;draw();};});
+      $('#e-add',box).onclick=()=>{rows=collect();rows.push({min_dp:rows.length?rows.at(-1).min_dp+1:0,target:info.choices.find(x=>x!==id)});draw();};
+      $('#e-save',box).onclick=async()=>{try{await native('set_evolution',id,collect(),Number($('#e-rank',box).value));await afterChange('Digitation / DP vorgemerkt');renderEvolution(id);}catch(e){await fail(e);}};
+    };
+    draw();
+  } catch(e) { errBox(box,e); }
 }
 const errBox = (box, e) => { box.innerHTML = `<p class="bad">${esc(e.message)}</p>`; };
 

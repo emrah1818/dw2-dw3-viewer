@@ -23,7 +23,7 @@ class Dw3Disc:
             self.path = disc.path.resolve()
             st = self.path.stat()
             self.stamp = (st.st_size, st.st_mtime_ns)
-            self.key = hashlib.sha256(f'{self.path}:{self.stamp}'.encode()).hexdigest()
+            self.key = hashlib.sha256(f'native-source-v2:{self.path}:{self.stamp}'.encode()).hexdigest()
             self.cache = Path(cache) / 'dw3' / self.key
             self.cache.mkdir(parents=True, exist_ok=True)
             self.sector_size = disc.sector_size

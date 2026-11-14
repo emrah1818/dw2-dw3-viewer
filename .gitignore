@@ -12,8 +12,8 @@ dist/
 *.img
 *.7z
 *.dw2mod
-core
-core.*
+/core
+/core.*
 tools/dw3_converter/dw3_converter
 tools/dw3_converter/dw3_converter.exe
 windows-smoke.json

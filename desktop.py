@@ -149,10 +149,17 @@ class Bridge(QObject):
         try:
             args = json.loads(raw)
             if method == 'app_info':
-                self.reply(call_id, {'version': '0.14b PC', 'free_mb': shutil.disk_usage(self.storage).free >> 20})
+                self.reply(call_id, {'version': '0.15b PC', 'free_mb': shutil.disk_usage(self.storage).free >> 20})
             elif method == 'open_studio':
                 self.window.open_studio()
                 self.reply(call_id, True)
+            elif method == 'export_hd_dialog':
+                identifier=args[0]
+                name,_=QFileDialog.getOpenFileName(self.window,'HD-PNG wählen (z. B. 512×1024)','','PNG (*.png)')
+                if not name:self.reply(call_id);return
+                port=QFileDialog.getExistingDirectory(self.window,'PC-Port-Ordner wählen')
+                if not port:self.reply(call_id);return
+                self.queue(call_id,'export_hd_pack',[identifier,name,port])
             elif method == 'export_port_dialog':
                 if not api._need_session().edits:
                     raise ValueError('Keine Änderungen vorgemerkt.')
@@ -193,7 +200,7 @@ class Bridge(QObject):
                 self.queue(call_id, '_save_export', [source, name])
             elif method in api._METHODS or method == 'overwrite_original':
                 # Configuration and source paths are controlled by native file dialogs.
-                if method in {'configure', 'open_image', 'open_dw3', 'export_port_mod', 'adopt_image'}:
+                if method in {'configure', 'open_image', 'open_dw3', 'export_port_mod', 'export_hd_pack', 'adopt_image'}:
                     raise ValueError('Diese Methode ist dem Desktop vorbehalten.')
                 self.queue(call_id, method, args)
             else:
@@ -228,7 +235,7 @@ class Page(QWebEnginePage):
 class Desktop(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle('DW2 / DW3 · Viewer 0.14b')
+        self.setWindowTitle('DW2 / DW3 · Viewer 0.15b')
         self.resize(1540, 940)
         self.setMinimumSize(800, 600)
         self.setWindowIcon(QIcon(str(ROOT / 'assets/DW2_3D_Viewer.ico')))

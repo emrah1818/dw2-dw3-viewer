@@ -55,6 +55,23 @@ def prepare_dw3(identifier):
     return DW3.prepare(identifier)
 
 
+def dw3_native_plan(source_id, target_id):
+    from dw2studio.dw3_import import prepare
+    return prepare(__import__(__name__),source_id,target_id)['info']
+
+
+def dw3_native_apply(source_id, target_id, assignments, scale_factor=1., hd_scale=4):
+    from dw2studio.dw3_import import apply
+    return apply(__import__(__name__),source_id,target_id,assignments,scale_factor,hd_scale)
+
+
+def export_hd_pack(identifier, png, port_dir):
+    from dw2studio.core.native_rom_bridge import native_model_entry
+    from dw2studio.hd_pack import export
+    entry=native_model_entry(S.entries,_find(identifier))
+    return export(_need_session().current(entry),png,port_dir)
+
+
 def export_dw3(identifier):
     import zipfile
     info = prepare_dw3(identifier)
@@ -72,7 +89,7 @@ def export_port_mod(port_dir, pak_path=None):
     from dw2studio.port_mod import export
     s = _need_session()
     pak = s.pak if hasattr(s, 'pak') else PakFile(pak_path)
-    return export(s, pak, port_dir, mod_name='DW2/DW3 Viewer 0.14b')
+    return export(s, pak, port_dir, mod_name='DW2/DW3 Viewer 0.15b')
 
 
 # --------------------------------------------------------------------------- Setup
@@ -226,6 +243,16 @@ def specialty_info(identifier):
 
 def set_specialty(identifier, code):
     return {'changed': _props('DIGIMNDT.BIN').change_specialty(identifier, int(code))}
+
+
+def evolution_info(identifier):
+    from dw2studio.core.evolution import EvolutionRepository
+    return EvolutionRepository(_need_session(), S.entries).info(identifier)
+
+
+def set_evolution(identifier, rows, rank=None, dna_group=None):
+    from dw2studio.core.evolution import EvolutionRepository
+    return {'changed': EvolutionRepository(_need_session(), S.entries).change(identifier, rows, rank, dna_group)}
 
 
 # --------------------------------------------------------------------------- Gegnerwerte
@@ -743,7 +770,7 @@ def native_files_export(identifier):
 
 # --------------------------------------------------------------------------- Verlauf (Rückgängig / Wiederherstellen)
 UNDO, REDO = [], []
-MUTATING = {'rename', 'set_type', 'set_specialty', 'set_enemy_values', 'apply_attacks', 'roster_change',
+MUTATING = {'dw3_native_apply', 'set_evolution', 'rename', 'set_type', 'set_specialty', 'set_enemy_values', 'apply_attacks', 'roster_change',
             'roster_restore', 'discard', 'load_project', 'png_apply', 'transfer_apply', 'bin_apply',
             'rig_apply', 'restore_original'}
 
@@ -810,6 +837,9 @@ def translate(texts, language):
 
 # --------------------------------------------------------------------------- Einstieg
 _METHODS = {
+    'export_hd_pack': export_hd_pack,
+    'dw3_native_plan': dw3_native_plan, 'dw3_native_apply': dw3_native_apply,
+    'evolution_info': evolution_info, 'set_evolution': set_evolution,
     'open_dw3': open_dw3, 'prepare_dw3': prepare_dw3, 'export_dw3': export_dw3, 'export_port_mod': export_port_mod,
     'configure': configure, 'open_image': open_image, 'catalog': catalog_list,
     'name_info': name_info, 'rename': rename, 'type_info': type_info, 'set_type': set_type,

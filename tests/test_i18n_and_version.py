@@ -37,7 +37,7 @@ def test_standalone_source_package_assets():
     assert (ROOT/'assets'/'DW2_3D_Viewer.ico').is_file()
     assert (ROOT/'tools'/'dw2_model_converter'/'dw2_model_converter.exe').is_file()
     main=(ROOT/'main.py').read_text()
-    assert 'DW2 / DW3 Viewer 0.14b' in main
+    assert 'DW2 / DW3 Viewer 0.15b' in main
     assert not (ROOT/'dw2studio'/'core'/'dungeon_editor.py').exists()
     assert not (ROOT/'dw2studio'/'core'/'memory_card.py').exists()
 

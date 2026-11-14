@@ -64,6 +64,7 @@ class PakSession(EditSession):
         self.sector_size = 2048
         self.stamp = self._stamp()
         self.edits = {}
+        self.hd_files = {}
 
     def original(self, entry):
         self._check_source()
@@ -73,8 +74,8 @@ class PakSession(EditSession):
 
     def stage(self, entry, data, label='Datei ersetzt', *, relocate=False):
         data = bytes(data)
-        if relocate or len(data) != entry.size:
-            raise ValueError('Der PC-Port unterstützt hier nur Ersatz in Originalgröße. Größere Dateien benötigen eine Engine-Erweiterung.')
+        if not data or len(data) > 2*1024*1024:
+            raise ValueError('PAK-Ersatz benötigt 1 Byte bis 2 MiB.')
         original = self.original(entry)
         key = (entry.path, entry.lba)
         for other_key, edit in self.edits.items():
@@ -83,11 +84,59 @@ class PakSession(EditSession):
         if data == original:
             self.edits.pop(key, None)
         else:
-            self.edits[key] = FileEdit(entry.path, entry.lba, original, data, label)
+            self.edits[key] = FileEdit(entry.path, entry.lba, original, data, label, len(data) != entry.size)
         return self.edits.get(key)
 
     def save(self, destination, *, overwrite=False):
         raise ValueError('PAK bleibt unverändert. Bitte „PC-Port-Mod exportieren“ verwenden.')
+
+    def active_hd_files(self):
+        result={}
+        for edit in self.edits.values():
+            result.update(self.hd_files.get(hashlib.sha256(edit.replacement).hexdigest(),{}))
+        return result
+
+    def export_project(self, destination):
+        import zipfile
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            base=Path(tmp)/'base.dw2mod'
+            super().export_project(base)
+            with zipfile.ZipFile(base) as src, zipfile.ZipFile(destination,'w',zipfile.ZIP_DEFLATED) as out:
+                doc=json.loads(src.read('project.json'))
+                for name in src.namelist():
+                    if name!='project.json':out.writestr(name,src.read(name))
+                doc['hd_files']=[]
+                for sha,files in self.hd_files.items():
+                    if not any(hashlib.sha256(e.replacement).hexdigest()==sha for e in self.edits.values()):continue
+                    for name,data in files.items():
+                        ref=f'hd/{len(doc["hd_files"])}.png'
+                        out.writestr(ref,data)
+                        doc['hd_files'].append({'model_sha256':sha,'path':name,'data':ref})
+                out.writestr('project.json',json.dumps(doc))
+
+    def import_project(self, source, entries):
+        import zipfile
+        import io
+        from PIL import Image
+        staged={}
+        with zipfile.ZipFile(source) as archive:
+            if archive.getinfo('project.json').file_size>4*1024*1024:raise ValueError('Projektmanifest zu groß.')
+            doc=json.loads(archive.read('project.json'))
+            rows=doc.get('hd_files',[])
+            if len(rows)>64:raise ValueError('Zu viele HD-Texturen im Projekt.')
+            for row in rows:
+                name=row['path']
+                if not name.startswith('Textures/DW2Studio_015/') or Path(name).name!=name.split('/')[-1] or '..' in name or '\\' in name:
+                    raise ValueError('Ungültiger HD-Texturpfad.')
+                if archive.getinfo(row['data']).file_size>32*1024*1024:raise ValueError('HD-Textur zu groß.')
+                data=archive.read(row['data'])
+                with Image.open(io.BytesIO(data)) as image:
+                    if image.format!='PNG' or image.width>2048 or image.height>4096:raise ValueError('Ungültige HD-PNG.')
+                    image.verify()
+                staged.setdefault(row['model_sha256'],{})[name]=data
+        super().import_project(source,entries)
+        self.hd_files.update(staged)
 
 
 def open_workspace(path):

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-<title>DW2 / DW3 Viewer 0.14b · PC</title>
+<title>DW2 / DW3 Viewer 0.15b · PC</title>
 <link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="dw2bg.css">
 <link rel="stylesheet" href="desktop.css">
@@ -14,7 +14,7 @@
 <body>
 <header id="top">
   <img src="logo.png" alt="" width="34" height="34">
-  <div id="title"><b>DW2 / DW3 · VIEWER 0.14b</b><span id="subtitle"></span></div>
+  <div id="title"><b>DW2 / DW3 · VIEWER 0.15b</b><span id="subtitle"></span></div>
   <button id="btn-studio" class="small" title="3D-Import, Rigging und Vollfarben in einem eigenen Mod-Projekt">Mod Studio</button>
   <button id="btn-open" class="primary small" data-i18n="BIN / ISO öffnen">BIN / ISO öffnen</button>
 </header>
@@ -23,7 +23,7 @@
   <section id="start" class="page active">
     <div class="card center">
       <img src="logo.png" alt="" width="96" height="96">
-      <h2>Digimon World 2 / 3 · Viewer 0.14b</h2>
+      <h2>Digimon World 2 / 3 · Viewer 0.15b</h2>
       <p data-i18n="start_text">Öffne dein eigenes Spiel-Image (BIN/ISO). Die App enthält keine Spieldaten.</p>
       <button id="btn-open2" class="primary big" data-i18n="BIN / ISO öffnen">BIN / ISO öffnen</button>
       <p class="hint" id="space-hint"></p>
@@ -97,6 +97,7 @@
         <button id="b-png-export" data-i18n="PNG exportieren">PNG exportieren</button>
         <button id="b-png-import" class="primary" data-i18n="PNG importieren / Textur ersetzen">PNG importieren / Textur ersetzen</button>
         <button id="b-eyes-import" data-i18n="Augen ersetzen">Augen ersetzen</button>
+        <button id="b-hd-pack">HD-PNG als PC-Port-Texturpack exportieren</button>
       </div>
       <p class="hint" data-i18n="tex_note">Spieltextur: 128×256, 16 Farben je Palette. PNG in 1×–4× wird angenommen. Vor dem Vormerken zeigt die Vorschau das tatsächliche PS1-Ergebnis.</p>
     </details>
@@ -116,6 +117,7 @@
     <div id="edit-head" class="card"><b id="edit-name">–</b><span id="edit-sub"></span></div>
     <details class="card" open><summary data-i18n="Name">Name</summary><div id="f-name"></div></details>
     <details class="card"><summary data-i18n="Typ & Specialty">Typ & Specialty</summary><div id="f-type"></div></details>
+    <details class="card"><summary>Digitation & DP</summary><div id="f-evolution"></div></details>
     <details class="card"><summary data-i18n="Attacken">Attacken</summary><div id="f-attacks"></div></details>
     <details class="card"><summary data-i18n="Gegnerwerte & EXP">Gegnerwerte & EXP</summary><div id="f-enemy"></div></details>
     <details class="card"><summary data-i18n="Spielstand / Memorycard">Spielstand / Memorycard</summary><div id="f-roster"></div></details>

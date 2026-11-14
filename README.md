@@ -1,71 +1,33 @@
-# DW2 / DW3 Viewer — 0.14b
+# DW2 / DW3 Viewer — 0.15b
 
-Windows-Desktop-Viewer und Mod-Werkzeuge auf Basis des erhaltenen DW2-Viewers 4.0.
-Eigene Spieldaten sind erforderlich; dieses Repository enthält keine Disc-Images oder PAK-Spieldaten.
+Diese Version ergänzt die 0.14b-Basis um einen nativen DW3-Import, einen Digitation-/DP-Editor und HD-Texturpacks. Vollständige Bedienung und Testgrenzen stehen in RELEASE_NOTES_0.15b.md und VALIDATION_0.15b.md.
 
-## Windows starten
+## Windows
 
-Unter **Releases → v0.14b** das Windows-x64-ZIP laden, vollständig entpacken und
-`DW2_3D_Viewer_Studio.exe` starten. Den gesamten Ordner zusammenlassen.
-Ein Release-Paket wird erst nach erfolgreichen Tests, Build und Startprüfung veröffentlicht.
+Das Viewer-ZIP vollständig entpacken und DW2_3D_Viewer_Studio.exe starten. Der bisherige DW2-Viewer und das separate Mod Studio bleiben erhalten. Im Release liegt zusätzlich der angepasste PC-Port mit Overlay-API 2. Größere Dateien benötigen diesen Begleit-Port; die bisherige dw2.exe unterstützt sie nicht. Die eigenen dw2.pak und dw2.pak.slus bleiben unverändert.
 
-Aus Quellcode: Python 3.12 x64 installieren, `start_windows.bat` starten.
-Der DW3-Konverter benötigt zusätzlich einen C++17-Compiler:
-`python tools/build_dw3_converter.py`. Im gebauten Windows-Paket ist er enthalten.
-Das bisherige Mod Studio bleibt über die PC-Werkzeuge erreichbar und führt weiterhin ein eigenes Projekt.
+## Nativer DW3-Import
 
-## DW2 und PC-Port
+1. dw2.pak öffnen und ein DW2-Ziel wählen.
+2. DW3-Modelle öffnen, eigenes USA-/Europa-Abbild und ein Modell wählen.
+3. „DW2-Slot mit DW3-Skelett und Bewegungen ersetzen“ wählen.
+4. Die numerischen DW3-Motions den DW2-Plätzen (A0, B0 …) zuweisen. Motion 1 ist nur der Anfangswert, keine automatisch erkannte Kampfaktion. Schleifen und Skalierung prüfen.
+5. Import vormerken, Modell/Animationen ansehen, unter Änderungen als PC-Port-Mod exportieren. Das Zielverzeichnis muss dw2_mod_api.json mit mod_api 2 aus dem Begleitpaket enthalten.
 
-1. **BIN / ISO öffnen** akzeptiert jetzt auch `dw2.pak`.
-2. Digimon wählen, Modell und Animationen ansehen; Namen, Typ, Specialty,
-   Attacken sowie unterstützte Gegnerwerte und EXP bearbeiten.
-3. Unter **Änderungen → PC-Port-Mod exportieren** den Ordner mit `dw2.exe` wählen.
-   Bei einem geöffneten Disc-Image wird zusätzlich die passende PAK abgefragt.
-4. Die Dateien werden als `Mods/files/NNNN.bin` mit **hexadezimalen IDs** erzeugt.
-   Den PC-Port neu starten. Bestehende Mods gleicher ID werden nicht überschrieben.
-5. `.dw2mod` speichert die vorgemerkten Änderungen zum späteren Weiterarbeiten.
+Alle Texturseiten werden in einem gemeinsamen Atlas abgelegt. Der native Fallback ist indiziert; das HD-Pack erhält die RGBA-Seiten in höherer Auflösung. In der PC-Port-Anzeige den HD-Modus ab Skalierung 2 verwenden. Eine Zuordnung von Angriffseffekten oder Aktionsskripten wird nicht aus Motion-Nummern abgeleitet.
 
-Die PAK wird ausschließlich gelesen. PAK-Sitzungen erlauben keinen Image-Export
-und kein Überschreiben. Der Mod-Export prüft LBA, Länge und Original-Prüfsumme.
-Audio-/Video-Dateien und größere Ersatzdateien werden abgewiesen.
-Beim ursprünglichen Disc-Workflow bleiben die bisherigen Image-Werkzeuge erhalten.
+## Digitation / DP und HD-PNG
 
-## DW3 / DW2003
+Unter Bearbeiten → Digitation & DP lassen sich bis zu vier vorhandene Ziele, ihre steigenden DP-Untergrenzen und die Stufe bearbeiten. Das per Spielcode bestimmte Digitationslevel ist kein freies Feld in DIGIMNDT. DP im Spielstand bleibt über den bestehenden Spielstandeditor zugänglich.
 
-**DW3-Modelle öffnen** liest ein eigenes USA-DW3- oder europäisches DW2003-Abbild
-(`.bin`, `.cue`, `.iso`, `.img`). Versteckte ISO9660-Dateieinträge werden gesucht.
-Anschließend ein Modell wählen:
+„HD-PNG als PC-Port-Texturpack exportieren“ übernimmt echte PNGs unverändert, z. B. 512×1024. Erlaubt sind ganzzahlige Faktoren 1–16 von 128×256. Der klassische 1×-Renderer verwendet weiter die native Textur. Blink-/Texturkopien vorhandener Modelle können das aktive Pack invalidieren; der neue DW3-Import deaktiviert native Blink-Rechtecke.
 
-- **Ansehen / DW2-Slot ersetzen** öffnet die Modellvorschau bzw. die vorhandene
-  manuelle DW2-Knochenzuordnung. Zum Ersetzen zuerst ein DW2-Ziel wählen.
-- **GLB mit Texturen und Animationen exportieren (ZIP)** erhält das DW3-Skelett,
-  die konvertierten Bewegungen und die benötigten PNG-Dateien zusammen.
+## Grenzen
 
-**Grenzen dieser Beta:** DW3-Animationen sind in Vorschau und GLB vorhanden.
-Die native DW2-Knochenzuordnung verwendet die DW2-Zielanimationen; sie überträgt
-keine DW3-Bewegungsclips in das DW2-Animationsformat. Native DW2-Modellgröße,
-Knochenzahl und Palettenlimits gelten weiter. Mehrere DW3-Texturseiten werden im
-GLB erhalten; der bisherige native Import übernimmt nur seine Haupttextur.
-Ein beliebiges DW3-Modell passt deshalb nicht automatisch in einen DW2-Slot.
+Native DW2-Strukturen begrenzen jeden Knochen auf 256 Vertices/Normalen und die Hierarchie auf acht Ebenen. Pro Animationsdatei werden höchstens 254 verschiedene Posen je Knochen kodiert; zu große oder unpassende Modelle werden mit Begründung abgewiesen. Geteilte Zielanimationen werden nicht automatisch überschrieben. Die Motion-Zuordnung muss zum Ziel passen. DW3-Gesichts-/Sichtbarkeitsanimationen und Aktionsskripte sind eigene Systeme und werden hier nicht als vollständig übernommen behauptet.
 
-Der Gesamtauftrag ist noch nicht vollständig umgesetzt: automatische Übertragung
-der DW3-Animationen in DW2, frei größere Modelle/HD-Texturen im PC-Port sowie ein
-neuer Digitation-/DP-Editor stehen aus. Der PC-Port wurde in dieser Version
-nicht geändert. Eine vollständige Spielprüfung auf einem Windows-Spieler-PC ist offen.
+## Quellcode
 
-## Nachweise und Entwicklung
+Python 3.12 x64; start_windows.bat installiert requirements.txt. Für DW3 aus Quellcode zuerst python tools/build_dw3_converter.py mit C++17-Compiler ausführen. EXE_ERSTELLEN.bat erzeugt das Viewer-Paket. Die passende PC-Port-Quellbasis und der Patch stehen in integration/. Der Build nutzt ausschließlich Quellcode und Platzhalter; keine Originalspieldaten werden veröffentlicht.
 
-Siehe [RELEASE_NOTES_0.14b.md](RELEASE_NOTES_0.14b.md) und
-[VALIDATION_0.14b.md](VALIDATION_0.14b.md). Die GitHub-Actions-Protokolle dokumentieren
-den Windows-Build und die Startprüfung für den veröffentlichten Commit.
-
-`python -m pytest -q` prüft den Python-Kern. `node tests/test_native_anim.mjs`
-prüft den JavaScript-Animationsplayer. Optionale echte Daten werden ausschließlich
-lokal über `DW2_TEST_PAK` und `DW3_TEST_DISC` eingebunden.
-
-Herkunft: ursprünglicher Nutzer-Quellstand `DW2_DW3_Viewer_4_1_Source.zip`;
-DW2-/Android-Quellen und Lizenzen siehe `SOURCES_v4_0.json`, `THIRD_PARTY_v4_0.md`
-und `licenses/`. Der DW3-Konverter verwendet MIT-lizenzierten Code von
-[Feerdus95/dw3-model-viewer](https://github.com/Feerdus95/dw3-model-viewer),
-Commit `b8a77d32cbdcad2a1385ccc49b98876090069ccb`, abgerufen am 14.11.2026.
-Details, Anpassungen und vollständige Lizenzen: `third_party/dw3_converter/`.
+Herkunft/Lizenzen: SOURCES_v4_0.json, THIRD_PARTY_v4_0.md, licenses/ und third_party/dw3_converter/UPSTREAM.json. Vorheriger Stand: Tag v0.14b.
