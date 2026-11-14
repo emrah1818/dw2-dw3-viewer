@@ -26,7 +26,7 @@ button{cursor:pointer}button:hover:not(:disabled){filter:brightness(1.16)}
 .tablebox table,#mod-report table,#dw3-batch table{border-collapse:collapse;width:100%;font-size:13px}
 .tablebox td,.tablebox th,#mod-report td,#mod-report th,#dw3-batch td{padding:3px 6px;border-bottom:1px solid var(--line);text-align:left}
 tr.edited td{color:#9fe3c4}
-#mod-report .err{color:#ff9a8a}#mod-report .warn{color:#ffd27a}
+#mod-report .err,#evo-report .err{color:#ff9a8a}#mod-report .warn,#evo-report .warn{color:#ffd27a}
 #tabs .tab span{font-size:11px}
 #page-domains .row select,#page-evo .row select{max-width:240px}
 #page-domains input[type=number],#page-evo input[type=number]{width:80px}

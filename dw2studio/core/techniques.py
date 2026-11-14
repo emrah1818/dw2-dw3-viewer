@@ -8,6 +8,17 @@ ENEMYSET. No other Digimon refers to the new id, so nothing else changes.
 """
 from .battle_skills import AttackRepository, BaseTable, EnemyTable, SkillTable
 
+# Byte groups of the 68-byte record (EntED40 in include/main/156C.h of the PC port) that can be
+# taken over from another technique. Word 0 holds id and value bits, so the cast animation is a
+# bit mask there; the other groups are whole byte ranges.
+PARTS = {
+    'sound': ((0x05, 0x08),),                  # shotXaChannel u8, shotXaFile s16 (Ruf / Ton)
+    'effect': ((0x0C, 0x18), (0x2C, 0x44)),    # partsEntry, field_10, field_14, fxFiles[4][3]
+    'status': ((0x18, 0x1C),),                 # statusFlags (Zustandseffekte)
+    'animation': 'cast',                       # Startanimation F/G/H: Bits 16-17 von Wort 0
+}
+CAST_MASK = 0x3 << 16
+
 
 class TechniqueRepository:
     def __init__(self, session, entries):
@@ -88,6 +99,75 @@ class TechniqueRepository:
             return False
         self.session.stage(self.files['WAZADATA.BIN'], data, f'Technik {technique} bearbeitet')
         return True
+
+
+def copy_parts(repo, technique, source, parts, *, digimon):
+    """Take effect / sound / status / animation bytes of SOURCE into the individual TECHNIQUE."""
+    import struct
+    info = repo.usage(technique)
+    if info['shared'] or set(info['digimon']) - {digimon}:
+        raise ValueError('Diese Technik nutzen mehrere Digimon. Teile nur in eine eigene Technik übernehmen.')
+    if not parts or set(parts) - set(PARTS):
+        raise ValueError('Teile: ' + ', '.join(sorted(PARTS)) + '.')
+    skills, _, _ = repo.tables()
+    for t in (technique, source):
+        if t not in skills.records:
+            raise ValueError(f'Technik {t} fehlt.')
+    if technique == source:
+        raise ValueError('Quelle und Ziel sind dieselbe Technik.')
+    dst, src = skills.records[technique].offset, skills.records[source].offset
+    out = bytearray(skills.data)
+    for part in parts:
+        spec = PARTS[part]
+        if spec == 'cast':
+            word = struct.unpack_from('<I', out, dst)[0]
+            word = (word & ~CAST_MASK) | (struct.unpack_from('<I', out, src)[0] & CAST_MASK)
+            struct.pack_into('<I', out, dst, word)
+            continue
+        for a, b in spec:
+            out[dst + a:dst + b] = skills.data[src + a:src + b]
+    out = bytes(out)
+    SkillTable(out)
+    if out == skills.data:
+        return False
+    repo.session.stage(repo.files['WAZADATA.BIN'], out,
+                       f'Technik {technique}: {", ".join(sorted(parts))} von {source}')
+    return True
+
+
+def assign(repo, technique, digimon_ids):
+    """One technique as the learnable technique (DIGIMNDT +2) of several Digimon, one undo step."""
+    skills, base, _ = repo.tables()
+    if technique not in skills.records or not 1 <= technique <= 255:
+        raise ValueError('Technik muss eine vorhandene ID 1–255 sein.')
+    ids = list(dict.fromkeys(digimon_ids or ()))
+    if not ids:
+        raise ValueError('Mindestens ein Digimon wählen.')
+    missing = [d for d in ids if d not in base.records]
+    if missing:
+        raise ValueError('Ohne DIGIMNDT-Eintrag: ' + ', '.join(f'#{d:03}' for d in missing))
+    data = base.data
+    for d in ids:
+        data = BaseTable(data).changed(d, technique)
+    if data == base.data:
+        return []
+    repo.session.stage(repo.files['DIGIMNDT.BIN'], data,
+                       f'Technik {technique} für ' + ', '.join(f'#{d:03}' for d in ids))
+    return ids
+
+
+def id_budget(repo):
+    """Technique ids are one byte in DIGIMNDT, ENEMYSET and the save roster: 1–255 only."""
+    skills, base, enemies = repo.tables()
+    used = set(skills.records)
+    referenced = {s for _, s in base.records.values()} | {s for r in enemies.records.values() for s in r.skills}
+    return {'free': skills.free_ids(), 'free_count': len(skills.free_ids()), 'max_id': 255,
+            'existing': len([i for i in used if 1 <= i <= 255]),
+            'unreferenced': sorted(i for i in used if 1 <= i <= 255 and i not in referenced),
+            'reason': 'Technik-IDs sind in DIGIMNDT (+2), ENEMYSET (Fertigkeiten) und im Spielstand je '
+                      'ein Byte. Mehr als 255 IDs sind ohne Port-Änderung nicht sicher möglich. '
+                      'Nicht zugeordnete Techniken werden nur angezeigt, nie automatisch wiederverwendet '
+                      '(Spielstände können sie gelernt haben).'}
 
 
 def _renamed(table, technique, name):

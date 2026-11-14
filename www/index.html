@@ -165,7 +165,8 @@
   <section id="page-attacks" class="page">
     <div class="card"><b>Attacken-Editor</b> <span id="at-sub" class="hint"></span>
       <p class="hint">Eigene Technik: Kopie einer vorhandenen Technik (Effekte, Animationsteile, Ton) unter einer freien ID mit eigenem Namen und eigenen Werten. Sie gehört nur dem gewählten Digimon; andere Digimon bleiben unverändert. Techniken, die mehrere Digimon nutzen, ändert dieser Editor nicht.</p>
-      <div class="btns"><button id="at-new" class="primary">Eigene Technik für gewähltes Digimon anlegen</button></div>
+      <div class="btns"><button id="at-new" class="primary">Eigene Technik für gewähltes Digimon anlegen</button><button id="at-parts">Effekt/Ton/Animation übernehmen</button><button id="at-assign">Technik mehreren Digimon geben</button></div>
+      <p class="hint" id="at-budget"></p>
       <input id="at-q" type="search" placeholder="Technik suchen …"><div id="at-list" class="tablebox"></div></div>
   </section>
 
@@ -173,7 +174,8 @@
     <div class="card"><b>Digitations-Editor</b> <span id="evo-sub" class="hint"></span>
       <p class="hint">Eine Linie ab dem gewählten Digimon (bis zu vier Stufen). Alle Zeilen werden zusammen geprüft und als ein Schritt vorgemerkt. Ziele, DP-Untergrenzen (streng steigend, erste 0) und Stufe sind die Felder aus DIGIMNDT. Das Digitationslevel ist kein Datenfeld: Das Digi-Labor erlaubt Rookie ab Level 11, Champion ab 21, Ultimate ab 31, Mega nie (Stg20_DigivolveRuleTbl, src/stag2000/labinfo.c), für alle Arten gleich. Eine eigene Grenze je Art bräuchte eine Erweiterung des PC-Ports (DIGITATIONSLEVEL_SCHNITTSTELLE.md).</p>
       <div id="evo-line"></div>
-      <div class="btns"><button id="evo-add">Digimon zur Linie hinzufügen</button><button id="evo-save" class="primary">Linie übernehmen</button></div></div>
+      <div class="btns"><button id="evo-add">Digimon zur Linie hinzufügen</button><button id="evo-save" class="primary">Linie übernehmen</button><button id="evo-check">Alle Digitationen prüfen</button></div>
+      <div id="evo-report"></div></div>
   </section>
 
   <section id="page-domains" class="page">

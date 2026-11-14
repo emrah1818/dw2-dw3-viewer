@@ -119,7 +119,52 @@ def read_mod(port_dir, pak):
     return {'files': files, 'textures': textures, 'problems': problems, 'manifest': manifest}
 
 
-def import_into(session, entries, port_dir):
+class ModConflict(ValueError):
+    def __init__(self, conflicts):
+        self.conflicts = conflicts
+        super().__init__('Der Mod überschneidet sich mit eigenen Änderungen: ' +
+                         '; '.join(c['text'] for c in conflicts[:6]) +
+                         (' …' if len(conflicts) > 6 else '') + ' Einlesen nur mit „Trotzdem einlesen“.')
+
+
+def import_conflicts(session, entries, files):
+    """Files the mod replaces that the session has already changed differently.
+
+    For WAZADATA the technique ids are compared as well: an id that both sides added or changed
+    with different bytes is named, because the mod would silently replace that technique."""
+    from .core.game_files import file_entry
+    from .core.battle_skills import SkillTable
+    out = []
+    for fid, data in sorted(files.items()):
+        try:
+            entry = file_entry(session, entries, fid)
+        except Exception:
+            continue
+        key = (entry.path, entry.lba)
+        if key not in session.edits:
+            continue
+        mine, orig = session.current(entry), session.original(entry)
+        if mine == data:
+            continue
+        item = {'file': fid, 'label': session.edits[key].label,
+                'text': f'Datei {fid:04X} ({session.edits[key].label})'}
+        if fid == 603:
+            try:
+                a, b, o = SkillTable(mine), SkillTable(data), SkillTable(orig)
+                rec = lambda t, i: t.data[t.records[i].offset:t.records[i].offset + 68]
+                ids = sorted(i for i in set(a.records) & set(b.records)
+                             if (i not in o.records or rec(a, i) != rec(o, i) or rec(b, i) != rec(o, i))
+                             and (rec(a, i) != rec(b, i) or a.records[i].name != b.records[i].name))
+                if ids:
+                    item['technique_ids'] = ids
+                    item['text'] = 'Technik-IDs doppelt belegt: ' + ', '.join(map(str, ids))
+            except Exception:
+                pass
+        out.append(item)
+    return out
+
+
+def import_into(session, entries, port_dir, force=False):
     """Stage the active mod of PORT_DIR as edits of SESSION (a dw2.pak session)."""
     from .core.game_files import file_entry
     from .core.dw3_native import hd_name
@@ -131,6 +176,9 @@ def import_into(session, entries, port_dir):
         raise ValueError(' '.join(found['problems']))
     if not found['files']:
         raise ValueError('Im Mod-Ordner liegen keine Ersatzdateien.')
+    conflicts = import_conflicts(session, entries, found['files'])
+    if conflicts and not force:
+        raise ModConflict(conflicts)
     before = dict(session.edits)
     staged = []
     try:

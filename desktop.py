@@ -176,12 +176,13 @@ class Bridge(QObject):
                 # Ordner wird nur über den nativen Dialog gewählt; die Oberfläche übergibt keine Pfade.
                 action = args[0] if args else 'status'
                 actions = {'status': 'port_mod_status', 'disable': 'port_mod_disable', 'enable': 'port_mod_enable',
-                           'check': 'mod_check', 'export': 'mod_export', 'replace': 'mod_export_replace', 'import': 'mod_import'}
+                           'check': 'mod_check', 'export': 'mod_export', 'replace': 'mod_export_replace', 'import': 'mod_import',
+                           'import_force': 'mod_import_force'}
                 if action not in actions:
                     raise ValueError('Unbekannte Mod-Aktion.')
                 if action in ('check', 'export', 'replace') and not api._need_session().edits:
                     raise ValueError('Keine Änderungen vorgemerkt.')
-                port = self.last_port if action in ('export', 'replace') and args[1:] == ['last'] and getattr(self, 'last_port', None) \
+                port = self.last_port if action in ('export', 'replace', 'import_force') and args[1:] == ['last'] and getattr(self, 'last_port', None) \
                     else QFileDialog.getExistingDirectory(self.window, 'PC-Port-Ordner mit dw2.exe wählen')
                 if not port:
                     self.reply(call_id); return
@@ -215,7 +216,7 @@ class Bridge(QObject):
                 self.queue(call_id, '_save_export', [source, name])
             elif method in api._METHODS or method == 'overwrite_original':
                 # Configuration and source paths are controlled by native file dialogs.
-                if method in {'configure', 'open_image', 'open_dw3', 'export_port_mod', 'export_hd_pack', 'port_mod_status', 'port_mod_disable', 'port_mod_enable', 'mod_check', 'mod_export', 'mod_export_replace', 'mod_import', 'adopt_image'}:
+                if method in {'configure', 'open_image', 'open_dw3', 'export_port_mod', 'export_hd_pack', 'port_mod_status', 'port_mod_disable', 'port_mod_enable', 'mod_check', 'mod_export', 'mod_export_replace', 'mod_import', 'mod_import_force', 'adopt_image'}:
                     raise ValueError('Diese Methode ist dem Desktop vorbehalten.')
                 self.queue(call_id, method, args)
             else:

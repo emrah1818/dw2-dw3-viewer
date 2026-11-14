@@ -936,8 +936,51 @@ async function renderCamera(id) {
 let techCache = null;
 async function renderAttacksPage() {
   $('#at-sub').textContent = state.id != null ? `· gewählt: #${pad3(state.id)} ${digiName(state.id)}` : '· kein Digimon gewählt';
-  try { techCache = (await native('techniques_catalog')).techniques; drawTechs(); } catch (e) { await fail(e); }
+  try {
+    techCache = (await native('techniques_catalog')).techniques; drawTechs();
+    const b = await native('technique_budget');
+    $('#at-budget').textContent = `Freie Technik-IDs: ${b.free_count} von 255 (${b.existing} belegt). ${b.reason}`;
+  } catch (e) { await fail(e); }
 }
+const PART_NAMES = { effect: 'Effekte (Grafikteile, FX-Dateien)', sound: 'Ton / Ruf (XA)', status: 'Zustandseffekte', animation: 'Startanimation F/G/H' };
+$('#at-parts').onclick = async () => {
+  if (state.id == null) return toast('Zuerst ein Digimon wählen (Reiter Digimon).');
+  const own = techCache.filter(r => r.users.length === 1 && r.users[0] === state.id);
+  if (!own.length) return toast('Dieses Digimon hat noch keine eigene Technik. Zuerst „Eigene Technik … anlegen“.');
+  const c = await modal((box, close) => {
+    box.innerHTML = `<h3>Teile in eigene Technik übernehmen · #${pad3(state.id)} ${esc(digiName(state.id))}</h3>` +
+      `<label class="f">Eigene Technik</label><select id="p-dst">${own.map(r => `<option value="${r.id}">${r.id} · ${esc(r.name)}</option>`).join('')}</select>` +
+      `<label class="f">Von Technik</label><select id="p-src">${techCache.map(r => `<option value="${r.id}">${r.id} · ${esc(r.name)}</option>`).join('')}</select>` +
+      Object.entries(PART_NAMES).map(([k, n]) => `<label class="row"><input type="checkbox" data-part="${k}" ${k === 'effect' ? 'checked' : ''}> ${esc(n)}</label>`).join('') +
+      '<p class="hint">Die Trefferhöhe ist ein Wert des Digimon (Reiter Digimon, Karte Kamera), nicht der Technik.</p>' +
+      '<div class="btns"><button id="p-no">Abbrechen</button><button id="p-ok" class="primary">Vormerken</button></div>';
+    $('#p-no', box).onclick = () => close(null);
+    $('#p-ok', box).onclick = () => close({ dst: Number($('#p-dst', box).value), src: Number($('#p-src', box).value), parts: $$('[data-part]', box).filter(x => x.checked).map(x => x.dataset.part) });
+  });
+  if (!c) return;
+  try { const r = await native('technique_copy_parts', c.dst, c.src, c.parts, state.id); await afterChange(r.changed ? `Technik ${c.dst}: ${c.parts.length} Teil(e) von ${c.src} übernommen` : 'Keine Änderung'); renderAttacksPage(); }
+  catch (e) { await fail(e); }
+};
+$('#at-assign').onclick = async () => {
+  const tech = await pickBox('Welche Technik?', techCache.map(r => ({ value: r.id, label: `${r.id} · ${r.name}` })), null);
+  if (tech == null) return;
+  const ids = await modal((box, close) => {
+    box.innerHTML = `<h3>Technik ${tech} als erlernbare Technik für …</h3><input id="m-q" type="search" placeholder="Suchen …"><div id="m-l" class="tablebox"></div>` +
+      '<p class="hint">Ersetzt bei jedem gewählten Digimon die erlernbare Technik (DIGIMNDT). Ein Rückgängig-Schritt.</p><div class="btns"><button id="m-no">Abbrechen</button><button id="m-yes" class="primary">Vormerken</button></div>';
+    const chosen = new Set(state.id != null ? [state.id] : []);
+    const draw = () => {
+      const q = $('#m-q', box).value.toLowerCase();
+      $('#m-l', box).innerHTML = state.catalog.filter(c => `#${pad3(c.id)} ${c.name}`.toLowerCase().includes(q))
+        .map(c => `<label class="row"><input type="checkbox" data-d="${c.id}" ${chosen.has(c.id) ? 'checked' : ''}> #${pad3(c.id)} ${esc(c.name)}</label>`).join('');
+      $$('[data-d]', box).forEach(x => { x.onchange = () => { x.checked ? chosen.add(Number(x.dataset.d)) : chosen.delete(Number(x.dataset.d)); }; });
+    };
+    $('#m-q', box).oninput = draw; draw();
+    $('#m-no', box).onclick = () => close(null); $('#m-yes', box).onclick = () => close([...chosen]);
+  });
+  if (!ids || !ids.length) return;
+  try { const r = await native('technique_assign', tech, ids); await afterChange(`Technik ${tech} für ${r.changed.length} Digimon vorgemerkt`); renderAttacksPage(); }
+  catch (e) { await fail(e); }
+};
 function drawTechs() {
   if (!techCache) return;
   const q = $('#at-q').value.toLowerCase().trim();
@@ -1035,6 +1078,14 @@ $('#evo-add').onclick = async () => {
   const id = await pickBox('Digimon zur Linie', state.catalog.map(c => ({ value: c.id, label: `#${pad3(c.id)} ${c.name}` })), null);
   if (id == null || evoLine.some(d => d.id === id)) return;
   try { const info = await native('evolution_info', id); evoLine.push({ id, rank: info.rank, rows: info.rows, choices: info.choices }); drawEvo(); } catch (e) { await fail(e); }
+};
+$('#evo-check').onclick = async () => {
+  try {
+    const r = await native('evolution_validate');
+    const list = (items, cls) => items.map(i => `<li class="${cls}">${esc(i.text)}</li>`).join('');
+    $('#evo-report').innerHTML = `<p><b>${r.errors.length ? r.errors.length + ' Fehler' : 'Keine Fehler'}</b>, ${r.warnings.length} Hinweise, ${r.info.length} nicht erreichbare Arten.</p>` +
+      `<ul>${list(r.errors, 'err')}${list(r.warnings, 'warn')}</ul>` + (r.info.length ? `<details><summary>Nicht durch normale Digitation erreichbar (${r.info.length})</summary><ul>${list(r.info, '')}</ul></details>` : '');
+  } catch (e) { await fail(e); }
 };
 $('#evo-save').onclick = async () => {
   try { const r = await native('evolution_line', readEvo()); await afterChange(r.changed.length ? `Digitationslinie vorgemerkt: ${r.changed.length} Digimon` : 'Keine Änderung'); renderEvoPage(); }
@@ -1165,7 +1216,13 @@ $('#b-mod-replace').onclick = async () => {
 };
 $('#b-mod-import').onclick = async () => {
   try { const r = await busy('Mod wird eingelesen …', () => native('port_mods_dialog', 'import')); if (r) { await refreshCatalogNames(); await afterChange(`Mod eingelesen: ${r.files} Dateien, ${r.textures} HD-Textur(en)`); } }
-  catch (e) { await fail(e); }
+  catch (e) {
+    const msg = e.message || String(e);
+    if (!msg.includes('Trotzdem einlesen')) return fail(e);
+    if (!(await confirmBox(msg.replace(' Einlesen nur mit „Trotzdem einlesen“.', '') + ' Der Mod ersetzt diese Dateien. Trotzdem einlesen?'))) return;
+    try { const r = await busy('Mod wird eingelesen …', () => native('port_mods_dialog', 'import_force', 'last')); if (r) { await refreshCatalogNames(); await afterChange(`Mod eingelesen (eigene Änderungen ersetzt): ${r.files} Dateien`); } }
+    catch (e2) { await fail(e2); }
+  }
 };
 
 // ---------------------------------------------------------------- 8 Textur-Editor: HD-Vorschau bis 2048×4096

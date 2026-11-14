@@ -815,6 +815,13 @@ def mod_import(port_dir):
     return import_into(s, S.entries, port_dir)
 
 
+def mod_import_force(port_dir):
+    """Import even though the mod replaces files changed here (after the user confirmed)."""
+    from dw2studio.mod_io import import_into
+    s, _ = _pak()
+    return import_into(s, S.entries, port_dir, force=True)
+
+
 # --------------------------------------------------------------------------- 0.17b: Domains und Gegnergruppen
 def _current_names():
     names = {c.id: c.name for c in S.catalog}
@@ -898,6 +905,26 @@ def technique_create(digimon, source, name, description=None, values=None, as_de
 
 def technique_edit(technique, digimon, values=None, name=None):
     return {'changed': _techniques().edit(int(technique), values or None, name or None, digimon=int(digimon))}
+
+
+def technique_copy_parts(technique, source, parts, digimon):
+    from dw2studio.core.techniques import copy_parts
+    return {'changed': copy_parts(_techniques(), int(technique), int(source), list(parts or ()), digimon=int(digimon))}
+
+
+def technique_assign(technique, digimon_ids):
+    from dw2studio.core.techniques import assign
+    return {'changed': assign(_techniques(), int(technique), [int(d) for d in (digimon_ids or ())])}
+
+
+def technique_budget():
+    from dw2studio.core.techniques import id_budget
+    return id_budget(_techniques())
+
+
+def evolution_validate():
+    from dw2studio.core.evolution import EvolutionRepository, validate
+    return validate(EvolutionRepository(_need_session(), S.entries))
 
 
 # --------------------------------------------------------------------------- 0.17b: Kamera, Digitationslinien, Mehrfach-Import
@@ -1015,7 +1042,7 @@ def hd_active(identifier):
 
 # --------------------------------------------------------------------------- Verlauf (Rückgängig / Wiederherstellen)
 UNDO, REDO = [], []
-MUTATING = {'dw3_native_apply', 'dw3_batch_apply', 'mod_import', 'domain_set_floor', 'group_set', 'group_clone',
+MUTATING = {'dw3_native_apply', 'dw3_batch_apply', 'mod_import', 'mod_import_force', 'technique_copy_parts', 'technique_assign', 'domain_set_floor', 'group_set', 'group_clone',
             'technique_create', 'technique_edit', 'camera_set', 'evolution_line', 'set_evolution', 'rename', 'set_type', 'set_specialty', 'set_enemy_values', 'apply_attacks', 'roster_change',
             'roster_restore', 'discard', 'load_project', 'png_apply', 'transfer_apply', 'bin_apply',
             'rig_apply', 'restore_original'}
@@ -1091,6 +1118,8 @@ _METHODS = {
     'group_set': group_set, 'group_clone': group_clone, 'groups_list': groups_list,
     'techniques_catalog': techniques_catalog, 'technique_usage': technique_usage,
     'technique_create': technique_create, 'technique_edit': technique_edit,
+    'technique_copy_parts': technique_copy_parts, 'technique_assign': technique_assign,
+    'technique_budget': technique_budget, 'evolution_validate': evolution_validate, 'mod_import_force': mod_import_force,
     'hd_preview': hd_preview, 'hd_active': hd_active, 'files_list': files_list, 'file_export': file_export, 'dw3_models': dw3_models,
     'camera_info': camera_info, 'camera_set': camera_set, 'dw3_batch_apply': dw3_batch_apply,
     'open_dw3': open_dw3, 'prepare_dw3': prepare_dw3, 'export_dw3': export_dw3, 'export_port_mod': export_port_mod,
