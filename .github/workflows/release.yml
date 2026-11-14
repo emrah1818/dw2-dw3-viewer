@@ -54,13 +54,27 @@ jobs:
             DW2_DW3_Viewer_0.14b_Windows_x64.zip
             windows-smoke.json
             SHA256SUMS.txt
-      - name: Publish beta release once
+      - name: Publish verified beta release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          $head = gh api repos/${{ github.repository }}/commits/main --jq .sha
+          if ($head -ne '${{ github.sha }}') {
+            Write-Host 'A newer commit superseded this build; release skipped.'
+            exit 0
+          }
           gh release view v0.14b --repo ${{ github.repository }} *> $null
           if ($LASTEXITCODE -ne 0) {
             gh release create v0.14b DW2_DW3_Viewer_0.14b_Windows_x64.zip windows-smoke.json SHA256SUMS.txt --target ${{ github.sha }} --repo ${{ github.repository }} --title 'DW2 / DW3 Viewer 0.14b' --notes-file RELEASE_NOTES_0.14b.md --prerelease
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          } else {
+            $beta = gh release view v0.14b --repo ${{ github.repository }} --json isPrerelease --jq .isPrerelease
+            if ($beta -ne 'true') { throw 'Refusing to replace a stable release.' }
+            gh api repos/${{ github.repository }}/git/refs/tags/v0.14b --method PATCH -f sha=${{ github.sha }} -F force=true
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            gh release edit v0.14b --repo ${{ github.repository }} --title 'DW2 / DW3 Viewer 0.14b' --notes-file RELEASE_NOTES_0.14b.md --prerelease
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            gh release upload v0.14b DW2_DW3_Viewer_0.14b_Windows_x64.zip windows-smoke.json SHA256SUMS.txt --repo ${{ github.repository }} --clobber
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }

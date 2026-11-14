@@ -49,6 +49,21 @@ def test_export_rejects_damaged_payload_and_audio(tmp_path):
         plan(session(b'hello'), audio)
 
 
+def test_glb_staging_preserves_external_textures(tmp_path):
+    from dw2studio.core.gltf_textures import write_glb, document
+    from dw2studio.core.model_import import stage_model
+    source = tmp_path / 'source'
+    source.mkdir()
+    (source / 'tex0.png').write_bytes(b'external-image')
+    doc = {'asset': {'version': '2.0'}, 'images': [{'uri': 'tex0.png'}],
+           'skins': [{'joints': [0]}], 'animations': [{'name': 'motion'}]}
+    write_glb(source / 'model.glb', doc, b'', [])
+    staged, manifest = stage_model(source / 'model.glb', tmp_path / 'staged')
+    assert (staged.parent / 'tex0.png').read_bytes() == b'external-image'
+    assert document(staged) == doc
+    assert 'tex0.png' in manifest['files']
+
+
 @pytest.mark.skipif(not os.environ.get('DW2_TEST_PAK'), reason='Private DW2 PAK not provided')
 def test_real_pak_edit_preview_mod_and_project_roundtrip(tmp_path, monkeypatch):
     import android_api as api
