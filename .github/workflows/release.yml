@@ -1,4 +1,4 @@
-name: Test, build and (on request) publish DW2 Mod Studio 0.17b
+name: Test, build and (on request) publish DW2 Mod Studio 1.0.0-rc1
 # Pushes to development branches only test and build. A release is made only when the workflow is
 # started by hand with publish=true (Actions -> Run workflow); main is never required or changed.
 on:
@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       publish:
-        description: 'Als Vorabversion v0.17b veröffentlichen'
+        description: 'Als Vorabversion v1.0.0-rc1 veröffentlichen'
         type: boolean
         default: false
 permissions:
@@ -34,7 +34,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: test-results-017b
+          name: test-results-100rc1
           path: |
             test-results.xml
             test-summary.txt
@@ -56,16 +56,16 @@ jobs:
       - name: Package viewer
         shell: pwsh
         run: |
-          $pkg = 'dist/DW2_Mod_Studio_0.17b'
+          $pkg = 'dist/DW2_Mod_Studio_1.0.0-rc1'
           Move-Item dist/DW2_3D_Viewer_Studio $pkg
-          Copy-Item README.md, CHANGELOG.md, ANLEITUNG.md, TESTERGEBNISSE_0.17b.md, EINSCHRAENKUNGEN_0.17b.md, DIGITATIONSLEVEL_SCHNITTSTELLE.md $pkg/
+          Copy-Item README.md, CHANGELOG.md, ANLEITUNG.md, RELEASE_NOTES_1.0.0-rc1.md, TESTERGEBNISSE_1.0.0-rc1.md, EINSCHRAENKUNGEN_1.0.0-rc1.md, DIGITATIONSLEVEL_SCHNITTSTELLE.md, DW3_EFFEKTE_ANALYSE.md $pkg/
           Remove-Item "$pkg/_internal/tools/dw3_converter/*.obj" -ErrorAction SilentlyContinue
-          Compress-Archive -Path $pkg -DestinationPath DW2_Mod_Studio_0.17b_Windows_x64.zip
+          Compress-Archive -Path $pkg -DestinationPath DW2_Mod_Studio_1.0.0-rc1_Windows_x64.zip
       - uses: actions/upload-artifact@v4
         with:
-          name: viewer-017b
+          name: viewer-100rc1
           path: |
-            DW2_Mod_Studio_0.17b_Windows_x64.zip
+            DW2_Mod_Studio_1.0.0-rc1_Windows_x64.zip
             windows-smoke.json
   port:
     needs: tests
@@ -114,7 +114,7 @@ jobs:
       - name: Package PC port
         shell: pwsh
         run: |
-          $pkg = 'DW2_PC_Port_API2_0.17b'
+          $pkg = 'DW2_PC_Port_API2_1.0.0-rc1'
           New-Item -ItemType Directory -Force $pkg | Out-Null
           Copy-Item pc-port/build/native64_rel_nodisc/dw2.exe, pc-port/build/native64_rel_nodisc/SDL3.dll, dw2_mod_api.json $pkg/
           Copy-Item pc-port/LICENSE "$pkg/LICENSE.txt"
@@ -122,11 +122,11 @@ jobs:
           Copy-Item pc-port/doc/MOD_API2.md "$pkg/MOD_API2.md"
           Copy-Item -Recurse pc-port/Languages $pkg/
           Copy-Item -Recurse pc-port/misc/fonts "$pkg/FontLicenses"
-          Compress-Archive -Path $pkg -DestinationPath DW2_PC_Port_API2_0.17b_Windows_x64.zip
+          Compress-Archive -Path $pkg -DestinationPath DW2_PC_Port_API2_1.0.0-rc1_Windows_x64.zip
       - uses: actions/upload-artifact@v4
         with:
-          name: pc-port-017b
-          path: DW2_PC_Port_API2_0.17b_Windows_x64.zip
+          name: pc-port-100rc1
+          path: DW2_PC_Port_API2_1.0.0-rc1_Windows_x64.zip
   publish:
     needs: [viewer, port]
     if: github.event_name == 'workflow_dispatch' && inputs.publish
@@ -135,15 +135,15 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
-          name: viewer-017b
+          name: viewer-100rc1
           path: release-assets
       - uses: actions/download-artifact@v4
         with:
-          name: pc-port-017b
+          name: pc-port-100rc1
           path: release-assets
       - uses: actions/download-artifact@v4
         with:
-          name: test-results-017b
+          name: test-results-100rc1
           path: release-assets
       - name: Publish verified beta
         env:
@@ -152,11 +152,11 @@ jobs:
           cd release-assets
           sha256sum *.zip windows-smoke.json test-results.xml test-summary.txt > SHA256SUMS.txt
           files="*.zip windows-smoke.json test-results.xml test-summary.txt SHA256SUMS.txt"
-          if gh release view v0.17b --repo '${{ github.repository }}' >/dev/null 2>&1; then
-            test "$(gh release view v0.17b --repo '${{ github.repository }}' --json isPrerelease --jq .isPrerelease)" = true
-            gh api repos/${{ github.repository }}/git/refs/tags/v0.17b --method PATCH -f sha=${{ github.sha }} -F force=true
-            gh release edit v0.17b --repo '${{ github.repository }}' --title 'DW2 Mod Studio 0.17b' --notes-file ../RELEASE_NOTES_0.17b.md --prerelease
-            gh release upload v0.17b $files --repo '${{ github.repository }}' --clobber
+          if gh release view v1.0.0-rc1 --repo '${{ github.repository }}' >/dev/null 2>&1; then
+            test "$(gh release view v1.0.0-rc1 --repo '${{ github.repository }}' --json isPrerelease --jq .isPrerelease)" = true
+            gh api repos/${{ github.repository }}/git/refs/tags/v1.0.0-rc1 --method PATCH -f sha=${{ github.sha }} -F force=true
+            gh release edit v1.0.0-rc1 --repo '${{ github.repository }}' --title 'DW2 Mod Studio 1.0.0-rc1' --notes-file ../RELEASE_NOTES_1.0.0-rc1.md --prerelease
+            gh release upload v1.0.0-rc1 $files --repo '${{ github.repository }}' --clobber
           else
-            gh release create v0.17b $files --target '${{ github.sha }}' --repo '${{ github.repository }}' --title 'DW2 Mod Studio 0.17b' --notes-file ../RELEASE_NOTES_0.17b.md --prerelease
+            gh release create v1.0.0-rc1 $files --target '${{ github.sha }}' --repo '${{ github.repository }}' --title 'DW2 Mod Studio 1.0.0-rc1' --notes-file ../RELEASE_NOTES_1.0.0-rc1.md --prerelease
           fi

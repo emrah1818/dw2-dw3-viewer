@@ -334,12 +334,13 @@ def scene_partner(args, check):
         g.run(300)
         g.shot('team_menu_digimon_3')
         check(scene, 'Guilmon als eigener Partner im Team (Spielstanddaten)', any(t['digi'] == 84 and t['state'] for t in team), team=team)
-    log = open(os.path.join(args.work, scene, 'run', 'game.log'), errors='replace').read()
+    alive, end_mode = g.proc.poll() is None, g.mode()
     g.close()
     party = [v for k2, v in found.items() if k2 < 3]
     check(scene, 'Guilmon (#84) kämpft als Partner mit eigener Technik', any(p['digi'] == 84 and tech['id'] in p['skills'] for p in party),
           party=party)
-    check(scene, 'Kampf ohne Absturz beendet', 'battle 1 over' in log or True, note='Bilder: run/shots/battle_*, fight_*')
+    check(scene, 'Kampf zu Ende gespielt, zurück in der Stadt, Spiel läuft', state['battle_done'] and alive and end_mode == 0x32D,
+          mode=hex(end_mode), note='Bilder: run/shots/battle_*, fight_*')
 
 
 SCENES = {'evo': scene_evo, 'domain': scene_domain, 'partner': scene_partner}

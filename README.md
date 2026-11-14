@@ -1,10 +1,10 @@
-# DW2 Mod Studio — 0.17b (Testversion)
+# DW2 Mod Studio — 1.0.0-rc1 (Release-Kandidat)
 
 Digimon World 2 modden: Digimon, Techniken, Digitationslinien, Domains und Gegnergruppen bearbeiten, Digimon aus Digimon World 3 in vorhandene Slots importieren und alles als Mod für den DW2-PC-Port exportieren. Keine Spieldaten im Paket.
 
 - Bedienung: ANLEITUNG.md
-- Neu: CHANGELOG.md, RELEASE_NOTES_0.17b.md
-- Prüfstand: TESTERGEBNISSE_0.17b.md · Grenzen: EINSCHRAENKUNGEN_0.17b.md
+- Neu: CHANGELOG.md, RELEASE_NOTES_1.0.0-rc1.md, DW3_EFFEKTE_ANALYSE.md
+- Prüfstand: TESTERGEBNISSE_1.0.0-rc1.md · Grenzen: EINSCHRAENKUNGEN_1.0.0-rc1.md · Spieltests: integration/ingame/
 - Port-Erweiterung für Digitationslevel: DIGITATIONSLEVEL_SCHNITTSTELLE.md
 - Frühere Stände: RELEASE_NOTES_0.16b.md, VALIDATION_0.16b.md, RELEASE_NOTES_0.15b.md
 

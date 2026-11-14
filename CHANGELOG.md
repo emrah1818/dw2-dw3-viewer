@@ -1,5 +1,32 @@
 # Änderungsprotokoll
 
+## 1.0.0-rc1 – 14.11.2026 (Release-Kandidat)
+
+Neu
+- **DW3-Gesichter:** Augenrahmen (offen/halb/zu) und Gesichtszyklen aus der DW3-Kämpfertabelle werden in die
+  DW2-Augenanimation übertragen (Rahmen im Atlas, 4-Pixel-ausgerichtet, gleiche Palette). Im Spiel nachgewiesen.
+  Der DW3-Konverter liefert dafür Seiten und Texturursprung (`native_source.json`: `pages`, `tex_origin`). Ältere
+  Zwischenspeicher werden automatisch neu konvertiert.
+- **Formatgrenzen (Abschnitt 15):** große Knochen werden in Teile mit höchstens 256 Vertices/Dreiecken geteilt.
+  Ebenen unter Ebene 8 hängen mit dem Produkt der übersprungenen Matrizen exakt an Ebene 8. Vor jedem Mod-Export
+  prüft eine Endkontrolle alle vorgemerkten Modelle (Teile, Ebenen, Sprünge). Der Import zeigt, was angepasst wird.
+- **Techniken:** Effekt / Ton / Zustand / Startanimation aus einer anderen Technik übernehmen. Eine Technik mehreren
+  Digimon als erlernbare Technik geben (ein Schritt). Anzeige der freien IDs mit Begründung der 255er-Grenze.
+- **Mod einlesen:** erkennt Überschneidungen mit eigenen Änderungen und doppelt belegte Technik-IDs. Ersetzen nur nach Rückfrage.
+- **Digitation:** „Alle Digitationen prüfen“ (Kreise, fehlende Ziele, nicht höherstufige Ziele, nicht erreichbare Arten;
+  Fehler des Originals als Hinweis).
+- **Digitationslevel je Digimon (Vorbereitung):** Format 1, Speicherung im Projekt, Rückgängig, Export als
+  `Mods\digivolve_levels.json` mit Warnung. Im aktuellen Port ohne Wirkung (im Spiel geprüft).
+- **Kamera-Vorschau:** Nahaufnahme wie im Kampf (Tabellen aus `camera.c`, 4:3, Stufen live) mit Steuerleiste in der 3D-Ansicht.
+- **Spieltests** `integration/ingame/run_ingame.py`: Digitation in und aus importierten Digimon, Speichern/Laden,
+  Blinzeln, Domain-Gegner, importierter Partner mit eigener Technik im Kampf.
+- Analyse der DW3-Effekte: `DW3_EFFEKTE_ANALYSE.md`.
+- Eine Versionsquelle (`dw2studio/version.py`).
+
+Behoben
+- Gruppe kopieren vergrößerte ENEMYSET unnötig. Die Dateilänge bleibt jetzt, wenn Platz in der Füllung ist.
+- 0.17b-Angabe zur Kamera korrigiert: `field_1E` wirkt nachweislich auf die Nahaufnahmen, nicht auf Attackenkameras.
+
 ## 0.17b – 14.11.2026 (DW2 Mod Studio)
 
 Neu
