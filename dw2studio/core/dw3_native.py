@@ -478,8 +478,13 @@ def encode_model(source, folder, scale=1., hd_scale=4, face=None):
                           'face_parts':len(records),'eyes':sum(r['slot'] < 2 for r in records),'face_notes':face_notes}
 
 
-def encode_animation(source, mapping, scale=1., loops=()):
-    """mapping: native clip index -> DW3 motion index; no semantic labels inferred."""
+def encode_animation(source, mapping, scale=1., loops=(), step=1):
+    """mapping: native clip index -> DW3 motion index; no semantic labels inferred.
+    STEP > 1 (PS1 image, smaller files): only every STEP-th DW3 frame becomes a pose and is held
+    for STEP game frames, so the motion keeps its length with fewer distinct poses."""
+    step=int(step)
+    if not 1<=step<=8:
+        raise ValueError('Bildschritt 1–8.')
     nodes=plan(source);order=[x['src'] for x in nodes];n=len(order)
     if not mapping or any(type(i)is not int or not 0<=i<10 for i in mapping):
         raise ValueError('DW2-Datei benötigt Clip-Indizes 0–9.')
@@ -487,7 +492,8 @@ def encode_animation(source, mapping, scale=1., loops=()):
     for index,motion in sorted(mapping.items()):
         if type(motion)is not int or not 0<=motion<len(source['motions']):
             raise ValueError('Unbekannte DW3-Motion.')
-        frames=source_matrices(source,motion)
+        all_frames=source_matrices(source,motion)
+        frames=[all_frames[min(len(all_frames)-1,(i//step)*step)] for i in range(len(all_frames))]
         rows=[]
         for frame in frames:
             row=[]
@@ -536,3 +542,48 @@ def hd_name(model):
     raw=model[start+12:start+12+w*h*2]
     if len(raw)!=w*h*2:raise ValueError('TIM-Pixelblock abgeschnitten.')
     return f'{fnv(struct.pack("<2i",w,h)+raw):016x}_{w}x{h}_m0.png'
+
+
+def simplify_source(source, cell):
+    """Vertex clustering per bone (PS1 image, controlled optimisation): vertices within CELL source
+    units of each other merge to their mean; faces that collapse are dropped. UVs stay per corner,
+    so textures keep their placement. Returns a new source dict (the input is not changed)."""
+    import copy
+    if cell <= 0:
+        return source
+    out = copy.deepcopy(source)
+    for b in out['bones']:
+        verts = np.asarray(b['vertices'], dtype=float)
+        if not len(verts) or not b['faces']:
+            continue
+        keys = {}
+        remap = []
+        for v in verts:
+            k = tuple(np.floor(v / cell).astype(int))
+            remap.append(keys.setdefault(k, len(keys)))
+        sums = np.zeros((len(keys), 3))
+        counts = np.zeros(len(keys))
+        for i, k in enumerate(remap):
+            sums[k] += verts[i]
+            counts[k] += 1
+        b['vertices'] = (sums / counts[:, None]).tolist()
+        faces = []
+        for f in b['faces']:
+            idx = [remap[i] for i in f['indices']]
+            if len(idx) == 3 and len(set(idx)) < 3:
+                continue
+            if len(idx) == 4 and len(set(idx)) < 3:
+                continue
+            nf = dict(f)
+            nf['indices'] = idx
+            faces.append(nf)
+        if not faces:
+            # a small part would vanish completely (a finger, an ear tip): keep it as it is
+            b['vertices'] = verts.tolist()
+            continue
+        b['faces'] = faces
+    return out
+
+
+def triangle_total(source):
+    return sum(len(triangles(b)) for b in source['bones'])

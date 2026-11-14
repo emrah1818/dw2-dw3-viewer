@@ -93,7 +93,22 @@ def copy_export(source, target):
             os.replace(temp, target)
     finally:
         temp.unlink(missing_ok=True)
+    _copy_cue(source, target)
     return True
+
+
+def _copy_cue(source, target):
+    """A BIN from the exports folder carries its CUE: write one next to the chosen target that
+    names the new BIN. The CUE of the opened original is never touched."""
+    src_cue = source.with_suffix('.cue')
+    if target.suffix.lower() != '.bin' or not src_cue.is_file():
+        return None
+    out = target.with_suffix('.cue')
+    opened = getattr(api.S, 'open_path', None)
+    if opened and out.resolve() == Path(opened).resolve():
+        return None
+    out.write_text(api.cue_for(target.name, src_cue.read_text(encoding='utf-8-sig', errors='replace')), encoding='utf-8')
+    return out
 
 
 class Worker(QObject):

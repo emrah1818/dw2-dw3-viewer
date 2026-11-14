@@ -12,10 +12,20 @@ from .core.dw3_native import encode_model, encode_animation, fit_scale, hd_name
 from .core.dw3_native import limits_report
 
 
+def prepare_size(source):
+    """Largest extent of the DW3 model's vertices (source units), for the simplification steps."""
+    import numpy as np
+    pts=[v for b in source['bones'] for v in b['vertices']]
+    return float(np.ptp(np.asarray(pts,dtype=float),axis=0).max()) if pts else 1.
+
+
+def _ps1_limit(session, entry):
+    """Bytes the game reserves for a file on the PS1: its original size (whole sectors)."""
+    return len(session.original(entry))
+
+
 def prepare(api, source_id, target_id):
     session = api._need_session()
-    if not isinstance(session, PakSession):
-        raise ValueError('Für den vollständigen DW3-Import bitte dw2.pak öffnen. Ein Disc-Image bleibt im bisherigen Importmodus.')
     info = api.prepare_dw3(source_id)
     folder = Path(info['path']).parent
     source_path = folder/'native_source.json'
@@ -114,16 +124,57 @@ def apply(api, source_id, target_id, assignments, scale_factor=1., hd_scale=0, c
             raise ValueError('Ungültige oder doppelte Animationszuordnung.')
         seen.add(key);groups.setdefault(key[0],{})[key[1]]=motion_index[row['motion']]
         if row['loop']:loops.setdefault(key[0],[]).append(key[1])
-    changes=[(prepared['model'],native,'DW3-Modell mit eigenem Skelett')]
+    ps1 = not isinstance(session, PakSession)
+    optimized={}
+    if ps1:
+        # PlayStation image: the game loads each file into a buffer sized for the original, so no
+        # file may grow (the PC port's interface 2 raises that limit, the PS1 does not). Too large:
+        # controlled optimisation, nearby vertices merged in growing steps (simplify_source).
+        from .core.dw3_native import simplify_source, triangle_total
+        limit=_ps1_limit(session,prepared['model'])
+        before_tris=triangle_total(source)
+        cell=0.
+        size_of_model=float(prepare_size(source))
+        while len(native)>limit:
+            cell=cell*1.15 if cell else size_of_model/200
+            if cell>size_of_model/3:
+                raise ValueError(f'PS1-Image: das DW3-Modell braucht {len(native)} Bytes, die Originaldatei '
+                                 f'{prepared["model"].path} hat {limit}; auch vereinfacht zu groß. PC-Port-Modus verwenden.')
+            reduced=simplify_source(source,cell)
+            native,hd,report=encode_model(reduced,prepared['folder'],scale,int(hd_scale),prepared.get('face'))
+        if cell:
+            source=reduced
+            optimized['Modell']=f'{before_tris} → {triangle_total(reduced)} Dreiecke'
+    changes=[(prepared['model'],native,'DW3-Modell mit eigenem Skelett'+(f" (vereinfacht: {optimized['Modell']})" if 'Modell' in optimized else ''))]
     for slot,mapping in groups.items():
         entry,_=prepared['animations'][slot]
-        changes.append((entry,encode_animation(source,mapping,scale,loops.get(slot,[])),f'DW3-Bewegungen → {slot}'))
-    buffer=io.BytesIO();hd.save(buffer,format='PNG')
+        data=encode_animation(source,mapping,scale,loops.get(slot,[]))
+        if ps1:
+            limit=_ps1_limit(session,entry)
+            step=1
+            while len(data)>limit and step<8:
+                # controlled optimisation: fewer distinct poses, every motion keeps its length
+                step+=1
+                data=encode_animation(source,mapping,scale,loops.get(slot,[]),step)
+            if len(data)>limit:
+                raise ValueError(f'PS1-Image: Bewegungen für {slot} brauchen auch mit jedem 8. Bild {len(data)} '
+                                 f'Bytes, das Original hat {limit}. Weniger Motions zuweisen.')
+            if step>1:
+                optimized[slot]=f'jedes {step}. Bild'
+        changes.append((entry,data,f'DW3-Bewegungen → {slot}'+(f' ({optimized[slot]})' if slot in optimized else '')))
+    report['ps1']=ps1
+    if optimized:
+        report['optimized']=optimized
+    buffer=io.BytesIO()
+    if not ps1:
+        hd.save(buffer,format='PNG')
     sha=hashlib.sha256(native).hexdigest()
     cam=_camera_plan(api,prepared,target_id,native,changes,camera)
     before=session.edits.copy()
     try:
         for entry,payload,label in changes:
+            if ps1:   # same size as the original file on the disc (the rest of its sectors stays zero)
+                payload=payload+bytes(_ps1_limit(session,entry)-len(payload))
             session.stage(entry,payload,label)
         if cam['repo'].set(target_id,cam['field_1E'],cam['hit_fx_y'],f'Kamera / Treffereffekt #{target_id:03} (DW3-Import)'):
             report['camera_changed']=True
@@ -146,7 +197,7 @@ def apply(api, source_id, target_id, assignments, scale_factor=1., hd_scale=0, c
         if close:
             shots_cam['closeup']=close
         report['battle_camera']={'setting':shots_cam,'box':[round(v) for v in box[:3]]}
-    if hasattr(api,'S'):
+    if hasattr(api,'S') and not ps1:
         if shots_cam:
             api.S.battle_camera[target_id]=battle_shots.validate(shots_cam)
         else:
@@ -155,6 +206,10 @@ def apply(api, source_id, target_id, assignments, scale_factor=1., hd_scale=0, c
         api.S.dw3_imports[target_id]={'source_name':prepared['info']['name'],'assignments':assignments,
                                       'scale':float(scale_factor),'hd':int(hd_scale),'size':round(scale,4),
                                       'size_mode':size_mode}
+    if ps1:
+        report.update(files=len(changes),hd_size=None,requires_mod_api=None,
+                      note='PS1-Image: native Textur (16 Farben je Seite), keine HD-Textur und keine Kampfkamera-Datei')
+        return report
     session.hd_files[sha]={f'Textures/DW2Studio_015/{hd_name(native)}':buffer.getvalue()}
     report.update(files=len(changes),hd_size=list(hd.size),requires_mod_api=2)
     return report

@@ -158,6 +158,7 @@ def open_image(path):
     from dw2studio.core.fast_loading import scan_image
     from dw2studio.core.edit_session import EditSession
     entries, catalog, info = scan_image(path, CACHE)
+    S.open_path = Path(path)
     S.image_path = Path(info['path'])
     S.session = EditSession(S.image_path, info['sector_size'])
     S.entries, S.catalog = entries, catalog
@@ -442,7 +443,35 @@ def save_image(name):
         raise ValueError(f'Zu wenig Speicherplatz: {S.image_path.stat().st_size >> 20} MB nötig, {free >> 20} MB frei.')
     target = folder / _unique_name(folder, base + suffix)
     output, _ = s.save(target, overwrite=False)
-    return {'path': str(output), 'name': output.name, 'size': output.stat().st_size}
+    cue = _write_cue(output)
+    return {'path': str(output), 'name': output.name, 'size': output.stat().st_size,
+            'cue': str(cue) if cue else None}
+
+
+def cue_for(bin_name, template=None):
+    """CUE text for a single-track raw image: the source CUE with the new file name, or the
+    standard PS1 data track (MODE2/2352) when there is no source CUE (IMG/CCD, plain BIN)."""
+    pattern = re.compile(r'(?im)^(\s*FILE\s+)(?:"[^"]+"|\S+)(\s+BINARY\s*)$')
+    if template and len(pattern.findall(template)) == 1:
+        return pattern.sub(lambda m: f'{m.group(1)}"{bin_name}"{m.group(2)}', template, count=1)
+    return f'FILE "{bin_name}" BINARY\n  TRACK 01 MODE2/2352\n    INDEX 01 00:00:00\n'
+
+
+def _write_cue(output):
+    """Write <output>.cue next to a newly exported 2352-byte image so emulators can open it."""
+    output = Path(output)
+    if _need_session().sector_size != 2352 or output.suffix.lower() != '.bin':
+        return None
+    template = None
+    for cand in (getattr(S, 'open_path', None), S.image_path.with_suffix('.cue')):
+        if cand and Path(cand).suffix.lower() == '.cue' and Path(cand).is_file():
+            template = Path(cand).read_text(encoding='utf-8-sig', errors='replace')
+            break
+    out = output.with_suffix('.cue')
+    if out.exists():
+        return None
+    out.write_text(cue_for(output.name, template), encoding='utf-8')
+    return out
 
 
 def save_project(name):
