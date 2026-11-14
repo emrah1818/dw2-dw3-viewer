@@ -56,7 +56,7 @@ export class Viewer {
       const vw = Math.min(w, h * this.battleAspect), vh = vw / this.battleAspect;
       const x = (w - vw) / 2, y = (h - vh) / 2;
       this.renderer.setViewport(x, y, vw, vh); this.renderer.setScissor(x, y, vw, vh); this.renderer.setScissorTest(true);
-      this.camera.aspect = this.battleAspect;
+      this.camera.aspect = this.battleCamAspect || this.battleAspect;
     } else {
       this.renderer.setViewport(0, 0, w, h); this.renderer.setScissorTest(false);
       this.camera.aspect = w / h;
@@ -357,16 +357,23 @@ export class Viewer {
     if (!this.model) return;
     if (!this.savedCam) this.savedCam = { fov: this.camera.fov, near: this.camera.near, far: this.camera.far,
       pos: this.camera.position.clone(), target: this.controls.target.clone() };
+    // Kampfbild 320 × 480 GTE-Einheiten, angezeigt 4:3: senkrechter Winkel aus 240 Zeilen, waagerecht 160
     this.camera.fov = 2 * Math.atan((c.screen[1] / 2) / c.projection) * 180 / Math.PI;
+    this.battleCamAspect = c.screen[0] / c.screen[1];
     this.camera.near = 50; this.camera.far = 200000;
     // Das Spiel stellt den Modellursprung auf den Boden; die Ansicht hat das Modell auf seine Unterkante
     // verschoben. Die Kamera wandert mit, damit der Bildausschnitt dem Spiel entspricht.
     const o = this.model.position;
-    this.camera.position.set(o.x, o.y + c.eye_height, o.z + c.distance);
-    this.controls.target.set(o.x, o.y + c.look_height, o.z);
+    if (c.eye) {   // Kampfeinstellung aus battle_shots.preview: Punkte in Modellachsen um den Ursprung
+      this.camera.position.set(o.x + c.eye[0], o.y + c.eye[1], o.z + c.eye[2]);
+      this.controls.target.set(o.x + c.target[0], o.y + c.target[1], o.z + c.target[2]);
+    } else {
+      this.camera.position.set(o.x, o.y + c.eye_height, o.z + c.distance);
+      this.controls.target.set(o.x, o.y + c.look_height, o.z);
+    }
     this.camera.updateProjectionMatrix(); this.controls.update();
     this.controls.enabled = false;
-    this.battleAspect = c.screen[0] / c.screen[1];
+    this.battleAspect = 4 / 3;
     this.resize();
   }
   endBattleCamera() {

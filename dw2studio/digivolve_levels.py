@@ -1,10 +1,10 @@
 """Digivolve level per Digimon: Studio side of a planned PC-port interface (format 1).
 
-The game decides in Stg20_DigivolveRuleTbl (src/stag2000/labinfo.c, compiled into dw2.exe):
-Rookie from level 11, Champion 21, Ultimate 31, Mega never, the same for every species. No data
-file can change that, so this setting has NO effect with the current port. The Studio keeps the
-values, saves them in projects and writes Mods/digivolve_levels.json, which a port that announces
-"digivolve_levels": 1 in dw2_mod_api.json would read (DIGITATIONSLEVEL_SCHNITTSTELLE.md).
+The original game decides in Stg20_DigivolveRuleTbl (src/stag2000/labinfo.c): Rookie from level
+11, Champion 21, Ultimate 31, Mega never, the same for every species. The PC port from 1.0 reads
+Mods/digivolve_levels.json (host/modconf.c) and announces "digivolve_levels": 1 in its --mod-api
+output; for a listed Digimon the lab then uses its own minimum level. Mega stays locked. Older
+ports ignore the file.
 
 File format 1 (UTF-8 JSON):
     {"format": 1, "levels": {"<digimon id 1-255>": <minimum level 1-99>, ...}}

@@ -918,37 +918,70 @@ async function renderCamera(id) {
   try {
     const c = await native('camera_info', id);
     if (state.id !== id) return;
-    box.innerHTML = `<p class="hint">Die Nahaufnahme im Kampf wählt Abstand und Blickhöhe in 9 Stufen aus diesem Wert (src/stag3000/camera.c). Beim DW3-Import wird er automatisch aus der Höhe des neuen Modells gesetzt. Aktuell Stufe ${c.current.bucket}, Original ${c.original.field_1E} (Stufe ${c.original.bucket}).</p>` +
+    box.innerHTML = `<p class="hint">Nahaufnahme-Stufe (MODELDT, 9 Stufen, src/stag3000/camera.c): aktuell Stufe ${c.current.bucket}, Original ${c.original.field_1E} (Stufe ${c.original.bucket}). Beim DW3-Import automatisch.</p>` +
       `<label class="f">Kamerahöhe (${c.limits.field[0]}–${c.limits.field[1]})</label>${numIn('cam-f', c.current.field_1E, ...c.limits.field)}` +
       `<label class="f">Höhe der Treffereffekte (${c.limits.hit[0]}–${c.limits.hit[1]})</label>${numIn('cam-h', c.current.hit_fx_y, ...c.limits.hit)}` +
-      `<div class="btns"><button id="cam-up" class="small">Stufe +1</button><button id="cam-down" class="small">Stufe −1</button><button id="cam-orig" class="small">Original</button><button id="cam-view" class="small">Vorschau: Nahaufnahme wie im Kampf</button><button id="cam-save" class="primary">Übernehmen</button></div>` +
-      `<p class="hint" id="cam-note">Vorschau zeigt die Nahaufnahme bei Befehlseingabe und Zielwahl (4:3, Bildwinkel, Abstand und Blickhöhe aus den Tabellen des Spiels, von vorn wie am mittleren Platz). Im Spiel verglichen: Größe und Stufenfolge stimmen; die Seitenplätze sehen schräg (60°), Bildlage kann je Pose leicht abweichen. Die Kameras während einer Attacke sind im Spielcode fest und hängen nicht von diesem Wert ab.</p>`;
-    const preview = () => {
-      if (!view.savedCam) return;
-      const f = Number($('#cam-f').value), b = Math.max(0, Math.min(8, Math.floor(Math.max(0, f - 0x300) / 256)));
-      view.battleCamera(c.closeups[b]);
-      $('#cam-view').textContent = `Vorschau beenden (Stufe ${b})`;
-      $('#cam-ov-text').textContent = `Kampf-Nahaufnahme #${pad3(id)} · Wert ${f} · Stufe ${b} von 0–8 (Abstand ${c.closeups[b].distance})`;
-    };
-    const end = () => { view.endBattleCamera(); $('#cam-overlay').hidden = true; $('#cam-view').textContent = 'Vorschau: Nahaufnahme wie im Kampf'; };
-    const step = d => { $('#cam-f').value = Math.max(c.limits.field[0], Math.min(c.limits.field[1], Number($('#cam-f').value) + d)); preview(); };
-    $('#cam-ov-up').onclick = () => step(256); $('#cam-ov-down').onclick = () => step(-256); $('#cam-ov-end').onclick = end;
-    $('#cam-view').onclick = () => {
-      if (view.savedCam) return end();
-      show('page-view');
-      $('#cam-overlay').hidden = false;
-      view.battleCamera(c.closeups[0]); preview();
-    };
-    $('#cam-f').oninput = preview;
-    $('#cam-up').onclick = () => { $('#cam-f').value = Math.min(c.limits.field[1], Number($('#cam-f').value) + 256); preview(); };
-    $('#cam-down').onclick = () => { $('#cam-f').value = Math.max(c.limits.field[0], Number($('#cam-f').value) - 256); preview(); };
-    $('#cam-orig').onclick = () => { $('#cam-f').value = c.original.field_1E; $('#cam-h').value = c.original.hit_fx_y; preview(); };
+      `<div class="btns"><button id="cam-up" class="small">Stufe +1</button><button id="cam-down" class="small">Stufe −1</button><button id="cam-orig" class="small">Original</button><button id="cam-save" class="primary">Übernehmen</button></div>` +
+      `<hr><b>Kampfkamera je Digimon (Angriff, Ziel, Nahaufnahme)</b><p class="hint">Wirkt mit dem mitgelieferten PC-Port ab 1.0 (Mods\\battle_camera.json). Abstand in % der Spielkamera, Höhen in Spieleinheiten, Winkel in 1/4096 Umdrehung. Leer = Kamera des Spiels.</p>` +
+      `<div id="bc-box">lädt …</div>`;
+    $('#cam-up').onclick = () => { $('#cam-f').value = Math.min(c.limits.field[1], Number($('#cam-f').value) + 256); };
+    $('#cam-down').onclick = () => { $('#cam-f').value = Math.max(c.limits.field[0], Number($('#cam-f').value) - 256); };
+    $('#cam-orig').onclick = () => { $('#cam-f').value = c.original.field_1E; $('#cam-h').value = c.original.hit_fx_y; };
     $('#cam-save').onclick = async () => {
       try { await native('camera_set', id, Number($('#cam-f').value), Number($('#cam-h').value)); await afterChange('Kamera vorgemerkt'); renderCamera(id); }
       catch (e) { await fail(e); }
     };
+    renderBattleCam(id);
   } catch (e) { box.innerHTML = `<p class="hint">${esc(e.message)}</p>`; }
 }
+
+const SHOT_NAMES = { closeup: 'Nahaufnahme', attack0: 'Angriff A', attack1: 'Angriff B', attack2: 'Angriff C', target: 'Ziel' };
+let bcState = null;
+async function renderBattleCam(id, setting) {
+  const box = $('#bc-box');
+  if (!box) return;
+  try {
+    const info = await native('battle_camera_info', id, setting ?? null);
+    if (state.id !== id) return;
+    bcState = { id, info, key: bcState?.id === id ? bcState.key : '0:attack0' };
+    const s = info.setting, cl = s.closeup || {};
+    const f = (k, v, lo, hi) => `<input data-bc="${k}" type="number" min="${lo}" max="${hi}" value="${v ?? ''}" placeholder="Spiel">`;
+    const bad = info.checks.filter(r => !r.fits);
+    box.innerHTML =
+      `<div class="row">Angriff/Ziel: Abstand ${f('distance', s.distance, 25, 400)} % Höhe ${f('height', s.height, -20000, 20000)} Blickpunkt ${f('target', s.target, -20000, 20000)} Winkel ${f('angle', s.angle, -4095, 4095)}</div>` +
+      `<div class="row">Nahaufnahme: Abstand ${f('c.distance', cl.distance, 25, 400)} % Höhe ${f('c.height', cl.height, -20000, 20000)} Blickpunkt ${f('c.target', cl.target, -20000, 20000)} Winkel ${f('c.angle', cl.angle, -4095, 4095)}</div>` +
+      `<p class="${bad.length ? 'warn' : 'hint'}">${bad.length ? `In ${bad.length} von ${info.checks.length} Einstellungen ragt das Digimon aus dem Bild (${[...new Set(bad.map(r => SHOT_NAMES[r.shot]))].join(', ')}).` : `In allen ${info.checks.length} Einstellungen (6 Kampfplätze) ganz im Bild.`} Größe: ${info.box[1] - info.box[0]} hoch, Radius ${info.box[2]}.</p>` +
+      `<div class="btns"><button id="bc-auto" class="small">Automatisch (ganz im Bild)</button><button id="bc-game" class="small">Kamera des Spiels</button><button id="bc-view" class="small">Vorschau wie im Kampf</button><button id="bc-save" class="primary">Übernehmen</button></div>`;
+    const read = () => {
+      const o = {}, c2 = {};
+      $$('[data-bc]', box).forEach(x => { if (x.value === '') return; const [a, b] = x.dataset.bc.split('.'); if (b) c2[b] = Number(x.value); else o[a] = Number(x.value); });
+      if (Object.keys(c2).length) o.closeup = c2;
+      return o;
+    };
+    $$('[data-bc]', box).forEach(x => { x.onchange = () => renderBattleCam(id, read()).then(() => { if (view.savedCam) showShot(); }); });
+    $('#bc-auto').onclick = () => renderBattleCam(id, info.auto).then(() => { if (view.savedCam) showShot(); });
+    $('#bc-game').onclick = () => renderBattleCam(id, {}).then(() => { if (view.savedCam) showShot(); });
+    $('#bc-save').onclick = async () => {
+      try { await native('battle_camera_set', id, Object.keys(read()).length ? read() : null); await afterChange('Kampfkamera vorgemerkt'); renderBattleCam(id); }
+      catch (e) { await fail(e); }
+    };
+    $('#bc-view').onclick = () => { show('page-view'); $('#cam-overlay').hidden = false; showShot(); };
+  } catch (e) { box.innerHTML = `<p class="hint">${esc(e.message)}</p>`; }
+}
+const SHOT_KEYS = [];
+for (let i = 0; i < 6; i++) for (const n of ['closeup', 'attack0', 'attack1', 'attack2', 'target']) SHOT_KEYS.push(`${i}:${n}`);
+function showShot() {
+  if (!bcState) return;
+  const v = bcState.info.views[bcState.key];
+  if (!v) return;
+  view.battleCamera(v);
+  const [pos, name] = bcState.key.split(':');
+  const row = bcState.info.checks.find(r => r.position === Number(pos) && r.shot === name);
+  $('#cam-ov-text').textContent = `#${pad3(bcState.id)} · ${SHOT_NAMES[name]} · Platz ${Number(pos) + 1}${Number(pos) < 3 ? ' (Team)' : ' (Gegner)'} · ${row?.fits ? 'ganz im Bild' : 'ragt heraus'}`;
+}
+$('#cam-ov-up').onclick = () => { if (!bcState) return; bcState.key = SHOT_KEYS[(SHOT_KEYS.indexOf(bcState.key) + 1) % SHOT_KEYS.length]; showShot(); };
+$('#cam-ov-down').onclick = () => { if (!bcState) return; bcState.key = SHOT_KEYS[(SHOT_KEYS.indexOf(bcState.key) + SHOT_KEYS.length - 1) % SHOT_KEYS.length]; showShot(); };
+$('#cam-ov-end').onclick = () => { view.endBattleCamera(); $('#cam-overlay').hidden = true; };
 
 // ---------------------------------------------------------------- 4 Attacken-Editor
 let techCache = null;

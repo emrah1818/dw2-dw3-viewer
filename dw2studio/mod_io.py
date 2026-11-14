@@ -24,7 +24,7 @@ def _api_level(port):
         return 1
 
 
-def check(session, pak, port_dir, levels=None):
+def check(session, pak, port_dir, levels=None, cameras=None):
     """What an export would write and what stands in its way. Writes nothing."""
     port = Path(port_dir)
     report = {'files': [], 'errors': [], 'conflicts': [], 'warnings': [], 'api': _api_level(port)}
@@ -38,9 +38,20 @@ def check(session, pak, port_dir, levels=None):
         report['levels'] = len(levels)
         if not port_supports(port):
             report['warnings'].append(f'Digitationslevel für {len(levels)} Digimon werden als Mods\\{FILENAME} '
-                                      'mitgeschrieben, wirken aber erst mit einem PC-Port, der diese Datei liest '
-                                      '(der mitgelieferte Port tut das noch nicht).')
-    if not session.edits:
+                                      'mitgeschrieben. Dieser PC-Port meldet die Schnittstelle nicht '
+                                      '(dw2_mod_api.json ohne "digivolve_levels"); er ignoriert die Datei. '
+                                      'Den mitgelieferten Port ab 1.0 verwenden.')
+    if cameras:
+        report['cameras'] = len(cameras)
+        try:
+            api_doc = json.loads((port / 'dw2_mod_api.json').read_text(encoding='utf-8'))
+        except (OSError, ValueError):
+            api_doc = {}
+        if not isinstance(api_doc, dict) or int(api_doc.get('battle_camera', 0) or 0) < 1:
+            report['warnings'].append(f'Kampfkameras für {len(cameras)} Digimon werden als Mods\\battle_camera.json '
+                                      'mitgeschrieben. Dieser PC-Port meldet die Schnittstelle nicht und ignoriert sie. '
+                                      'Den mitgelieferten Port ab 1.0 verwenden.')
+    if not session.edits and not levels and not cameras:
         report['errors'].append('Es sind keine Änderungen vorgemerkt.')
         return report
     extended = any(e.relocate or len(e.replacement) != len(e.original) for e in session.edits.values())
@@ -73,8 +84,8 @@ def check(session, pak, port_dir, levels=None):
     return report
 
 
-def export_checked(session, pak, port_dir, *, replace=False, name='DW2 Mod Studio', levels=None):
-    report = check(session, pak, port_dir, levels)
+def export_checked(session, pak, port_dir, *, replace=False, name='DW2 Mod Studio', levels=None, cameras=None):
+    report = check(session, pak, port_dir, levels, cameras)
     if report['errors']:
         raise ValueError(' '.join(report['errors']))
     moved = None
@@ -89,6 +100,10 @@ def export_checked(session, pak, port_dir, *, replace=False, name='DW2 Mod Studi
         from .digivolve_levels import dumps, FILENAME
         (Path(port_dir) / 'Mods' / FILENAME).write_text(dumps(levels), encoding='utf-8')
         result['digivolve_levels'] = len(levels)
+    if cameras:
+        from .core.battle_shots import dumps as cam_dumps
+        (Path(port_dir) / 'Mods' / 'battle_camera.json').write_text(cam_dumps(cameras), encoding='utf-8')
+        result['battle_camera'] = len(cameras)
     result['warnings'] = report['warnings']
     return result
 

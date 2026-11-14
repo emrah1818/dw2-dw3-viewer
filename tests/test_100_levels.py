@@ -54,7 +54,7 @@ def test_api_levels_undo_and_project(tmp_path):
     api.open_image(str(pak))
     r = api.call('digivolve_level_set', json.dumps([131, 15]))
     assert json.loads(r)['ok'] and api.S.digivolve_levels == {131: 15}
-    assert api.digivolve_levels_info()['effective'] is False
+    assert 'Mega bleibt gesperrt' in api.digivolve_levels_info()['note']
     api.call('undo', '[]')
     assert api.S.digivolve_levels == {}
     api.call('redo', '[]')

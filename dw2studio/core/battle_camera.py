@@ -33,7 +33,7 @@ def closeup(field):
     if not 0 <= b < 9:
         raise ValueError('Kamerawert außerhalb der 9 Stufen.')
     return {'bucket': b, 'distance': CLOSEUP_VPZ[b], 'eye_height': -CLOSEUP_VPY, 'look_height': -CLOSEUP_VRY[b],
-            'projection': PROJECTION, 'screen': [320, 240]}
+            'projection': PROJECTION, 'screen': [640, 480]}
 
 
 def bucket(field):

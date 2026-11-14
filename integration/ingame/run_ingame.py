@@ -88,9 +88,10 @@ def scene_evo(args, check):
              {'id': 48, 'rows': [{'min_dp': 0, 'target': 12}], 'rank': 1},
              {'id': 12, 'rows': api.evolution_info(12)['rows'], 'rank': 2}]
     check(scene, 'Linie Agumon > Growlmon > MegaloGrowmon gesetzt', api.evolution_line(lines)['changed'])
-    # Kompatibilität: vorbereitete Digitationslevel (Format 1). Der aktuelle Port liest sie nicht; Agumon
-    # bekommt 20, digitiert im Spiel aber weiter nach der festen Regel ab Level 11.
+    # Digitationslevel je Digimon (Mods/digivolve_levels.json, ab Port 1.0): Agumon erst ab 20 (statt 11),
+    # das importierte Growlmon schon ab 18 (statt 21)
     api.digivolve_level_set(3, 20)
+    api.digivolve_level_set(48, 18)
     export(port, check, scene)
     check(scene, 'digivolve_levels.json mitgeschrieben', os.path.isfile(os.path.join(port, 'Mods', 'digivolve_levels.json')))
 
@@ -124,22 +125,26 @@ def scene_evo(args, check):
             g.tap('Cross', 3, (90, 90, 120, 120, 600, 300, 300)[k])
             g.shot(f'{tag}_{k}')
 
+    lab('gesperrt')
+    blocked = roster(g, idx)
+    check(scene, 'Eigenes Mindestlevel sperrt: Agumon Lv15 < 20 digitiert nicht', blocked['digi'] == 3, slot=blocked)
+    g.devedit(f'digi={idx},maxlevel,99')
+    g.run(6)
+    g.devedit(f'digi={idx},level,20')
+    g.run(6)
     before = roster(g, idx)
     lab('in_import')
     after = roster(g, idx)
-    check(scene, 'Digitation in importiertes Digimon (Agumon > Growlmon #48)', after['digi'] == 48,
+    check(scene, 'Digitation in importiertes Digimon bei Lv20 (Agumon > Growlmon #48)', after['digi'] == 48,
           before=before, after=after)
-    check(scene, 'Aktueller Port ignoriert digivolve_levels.json (Lv15 < 20, trotzdem digitiert)', after['digi'] == 48)
-    g.devedit(f'digi={idx},maxlevel,99')
-    g.run(6)
-    g.devedit(f'digi={idx},level,25')
+    g.devedit(f'digi={idx},level,18')
     g.run(6)
     g.devedit(f'digi={idx},dp,10')
     g.run(6)
     lab('aus_import')
     after2 = roster(g, idx)
-    check(scene, 'Digitation aus importiertem Digimon (Growlmon > MegaloGrowmon #12)', after2['digi'] == 12,
-          after=after2)
+    check(scene, 'Digitation aus importiertem Digimon bei Lv18 < Spielregel 21 (Growlmon > MegaloGrowmon #12)',
+          after2['digi'] == 12, after=after2)
 
     # speichern, neu starten, laden: das importierte Digimon bleibt erhalten
     from save_test import save_menu, load_slot1  # noqa: E402
@@ -165,8 +170,8 @@ def scene_evo(args, check):
     mode = load_slot1(g)
     loaded = roster(g, idx)
     g.shot('loaded')
-    check(scene, 'Nach Neustart geladen: MegaloGrowmon (#12) Lv25 im Spielstand',
-          (mode >> 8) == 3 and loaded['digi'] == 12 and loaded['level'] == 25, mode=hex(mode), slot=loaded)
+    check(scene, 'Nach Neustart geladen: MegaloGrowmon (#12) Lv18 im Spielstand',
+          (mode >> 8) == 3 and loaded['digi'] == 12 and loaded['level'] == 18, mode=hex(mode), slot=loaded)
 
     # Blinzeln: DW3-Augenrechteck als DW2-Augenanimation. Im Labor die VRAM-Texturseiten über 60 Bilder
     # vergleichen: Gfx_AnimateModelTex kopiert beim Blinzeln halb/zu-Rahmen über das Auge.
@@ -253,17 +258,23 @@ def scene_partner(args, check):
     port = port_dir(args, scene)
     open_studio(args, scene)
     models = {m['name']: m['id'] for m in api.open_dw3(args.dw3)['models']}
-    job = api.dw3_batch_apply([{'source': models['M366GIRU'], 'target': 84, 'name': 'Guilmon'}])['jobs'][0]
-    check(scene, 'Guilmon in Platz 84 importiert (Kamera automatisch)', job['target'] == 84, camera=job.get('camera'))
+    jobs = api.dw3_batch_apply([{'source': models['M366GIRU'], 'target': 84, 'name': 'Guilmon'},
+                                {'source': models['M368MGRW'], 'target': 131, 'name': 'MegaloGrowmon'}])['jobs']
+    job = jobs[0]
+    check(scene, 'Guilmon (Platz 84) und MegaloGrowmon (Platz 131, Gegner der Boot Domain) importiert, Kamera automatisch',
+          [j['target'] for j in jobs] == [84, 131], cameras={j['target']: j.get('battle_camera') for j in jobs})
     tech = api.technique_create(84, 0x1F, 'Pyro Sphere', None, {'mp': 7, 'power': 90}, True, [])
     check(scene, 'Eigene Technik für Guilmon angelegt', tech['id'] > 0, id=tech['id'])
     export(port, check, scene)
+    check(scene, 'battle_camera.json mit beiden Digimon geschrieben',
+          os.path.isfile(os.path.join(port, 'Mods', 'battle_camera.json')) and
+          {'84', '131'} <= set(json.load(open(os.path.join(port, 'Mods', 'battle_camera.json')))['digimon']))
 
     sys.path.insert(0, args.autoplay)
     import policy  # noqa: E402
     g = game(args, port, scene, extra=('--cheats',))
     st = policy.Stats()
-    found, state = {}, {'idx': None, 'battle_done': False}
+    found, state, views = {}, {'idx': None, 'battle_done': False}, []
     orig = policy.battle
 
     def battle(g, st, *a, **k):
@@ -271,6 +282,7 @@ def scene_partner(args, check):
             for k2, w in enumerate((60, 90, 150, 200, 250)):
                 g.run(w)
                 g.shot('battle_%d' % k2)
+                views.append(view_record(g))   # Befehlseingabe: Nahaufnahme hat Zeit zum Einschwingen
             for i in range(6):
                 raw = g.peek('Stg30_Battle', 0x18 + i * ENTRY, ENTRY)
                 if raw[0]:
@@ -281,10 +293,12 @@ def scene_partner(args, check):
             def run(n=1, buttons=None):
                 r = run0(n, buttons)
                 count['w'] += n
-                if count['w'] >= 30 and count['k'] < 80:
+                if count['w'] >= 15 and count['k'] < 400:
                     count['w'] = 0
                     count['k'] += 1
-                    g.shot('fight_%02d' % count['k'])
+                    views.append(view_record(g))
+                    if count['k'] % 3 == 0:
+                        g.shot('fight_%03d' % count['k'])
                 return r
             g.run = run
             try:
@@ -336,11 +350,73 @@ def scene_partner(args, check):
         check(scene, 'Guilmon als eigener Partner im Team (Spielstanddaten)', any(t['digi'] == 84 and t['state'] for t in team), team=team)
     alive, end_mode = g.proc.poll() is None, g.mode()
     g.close()
+    glog = open(os.path.join(args.work, scene, 'run', 'game.log'), errors='replace').read()
+    check(scene, 'Port hat die Kampfkameras gelesen', 'battle cameras for 2 Digimon' in glog)
     party = [v for k2, v in found.items() if k2 < 3]
     check(scene, 'Guilmon (#84) kämpft als Partner mit eigener Technik', any(p['digi'] == 84 and tech['id'] in p['skills'] for p in party),
           party=party)
     check(scene, 'Kampf zu Ende gespielt, zurück in der Stadt, Spiel läuft', state['battle_done'] and alive and end_mode == 0x32D,
           mode=hex(end_mode), note='Bilder: run/shots/battle_*, fight_*')
+    # Kampfkamera im Spiel gemessen: in jeder erkannten Einstellung eines importierten Digimon liegt
+    # sein Modellrechteck (Gfx_ModelScreenBounds) ganz im Bild
+    seen = shots_on_screen(views, {84, 131})
+    json.dump(seen, open(os.path.join(args.work, scene, 'camera_shots.json'), 'w'), indent=1)
+    imported = [v for v in seen if v['digi'] in (84, 131)]
+    check(scene, 'Kampfkamera: importierte Digimon in jeder gemessenen Einstellung ganz im Bild',
+          imported and all(v['inside'] for v in imported),
+          shots=sorted({(v['digi'], v['shot'], v['position'], v['inside']) for v in imported}))
+
+
+def view_record(g):
+    """View matrix, the six fighters' model rectangles and Digimon of one battle frame."""
+    raw = g.peek('GsWSMATRIX', 0, 32)
+    boxes = {}
+    for i in range(6):
+        r = g._call('fbox %d' % i)
+        boxes[i] = list(map(int, r.split()[1:])) if r.startswith('ok') else None
+    return {'m': struct.unpack_from('<9h', raw, 0), 't': struct.unpack_from('<3i', raw, 20), 'boxes': boxes,
+            'digis': [g.peek('Stg30_Battle', 0x18 + i * ENTRY, 2)[1] for i in range(6)]}
+
+
+def shots_on_screen(views, digis_of_interest):
+    """Frames whose view matrix is one of the game's shots (battle_shots, with the exported
+    Mods/battle_camera.json settings and the current close-up values): the shot's own fighter's
+    rectangle against the 320 x 480 screen (centre 160 / 240). Other fighters keep stale bone
+    matrices when the game does not draw them, so only the shot's own fighter is judged."""
+    import numpy as np
+    from dw2studio.core import battle_shots as B
+    from dw2studio.core.battle_camera import CameraRepository
+    repo = CameraRepository(api.S.session, api.S.entries)
+    out = []
+    for v in views:
+        m, t = np.array(v['m']).reshape(3, 3), np.array(v['t'])
+        best = None
+        for i in range(6):
+            d = v['digis'][i]
+            if not d:
+                continue
+            adj = api.S.battle_camera.get(d, {})
+            for name, frame in B.shots(i, repo.values(d)['field_1E']):
+                a = adj.get('closeup') if frame['kind'] == 'closeup' else {k: x for k, x in adj.items() if k != 'closeup'}
+                f = B.adjusted(frame, a or None)
+                eye, target = B.eye_target(f)
+                fw = target - eye
+                fw /= np.linalg.norm(fw)
+                r = np.cross([0, 1, 0], fw)
+                r /= np.linalg.norm(r)
+                M = np.array([r, np.cross(fw, r), fw])
+                err = np.abs(M * 4096 - m).sum() + np.abs(-(M @ eye) - t).sum() / 10
+                if best is None or err < best[0]:
+                    best = (err, i, name)
+        if best is None or best[0] > 60:
+            continue
+        _, i, name = best
+        b = v['boxes'][i]
+        if not b:
+            continue
+        inside = -160 <= b[0] and b[2] <= 160 and -240 <= b[1] and b[3] <= 240
+        out.append({'digi': v['digis'][i], 'position': i, 'shot': name, 'box': b[:4], 'inside': inside})
+    return out
 
 
 SCENES = {'evo': scene_evo, 'domain': scene_domain, 'partner': scene_partner}

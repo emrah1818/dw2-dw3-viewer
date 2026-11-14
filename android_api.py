@@ -36,7 +36,8 @@ class State:
         self.props = {}
         self.roster = None
         self.source_names = {}
-        self.digivolve_levels = {}   # 1.0: prepared for a future port interface, no effect today
+        self.digivolve_levels = {}   # Mods/digivolve_levels.json (PC port 1.0)
+        self.battle_camera = {}      # Mods/battle_camera.json (PC port 1.0)
 
 
 S = State()
@@ -146,6 +147,7 @@ def open_image(path):
         S.entries, S.catalog, S.index_key = entries, catalog, key
         S.names = S.attacks = S.types = None
         S.digivolve_levels = {}
+        S.battle_camera = {}
         S.props, S.roster = {}, None
         S.source_names = {c.id: c.name for c in catalog}
         return {'name': S.image_path.name, 'count': len(catalog), 'cached': False,
@@ -446,11 +448,16 @@ def save_project(name):
     target = folder / _unique_name(folder, name if name.endswith('.dw2mod') else name + '.dw2mod')
     s.export_project(target)
     levels = getattr(S, 'digivolve_levels', {}) or {}
-    if levels:
+    cams = getattr(S, 'battle_camera', {}) or {}
+    if levels or cams:
         import zipfile
         from dw2studio.digivolve_levels import dumps, FILENAME
+        from dw2studio.core import battle_shots
         with zipfile.ZipFile(target, 'a') as archive:
-            archive.writestr(FILENAME, dumps(levels))
+            if levels:
+                archive.writestr(FILENAME, dumps(levels))
+            if cams:
+                archive.writestr('battle_camera.json', battle_shots.dumps(cams))
     return {'path': str(target), 'name': target.name}
 
 
@@ -477,6 +484,9 @@ def load_project(path):
         with zipfile.ZipFile(path) as archive:
             if FILENAME in archive.namelist():
                 S.digivolve_levels = loads(archive.read(FILENAME).decode('utf-8'))
+            if 'battle_camera.json' in archive.namelist():
+                from dw2studio.core import battle_shots
+                S.battle_camera = battle_shots.loads(archive.read('battle_camera.json').decode('utf-8'))
         for filename in tables:
             PARSERS[filename](s.current(_props(filename).entry))
         _refresh_names()
@@ -807,19 +817,19 @@ def _pak():
 def mod_check(port_dir):
     from dw2studio.mod_io import check
     s, pak = _pak()
-    return check(s, pak, port_dir, S.digivolve_levels)
+    return check(s, pak, port_dir, S.digivolve_levels, S.battle_camera)
 
 
 def mod_export(port_dir):
     from dw2studio.mod_io import export_checked
     s, pak = _pak()
-    return export_checked(s, pak, port_dir, replace=False, name='DW2 Mod Studio ' + VERSION, levels=S.digivolve_levels)
+    return export_checked(s, pak, port_dir, replace=False, name='DW2 Mod Studio ' + VERSION, levels=S.digivolve_levels, cameras=S.battle_camera)
 
 
 def mod_export_replace(port_dir):
     from dw2studio.mod_io import export_checked
     s, pak = _pak()
-    return export_checked(s, pak, port_dir, replace=True, name='DW2 Mod Studio ' + VERSION, levels=S.digivolve_levels)
+    return export_checked(s, pak, port_dir, replace=True, name='DW2 Mod Studio ' + VERSION, levels=S.digivolve_levels, cameras=S.battle_camera)
 
 
 def mod_import(port_dir):
@@ -938,10 +948,10 @@ def technique_budget():
 def digivolve_levels_info():
     from dw2studio.digivolve_levels import DEFAULT, FORMAT
     return {'levels': {str(k): v for k, v in (getattr(S, 'digivolve_levels', {}) or {}).items()},
-            'default': DEFAULT, 'format': FORMAT, 'effective': False,
-            'note': 'Der aktuelle PC-Port liest diese Werte nicht: im Spiel gilt weiter Rookie ab 11, '
-                    'Champion ab 21, Ultimate ab 31. Die Werte werden für eine künftige Port-Schnittstelle '
-                    'gespeichert und exportiert (DIGITATIONSLEVEL_SCHNITTSTELLE.md).'}
+            'default': DEFAULT, 'format': FORMAT,
+            'note': 'Mindestlevel, ab dem dieses Digimon im Digi-Labor digitieren darf (statt Rookie 11, Champion 21, '
+                    'Ultimate 31). Mega bleibt gesperrt, die DP-Ziele gelten weiter. Wirkt mit dem mitgelieferten '
+                    'PC-Port ab 1.0 (Mods\\digivolve_levels.json); ältere Ports ignorieren die Datei.'}
 
 
 def digivolve_level_set(digimon, level=None):
@@ -953,6 +963,54 @@ def digivolve_level_set(digimon, level=None):
         levels[int(digimon)] = int(level)
     S.digivolve_levels = validate(levels)
     return digivolve_levels_info()
+
+
+def _digi_box(identifier):
+    from dw2studio.core.battle_shots import model_box
+    s = _need_session()
+    family, _, _ = _model_family(_find(identifier))
+    model = next(e for e in family if Path(e.path).name.startswith('M'))
+    anims = [s.current(e) for k in 'AFGH' for e in family if Path(e.path).name[0] == k]
+    if not anims:
+        raise ValueError('Ohne Animationsdateien lässt sich die Größe nicht messen.')
+    return model_box(s.current(model), anims, points=True)
+
+
+def battle_camera_info(identifier, setting=None):
+    """Attack / target / close-up shots of a Digimon: current setting, automatic suggestion, which
+    shots keep the whole Digimon on screen, and eye / target points for the preview."""
+    from dw2studio.core import battle_shots as B
+    from dw2studio.core.battle_camera import CameraRepository
+    ident = int(identifier)
+    cur = B.validate(setting) if setting is not None else dict(S.battle_camera.get(ident, {}))
+    box = _digi_box(ident)
+    field = CameraRepository(_need_session(), S.entries).values(ident)['field_1E']
+    shot_adj = {k: v for k, v in cur.items() if k != 'closeup'} or None
+    close_adj = cur.get('closeup') or None
+    rows = B.check(box, shot_adj, close_adj, field)
+    views = {}
+    for i in range(6):
+        for name, frame in B.shots(i, field):
+            a = close_adj if frame['kind'] == 'closeup' else shot_adj
+            views[f'{i}:{name}'] = B.preview(B.adjusted(frame, a), i)
+    auto = B.auto(box)
+    auto_close = B.auto_closeup(box, field)
+    suggestion = dict(auto or {})
+    if auto_close:
+        suggestion['closeup'] = auto_close
+    return {'setting': cur, 'auto': suggestion, 'box': [round(v) for v in box[:3]], 'checks': rows,
+            'all_fit': all(r['fits'] for r in rows), 'views': views, 'field_1E': field,
+            'limits': B.LIMITS}
+
+
+def battle_camera_set(identifier, setting=None):
+    from dw2studio.core import battle_shots as B
+    ident = int(identifier)
+    if setting:
+        S.battle_camera[ident] = B.validate(setting)
+    else:
+        S.battle_camera.pop(ident, None)
+    return {'setting': S.battle_camera.get(ident, {})}
 
 
 def evolution_validate():
@@ -1077,7 +1135,7 @@ def hd_active(identifier):
 
 # --------------------------------------------------------------------------- Verlauf (Rückgängig / Wiederherstellen)
 UNDO, REDO = [], []
-MUTATING = {'digivolve_level_set', 'dw3_native_apply', 'dw3_batch_apply', 'mod_import', 'mod_import_force', 'technique_copy_parts', 'technique_assign', 'domain_set_floor', 'group_set', 'group_clone',
+MUTATING = {'digivolve_level_set', 'battle_camera_set', 'dw3_native_apply', 'dw3_batch_apply', 'mod_import', 'mod_import_force', 'technique_copy_parts', 'technique_assign', 'domain_set_floor', 'group_set', 'group_clone',
             'technique_create', 'technique_edit', 'camera_set', 'evolution_line', 'set_evolution', 'rename', 'set_type', 'set_specialty', 'set_enemy_values', 'apply_attacks', 'roster_change',
             'roster_restore', 'discard', 'load_project', 'png_apply', 'transfer_apply', 'bin_apply',
             'rig_apply', 'restore_original'}
@@ -1086,12 +1144,14 @@ MUTATING = {'digivolve_level_set', 'dw3_native_apply', 'dw3_batch_apply', 'mod_i
 def _snapshot():
     return (dict(S.session.edits) if S.session else {},
             bytes(S.roster.raw) if S.roster is not None else None,
-            dict(getattr(S, 'digivolve_levels', {}) or {}))
+            dict(getattr(S, 'digivolve_levels', {}) or {}),
+            {k: dict(v) for k, v in (getattr(S, 'battle_camera', {}) or {}).items()})
 
 
 def _restore(snap):
-    edits, roster, levels = snap
+    edits, roster, levels, cams = snap
     S.digivolve_levels = dict(levels)
+    S.battle_camera = {k: dict(v) for k, v in cams.items()}
     if S.session is not None:
         S.session.edits = dict(edits)
     if S.roster is not None and roster is not None:
@@ -1157,7 +1217,8 @@ _METHODS = {
     'technique_create': technique_create, 'technique_edit': technique_edit,
     'technique_copy_parts': technique_copy_parts, 'technique_assign': technique_assign,
     'technique_budget': technique_budget, 'evolution_validate': evolution_validate,
-    'digivolve_levels_info': digivolve_levels_info, 'digivolve_level_set': digivolve_level_set, 'mod_import_force': mod_import_force,
+    'digivolve_levels_info': digivolve_levels_info, 'digivolve_level_set': digivolve_level_set,
+    'battle_camera_info': battle_camera_info, 'battle_camera_set': battle_camera_set, 'mod_import_force': mod_import_force,
     'hd_preview': hd_preview, 'hd_active': hd_active, 'files_list': files_list, 'file_export': file_export, 'dw3_models': dw3_models,
     'camera_info': camera_info, 'camera_set': camera_set, 'dw3_batch_apply': dw3_batch_apply,
     'open_dw3': open_dw3, 'prepare_dw3': prepare_dw3, 'export_dw3': export_dw3, 'export_port_mod': export_port_mod,

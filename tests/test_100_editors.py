@@ -148,7 +148,7 @@ def test_import_without_own_changes_has_no_conflict(tmp_path):
 def test_closeup_preview_uses_the_game_tables():
     from dw2studio.core.battle_camera import closeup, CLOSEUP_VPZ, CLOSEUP_VRY
     assert closeup(0x300) == {'bucket': 0, 'distance': 7495, 'eye_height': 0xC30, 'look_height': 304,
-                              'projection': 0x5DC, 'screen': [320, 240]}
+                              'projection': 0x5DC, 'screen': [640, 480]}
     assert closeup(2035)['bucket'] == 4 and closeup(2035)['distance'] == 9944
     assert closeup(0xBFF)['distance'] == CLOSEUP_VPZ[8] == 17096 and closeup(0xBFF)['look_height'] == -CLOSEUP_VRY[8]
     assert closeup(0x100)['bucket'] == 0

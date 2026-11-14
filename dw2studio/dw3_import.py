@@ -106,6 +106,26 @@ def apply(api, source_id, target_id, assignments, scale_factor=1., hd_scale=4, c
         session.edits=before
         raise
     report['camera']={k:v for k,v in cam.items() if k!='repo'}
+    # Attack / target / close-up shots (Mods/battle_camera.json, PC port 1.0): the smallest change
+    # that keeps the new Digimon whole on screen in every battle position (battle_shots.auto)
+    from .core import battle_shots
+    order='AFGH'
+    new_anims=sorted(((Path(e.path).name[0],pl) for e,pl,_ in changes[1:] if Path(e.path).name[0] in order),
+                     key=lambda t:order.index(t[0]))
+    shots_cam={}
+    if new_anims and new_anims[0][0]=='A':
+        box=battle_shots.model_box(native,[pl for _,pl in new_anims],points=True)
+        auto=battle_shots.auto(box)
+        close=battle_shots.auto_closeup(box,cam['field_1E'])
+        shots_cam=dict(auto or {})
+        if close:
+            shots_cam['closeup']=close
+        report['battle_camera']={'setting':shots_cam,'box':[round(v) for v in box[:3]]}
+    if hasattr(api,'S'):
+        if shots_cam:
+            api.S.battle_camera[target_id]=battle_shots.validate(shots_cam)
+        else:
+            api.S.battle_camera.pop(target_id,None)
     session.hd_files[sha]={f'Textures/DW2Studio_015/{hd_name(native)}':buffer.getvalue()}
     report.update(files=len(changes),hd_size=list(hd.size),requires_mod_api=2)
     return report
