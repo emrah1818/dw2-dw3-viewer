@@ -1,4 +1,4 @@
-# Testergebnisse DW2 Mod Studio 1.0.0-rc3
+# Testergebnisse DW2 Mod Studio 1.0.0-rc4
 
 Stand 14.11.2026. Studio: Zweig `development/1.0`. Port: `emrah1818/dw2-pc-port`, Zweig `development/mod-studio-1.0`
 (Commit in `integration/pc_port_base.txt`). Jede Angabe nennt, **wie** geprüft wurde:

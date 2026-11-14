@@ -1,4 +1,4 @@
-# Bekannte Einschränkungen 1.0.0-rc3
+# Bekannte Einschränkungen 1.0.0-rc4
 
 Diese Version ist ein **Release-Kandidat**, kein 1.0.0 FINAL.
 

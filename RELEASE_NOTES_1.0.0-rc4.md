@@ -1,4 +1,4 @@
-# DW2 Mod Studio 1.0.0-rc3 (Release-Kandidat) mit passendem PC-Port
+# DW2 Mod Studio 1.0.0-rc4 (Release-Kandidat) mit passendem PC-Port
 
 **Kein 1.0.0 FINAL.** Neu im Spiel geprüft: DNA-Digitation mit importierten Digimon, geänderte Gegner auf drei
 weiteren Domains, im PS1-Emulator Digitation in ein importiertes Digimon, DNA und ein vom PS1-Spiel geschriebener
