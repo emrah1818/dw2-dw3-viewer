@@ -110,6 +110,10 @@ def source_matrices(source, motion):
 # DW2 standing height = 72.47 * DW3 standing height ** 0.40 (fitted on the USA discs; median
 # deviation 12 %). Used for species DW2 does not have, so a Rookie stays small and a Mega large.
 SIZE_A, SIZE_B = 72.4667, 0.3999
+# 'DW3 proportions': one factor for every model, so DW3's own size differences stay (a Renamon
+# clearly taller than an Agumon). 0.919 = median DW2/DW3 height of the 12 shared species below
+# 1700 DW3 units (Agumon, Patamon, Betamon ...), so small Digimon match DW2 in both modes.
+SIZE_LINEAR = 0.9188
 
 
 def standing_height(points):
@@ -128,12 +132,18 @@ def source_height(source):
     return standing_height(pts)
 
 
-def natural_scale(source, dw2_height=None):
-    """Scale that gives a DW3 model its DW2 size: the height of the same species in DW2 when the
-    game has it (DW2_HEIGHT), otherwise the fitted size curve."""
+def natural_scale(source, dw2_height=None, mode='dw2'):
+    """Scale that gives a DW3 model its size in battle.
+    mode 'dw2': DW2's proportions: the height of the same species in DW2 when the game has it
+    (DW2_HEIGHT), otherwise the fitted size curve (large Digimon closer to small ones, as in DW2).
+    mode 'dw3': DW3's proportions, one factor for all (SIZE_LINEAR)."""
     h3 = source_height(source)
     if h3 < 1e-6:
         raise ValueError('DW3-Modell ohne Höhe.')
+    if mode == 'dw3':
+        return SIZE_LINEAR
+    if mode != 'dw2':
+        raise ValueError('Größenmaßstab: dw2 oder dw3.')
     target = dw2_height if dw2_height else SIZE_A * h3 ** SIZE_B
     return float(target / h3)
 

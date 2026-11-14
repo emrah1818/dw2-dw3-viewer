@@ -67,6 +67,9 @@ def prepare(api, source_id, target_id):
         except (StopIteration, ValueError, KeyError, IndexError):
             dw2_height = None
     scale = natural_scale(source, dw2_height)
+    scale_dw3 = natural_scale(source, None, 'dw3')
+    from .core.dw3_native import source_height
+    h3 = source_height(source)
     # Defaults from the DW3 battle scripts (dw3_motion_map); every row says where it comes from.
     from .dw3_fighters import script_motions
     from .dw3_motion_map import apply_defaults
@@ -84,18 +87,21 @@ def prepare(api, source_id, target_id):
     face_parts, face_notes = face_plan(source, face)
     return {'source': source,'folder':folder,'model':model,'animations':animations,'face':face,
             'info':{'name':info['name'],'target':candidate.name,'scale':scale,'slot_scale':slot_scale,
-                    'size_source':size_source,
+                    'size_source':size_source,'scale_dw3':scale_dw3,
+                    'heights':{'dw2':round(h3*scale),'dw3':round(h3*scale_dw3),'slot':round(h3*slot_scale)},
                     'motions':[{'id':m['id'],'frames':len(m['frames'])} for m in source['motions']],
                     'assignments':descriptors,'source_bones':len(source['bones'])-1,'target_bones':n,
                     'limits':limits_report(source),
                     'face':{'parts':len(face_parts),'eyes':sum(f['slot'] < 2 for f in face_parts),'notes':face_notes}}}
 
 
-def apply(api, source_id, target_id, assignments, scale_factor=1., hd_scale=0, camera=None):
+def apply(api, source_id, target_id, assignments, scale_factor=1., hd_scale=0, camera=None, size_mode='dw2'):
     """CAMERA: None = automatic (battle_camera.suggest), or {'field_1E': int, 'hit_fx_y': int}."""
     prepared = prepare(api, source_id, target_id)
     source,session = prepared['source'],api._need_session()
-    scale = prepared['info']['scale']*float(scale_factor)
+    if size_mode not in ('dw2','dw3'):
+        raise ValueError('Größenmaßstab: dw2 oder dw3.')
+    scale = prepared['info']['scale' if size_mode=='dw2' else 'scale_dw3']*float(scale_factor)
     native,hd,report = encode_model(source,prepared['folder'],scale,int(hd_scale),prepared.get('face'))
     expected = {(d['slot'],d['clip']) for d in prepared['info']['assignments']}
     if not isinstance(assignments,list) or len(assignments)!=len(expected):
@@ -147,7 +153,8 @@ def apply(api, source_id, target_id, assignments, scale_factor=1., hd_scale=0, c
             api.S.battle_camera.pop(target_id,None)
     if hasattr(api,'S') and hasattr(api.S,'dw3_imports'):
         api.S.dw3_imports[target_id]={'source_name':prepared['info']['name'],'assignments':assignments,
-                                      'scale':float(scale_factor),'hd':int(hd_scale),'size':round(scale,4)}
+                                      'scale':float(scale_factor),'hd':int(hd_scale),'size':round(scale,4),
+                                      'size_mode':size_mode}
     session.hd_files[sha]={f'Textures/DW2Studio_015/{hd_name(native)}':buffer.getvalue()}
     report.update(files=len(changes),hd_size=list(hd.size),requires_mod_api=2)
     return report

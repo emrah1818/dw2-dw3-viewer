@@ -65,9 +65,9 @@ def dw3_native_plan(source_id, target_id):
     return prepare(__import__(__name__),source_id,target_id)['info']
 
 
-def dw3_native_apply(source_id, target_id, assignments, scale_factor=1., hd_scale=0, camera=None):
+def dw3_native_apply(source_id, target_id, assignments, scale_factor=1., hd_scale=0, camera=None, size_mode='dw2'):
     from dw2studio.dw3_import import apply
-    return apply(__import__(__name__),source_id,target_id,assignments,scale_factor,hd_scale,camera)
+    return apply(__import__(__name__),source_id,target_id,assignments,scale_factor,hd_scale,camera,size_mode or 'dw2')
 
 
 def export_hd_pack(identifier, png, port_dir):
@@ -1049,12 +1049,13 @@ def size_info(identifier):
     near = sorted(((abs(h - now), n, h) for i, (n, h) in _HEIGHTS.items() if i != ident))[:3]
     return {'height': now, 'original_height': _HEIGHTS.get(ident, (None, None))[1],
             'imported': bool(job), 'factor': job.get('scale', 1.) if job else None,
+            'size_mode': job.get('size_mode', 'dw2') if job else None,
             'source': job.get('source_name') if job else None,
             'similar': [{'name': n, 'height': h} for _, n, h in near],
             'range': [min(h for _, h in _HEIGHTS.values()), max(h for _, h in _HEIGHTS.values())]}
 
 
-def dw3_resize(target, factor):
+def dw3_resize(target, factor, size_mode=None):
     """Import an already imported DW3 Digimon again with another size factor (same source model,
     motions and HD setting). Needs the DW3 image that was used."""
     ident = int(target)
@@ -1072,7 +1073,7 @@ def dw3_resize(target, factor):
         raise ValueError('Größenfaktor 0,1–10.')
     from dw2studio.dw3_import import apply as native_apply
     return native_apply(sys.modules[__name__], models[job['source_name']], ident, job['assignments'], f,
-                        job.get('hd', 0), None)
+                        job.get('hd', 0), None, size_mode or job.get('size_mode', 'dw2'))
 
 
 def evolution_validate():
@@ -1116,7 +1117,8 @@ def dw3_batch_apply(jobs):
         for job in jobs:
             assignments = job.get('assignments') or dw3_native_plan(int(job['source']), int(job['target']))['assignments']
             r = native_apply(__import__(__name__), int(job['source']), int(job['target']), assignments,
-                             float(job.get('scale', 1.)), int(job.get('hd', 0)), job.get('camera'))
+                             float(job.get('scale', 1.)), int(job.get('hd', 0)), job.get('camera'),
+                             job.get('size_mode', 'dw2'))
             if job.get('name'):
                 rename(int(job['target']), job['name'])
             reports.append({'target': int(job['target']), **r})
