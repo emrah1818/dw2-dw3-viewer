@@ -6,6 +6,7 @@ Alle Schreibvorgänge nutzen dieselben Kernmodule wie die Windows-Version
 (EditSession, NameRepository, TypeRepository, PropertyRepository, RosterSave ...).
 """
 from dw2studio.version import VERSION
+import sys
 from pathlib import Path
 import hashlib
 import json
@@ -38,6 +39,7 @@ class State:
         self.source_names = {}
         self.digivolve_levels = {}   # Mods/digivolve_levels.json (PC port 1.0)
         self.battle_camera = {}      # Mods/battle_camera.json (PC port 1.0)
+        self.dw3_imports = {}        # target id -> how it was imported (source model, size, HD), for 'Größe ändern'
 
 
 S = State()
@@ -63,7 +65,7 @@ def dw3_native_plan(source_id, target_id):
     return prepare(__import__(__name__),source_id,target_id)['info']
 
 
-def dw3_native_apply(source_id, target_id, assignments, scale_factor=1., hd_scale=4, camera=None):
+def dw3_native_apply(source_id, target_id, assignments, scale_factor=1., hd_scale=0, camera=None):
     from dw2studio.dw3_import import apply
     return apply(__import__(__name__),source_id,target_id,assignments,scale_factor,hd_scale,camera)
 
@@ -148,6 +150,7 @@ def open_image(path):
         S.names = S.attacks = S.types = None
         S.digivolve_levels = {}
         S.battle_camera = {}
+        S.dw3_imports = {}
         S.props, S.roster = {}, None
         S.source_names = {c.id: c.name for c in catalog}
         return {'name': S.image_path.name, 'count': len(catalog), 'cached': False,
@@ -449,7 +452,7 @@ def save_project(name):
     s.export_project(target)
     levels = getattr(S, 'digivolve_levels', {}) or {}
     cams = getattr(S, 'battle_camera', {}) or {}
-    if levels or cams:
+    if levels or cams or getattr(S, 'dw3_imports', None):
         import zipfile
         from dw2studio.digivolve_levels import dumps, FILENAME
         from dw2studio.core import battle_shots
@@ -458,6 +461,8 @@ def save_project(name):
                 archive.writestr(FILENAME, dumps(levels))
             if cams:
                 archive.writestr('battle_camera.json', battle_shots.dumps(cams))
+            if getattr(S, 'dw3_imports', None):
+                archive.writestr('dw3_imports.json', json.dumps({str(k): v for k, v in S.dw3_imports.items()}))
     return {'path': str(target), 'name': target.name}
 
 
@@ -484,6 +489,8 @@ def load_project(path):
         with zipfile.ZipFile(path) as archive:
             if FILENAME in archive.namelist():
                 S.digivolve_levels = loads(archive.read(FILENAME).decode('utf-8'))
+            if 'dw3_imports.json' in archive.namelist():
+                S.dw3_imports = {int(k): v for k, v in json.loads(archive.read('dw3_imports.json')).items()}
             if 'battle_camera.json' in archive.namelist():
                 from dw2studio.core import battle_shots
                 S.battle_camera = battle_shots.loads(archive.read('battle_camera.json').decode('utf-8'))
@@ -1013,6 +1020,61 @@ def battle_camera_set(identifier, setting=None):
     return {'setting': S.battle_camera.get(ident, {})}
 
 
+_HEIGHTS = {}
+
+
+def _height_of(candidate, original=False):
+    from dw2studio.core.dw3_native import model_height
+    s = _need_session()
+    family, _, _ = _model_family(candidate)
+    model = next(e for e in family if Path(e.path).name.startswith('M'))
+    anim = next(e for e in family if Path(e.path).name[0] == 'A')
+    get = s.original if original else s.current
+    return model_height(get(model), get(anim))
+
+
+def size_info(identifier):
+    """Battle size of a Digimon (standing height in DW2 units) with the DW2 originals as the scale,
+    and for DW3 imports the factor it was imported with (dw3_resize changes it)."""
+    ident = int(identifier)
+    cand = _find(ident)
+    if not _HEIGHTS:
+        for c in S.catalog:
+            try:
+                _HEIGHTS[c.id] = (c.name, round(_height_of(c, original=True)))
+            except Exception:
+                pass
+    now = round(_height_of(cand))
+    job = (getattr(S, 'dw3_imports', {}) or {}).get(ident)
+    near = sorted(((abs(h - now), n, h) for i, (n, h) in _HEIGHTS.items() if i != ident))[:3]
+    return {'height': now, 'original_height': _HEIGHTS.get(ident, (None, None))[1],
+            'imported': bool(job), 'factor': job.get('scale', 1.) if job else None,
+            'source': job.get('source_name') if job else None,
+            'similar': [{'name': n, 'height': h} for _, n, h in near],
+            'range': [min(h for _, h in _HEIGHTS.values()), max(h for _, h in _HEIGHTS.values())]}
+
+
+def dw3_resize(target, factor):
+    """Import an already imported DW3 Digimon again with another size factor (same source model,
+    motions and HD setting). Needs the DW3 image that was used."""
+    ident = int(target)
+    job = (getattr(S, 'dw3_imports', {}) or {}).get(ident)
+    if not job:
+        raise ValueError('Dieses Digimon wurde in diesem Projekt nicht aus DW3 importiert.')
+    listing = dw3_models()
+    if not listing['open']:
+        raise ValueError('Zuerst das DW3-Abbild öffnen, aus dem importiert wurde.')
+    models = {m['name']: m['id'] for m in listing['models']}
+    if job['source_name'] not in models:
+        raise ValueError(f'DW3-Modell {job["source_name"]} ist im geöffneten Abbild nicht vorhanden.')
+    f = float(factor)
+    if not 0.1 <= f <= 10:
+        raise ValueError('Größenfaktor 0,1–10.')
+    from dw2studio.dw3_import import apply as native_apply
+    return native_apply(sys.modules[__name__], models[job['source_name']], ident, job['assignments'], f,
+                        job.get('hd', 0), None)
+
+
 def evolution_validate():
     from dw2studio.core.evolution import EvolutionRepository, validate
     return validate(EvolutionRepository(_need_session(), S.entries))
@@ -1054,7 +1116,7 @@ def dw3_batch_apply(jobs):
         for job in jobs:
             assignments = job.get('assignments') or dw3_native_plan(int(job['source']), int(job['target']))['assignments']
             r = native_apply(__import__(__name__), int(job['source']), int(job['target']), assignments,
-                             float(job.get('scale', 1.)), int(job.get('hd', 4)), job.get('camera'))
+                             float(job.get('scale', 1.)), int(job.get('hd', 0)), job.get('camera'))
             if job.get('name'):
                 rename(int(job['target']), job['name'])
             reports.append({'target': int(job['target']), **r})
@@ -1135,7 +1197,7 @@ def hd_active(identifier):
 
 # --------------------------------------------------------------------------- Verlauf (Rückgängig / Wiederherstellen)
 UNDO, REDO = [], []
-MUTATING = {'digivolve_level_set', 'battle_camera_set', 'dw3_native_apply', 'dw3_batch_apply', 'mod_import', 'mod_import_force', 'technique_copy_parts', 'technique_assign', 'domain_set_floor', 'group_set', 'group_clone',
+MUTATING = {'digivolve_level_set', 'battle_camera_set', 'dw3_resize', 'dw3_native_apply', 'dw3_batch_apply', 'mod_import', 'mod_import_force', 'technique_copy_parts', 'technique_assign', 'domain_set_floor', 'group_set', 'group_clone',
             'technique_create', 'technique_edit', 'camera_set', 'evolution_line', 'set_evolution', 'rename', 'set_type', 'set_specialty', 'set_enemy_values', 'apply_attacks', 'roster_change',
             'roster_restore', 'discard', 'load_project', 'png_apply', 'transfer_apply', 'bin_apply',
             'rig_apply', 'restore_original'}
@@ -1145,13 +1207,15 @@ def _snapshot():
     return (dict(S.session.edits) if S.session else {},
             bytes(S.roster.raw) if S.roster is not None else None,
             dict(getattr(S, 'digivolve_levels', {}) or {}),
-            {k: dict(v) for k, v in (getattr(S, 'battle_camera', {}) or {}).items()})
+            {k: dict(v) for k, v in (getattr(S, 'battle_camera', {}) or {}).items()},
+            {k: dict(v) for k, v in (getattr(S, 'dw3_imports', {}) or {}).items()})
 
 
 def _restore(snap):
-    edits, roster, levels, cams = snap
+    edits, roster, levels, cams, imports = snap
     S.digivolve_levels = dict(levels)
     S.battle_camera = {k: dict(v) for k, v in cams.items()}
+    S.dw3_imports = {k: dict(v) for k, v in imports.items()}
     if S.session is not None:
         S.session.edits = dict(edits)
     if S.roster is not None and roster is not None:
@@ -1218,7 +1282,8 @@ _METHODS = {
     'technique_copy_parts': technique_copy_parts, 'technique_assign': technique_assign,
     'technique_budget': technique_budget, 'evolution_validate': evolution_validate,
     'digivolve_levels_info': digivolve_levels_info, 'digivolve_level_set': digivolve_level_set,
-    'battle_camera_info': battle_camera_info, 'battle_camera_set': battle_camera_set, 'mod_import_force': mod_import_force,
+    'battle_camera_info': battle_camera_info, 'battle_camera_set': battle_camera_set,
+    'dw3_resize': dw3_resize, 'size_info': size_info, 'mod_import_force': mod_import_force,
     'hd_preview': hd_preview, 'hd_active': hd_active, 'files_list': files_list, 'file_export': file_export, 'dw3_models': dw3_models,
     'camera_info': camera_info, 'camera_set': camera_set, 'dw3_batch_apply': dw3_batch_apply,
     'open_dw3': open_dw3, 'prepare_dw3': prepare_dw3, 'export_dw3': export_dw3, 'export_port_mod': export_port_mod,

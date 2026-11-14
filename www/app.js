@@ -471,7 +471,7 @@ async function nativeDw3Flow(sourceId) {
   const choice=await modal((box,close)=>{
     box.innerHTML=`<h3>${esc(p.name)} → ${esc(p.target)}</h3><p>${p.source_bones} DW3-Knochen ersetzen ${p.target_bones} DW2-Knochen. Benötigt den beiliegenden PC-Port mit Overlay-API 2.</p>${p.limits ? `<p class="hint">DW2-Formatgrenzen: ${p.limits.parts} von ${p.limits.max_parts} Modellteilen, ${p.limits.max_depth} von 8 Ebenen${p.limits.split_bones.length ? `; ${p.limits.split_bones.length} große Knochen werden in Teile mit höchstens 256 Vertices geteilt` : ''}${p.limits.flattened_bones.length ? `; ${p.limits.flattened_bones.length} Knochen unter Ebene 8 hängen exakt an Ebene 8` : ''}.</p>` : ''}${p.face ? `<p class="hint">Gesicht: ${p.face.eyes ? 'Augen blinzeln wie in DW3 (Augenrahmen aus DW3 übernommen)' : 'keine DW3-Augenrahmen'}${p.face.parts - p.face.eyes > 0 ? `, ${p.face.parts - p.face.eyes} weitere Gesichtsteile im Zyklus` : ''}${p.face.notes.length ? ' · ' + esc(p.face.notes.join(' ')) : ''}.</p>` : ''}<p class="hint">Vorbelegt aus den DW3-Kampfskripten des Modells (Standby, Treffer, K.o., Angriff) und den Kampfplätzen von DW2. Die Quelle steht neben jedem Platz. Jede Motion lässt sich ändern.</p>`+
     p.assignments.map((a,i)=>`<label>${a.slot}${a.clip}<select data-motion="${i}">${p.motions.map(m=>`<option value="${m.id}" ${m.id===a.motion?'selected':''}>Motion ${m.id} · ${m.frames} Bilder</option>`).join('')}</select><input data-loop="${i}" type="checkbox" ${a.loop?'checked':''}> Schleife <small class="hint">${esc(a.reason||'')}</small></label>`).join('')+
-    `<label>Größenfaktor <input id="d-scale" type="number" min="0.1" max="10" step="0.1" value="1"></label><label>HD-Textur <select id="d-hd"><option value="2">256×512</option><option value="4" selected>512×1024</option><option value="8">1024×2048</option><option value="16">2048×4096</option></select></label><div class="btns"><button id="d-cancel">Abbrechen</button><button id="d-apply" class="primary">Prüfen und vormerken</button></div>`;
+    `<label>Größenfaktor <input id="d-scale" type="number" min="0.1" max="10" step="0.1" value="1"></label><label>HD-Textur <select id="d-hd"><option value="0" selected>Automatisch (volle DW3-Auflösung)</option><option value="2">256×512</option><option value="4">512×1024</option><option value="8">1024×2048</option><option value="16">2048×4096</option></select></label><div class="btns"><button id="d-cancel">Abbrechen</button><button id="d-apply" class="primary">Prüfen und vormerken</button></div>`;
     $('#d-cancel',box).onclick=()=>close(null);
     $('#d-apply',box).onclick=()=>close({assignments:p.assignments.map((a,i)=>({...a,motion:Number($(`[data-motion="${i}"]`,box).value),loop:$(`[data-loop="${i}"]`,box).checked})),scale:Number($('#d-scale',box).value),hd:Number($('#d-hd',box).value)});
   });
@@ -523,11 +523,11 @@ async function rigFlow(ins) {
 // ---------------------------------------------------------------- Bearbeiten
 function renderEdit() {
   const id = state.id;
-  const boxes = ['#f-name', '#f-type', '#f-evolution', '#f-camera', '#f-attacks', '#f-enemy', '#f-roster'];
+  const boxes = ['#f-name', '#f-size', '#f-type', '#f-evolution', '#f-camera', '#f-attacks', '#f-enemy', '#f-roster'];
   if (id == null || !state.image) { $('#edit-name').textContent = t('Digimon wählen'); $('#edit-sub').textContent = ''; boxes.forEach(s => { $(s).innerHTML = ''; }); return; }
   const c = state.catalog.find(x => x.id === id);
   $('#edit-name').textContent = `#${String(id).padStart(3, '0')} ${c.name}`; $('#edit-sub').textContent = ` · ${c.code}`;
-  renderName(id); renderType(id); renderEvolution(id); renderCamera(id); renderAttacks(id); renderEnemy(id); renderRoster(id);
+  renderName(id); renderSize(id); renderType(id); renderEvolution(id); renderCamera(id); renderAttacks(id); renderEnemy(id); renderRoster(id);
 }
 async function renderEvolution(id) {
   const box = $('#f-evolution');
@@ -565,8 +565,44 @@ async function renderName(id) {
       } catch (e) { await fail(e); }
     };
     $('#b-name-ok').onclick = () => apply($('#in-name').value);
+    $('#in-name').onkeydown = ev => { if (ev.key === 'Enter') apply($('#in-name').value); };
     $('#b-name-orig').onclick = () => apply(n.original);
   } catch (e) { errBox(box, e); }
+}
+
+async function renderSize(id) {
+  const box = $('#f-size');
+  try {
+    const z = await native('size_info', id);
+    if (state.id !== id) return;
+    const sim = z.similar.map(s => `${esc(s.name)} (${s.height})`).join(', ');
+    let html = `<p class="hint">Stehhöhe im Spiel: <b>${z.height}</b> Einheiten${z.original_height ? ` (Original ${z.original_height})` : ''}. Ähnlich groß: ${sim}. DW2-Digimon: ${z.range[0]}–${z.range[1]}.</p>`;
+    if (z.imported) {
+      html += `<label class="row"><span>Größenfaktor (×) gegenüber der automatischen Größe</span><input type="range" id="sz-f" min="0.3" max="3" step="0.05" value="${z.factor}"><b id="sz-v">${Number(z.factor).toFixed(2)}</b></label>
+        <p class="hint" id="sz-pre">Vorschau: etwa ${Math.round(z.height / z.factor * z.factor)} Einheiten.</p>
+        <div class="btns"><button id="sz-ok" class="primary">Größe übernehmen (DW3 ${esc(z.source)} neu umsetzen)</button><button id="sz-auto">Automatisch (1,00)</button></div>
+        <p class="hint">Die Größe wird in Modell und Bewegungen eingerechnet: Boden, Angriffe und Kamera passen sich mit an. Dafür muss das DW3-Abbild geöffnet sein.</p>`;
+    } else {
+      html += '<p class="hint">Größe ändern geht bei aus DW3 importierten Digimon (Reiter DW3-Import). Originale behalten ihre Spielgröße.</p>';
+    }
+    box.innerHTML = html;
+    if (!z.imported) return;
+    const base = z.height / z.factor;
+    $('#sz-f').oninput = () => {
+      const f = Number($('#sz-f').value);
+      $('#sz-v').textContent = f.toFixed(2);
+      const h = Math.round(base * f);
+      const near = Object.values(z.similar).length ? '' : '';
+      $('#sz-pre').textContent = `Vorschau: etwa ${h} Einheiten (jetzt ${z.height}).${near}`;
+      if (view.model) view.model.scale.setScalar(f / z.factor);
+    };
+    const go = async f => {
+      try { await busy('DW3-Modell wird neu umgesetzt …', () => native('dw3_resize', id, f)); if (view.model) view.model.scale.setScalar(1); await afterChange(`Größe ${f.toFixed(2)} vorgemerkt`); renderEdit(); }
+      catch (e) { await fail(e); }
+    };
+    $('#sz-ok').onclick = () => go(Number($('#sz-f').value));
+    $('#sz-auto').onclick = () => go(1);
+  } catch (e) { box.innerHTML = `<p class="hint">${esc(e.message)}</p>`; }
 }
 
 async function renderType(id) {
@@ -870,6 +906,11 @@ async function refreshCatalogNames() {
   try { state.catalog = await native('catalog'); renderList(); } catch { /* Liste bleibt */ }
 }
 $('#dl-edit').onclick = () => { if (state.id == null) return toast('Zuerst ein Digimon in der Liste wählen.'); show('page-edit'); };
+$('#dl-name').onclick = () => {
+  if (state.id == null) return toast('Zuerst ein Digimon in der Liste wählen.');
+  show('page-edit');
+  setTimeout(() => { const d = $('#f-name')?.closest('details'); if (d) { d.open = true; d.scrollIntoView({ block: 'start' }); } $('#in-name')?.focus(); $('#in-name')?.select(); }, 400);
+};
 $('#dl-view').onclick = () => { if (state.id == null) return toast('Zuerst ein Digimon in der Liste wählen.'); show('page-view'); };
 
 // ---------------------------------------------------------------- Seitenwechsel

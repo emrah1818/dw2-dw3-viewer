@@ -31,7 +31,7 @@
   </section>
 
   <section id="page-list" class="page">
-    <div class="btns"><button id="dl-edit" class="primary small">Gewähltes Digimon bearbeiten</button><button id="dl-view" class="small">3D-Ansicht</button></div>
+    <div class="btns"><button id="dl-edit" class="primary small">Gewähltes Digimon bearbeiten</button><button id="dl-name" class="small">✎ Name ändern</button><button id="dl-view" class="small">3D-Ansicht</button></div>
     <input id="search" type="search" placeholder="Digimon suchen …" data-i18n-ph="Digimon suchen …">
     <div id="list"></div>
   </section>
@@ -120,6 +120,7 @@
   <section id="page-edit" class="page">
     <div id="edit-head" class="card"><b id="edit-name">–</b><span id="edit-sub"></span></div>
     <details class="card" open><summary data-i18n="Name">Name</summary><div id="f-name"></div></details>
+    <details class="card"><summary>Größe im Spiel</summary><div id="f-size"></div></details>
     <details class="card"><summary data-i18n="Typ & Specialty">Typ & Specialty</summary><div id="f-type"></div></details>
     <details class="card"><summary>Digitation & DP</summary><div id="f-evolution"></div></details>
     <details class="card"><summary>Kampfkamera & Treffereffekt</summary><div id="f-camera"></div></details>
@@ -215,6 +216,7 @@
   <button data-page="page-files" class="tab">▤<span>Dateien</span></button>
   <button data-page="page-view" class="tab">◈<span>3D-Viewer</span></button>
   <button data-page="page-list" class="tab">☰<span>Digimon</span></button>
+  <button data-page="page-edit" class="tab">✎<span>Bearbeiten</span></button>
   <button data-page="page-attacks" class="tab">✦<span>Attacken</span></button>
   <button data-page="page-evo" class="tab">⇧<span>Digitation</span></button>
   <button data-page="page-domains" class="tab">⌘<span>Domains</span></button>

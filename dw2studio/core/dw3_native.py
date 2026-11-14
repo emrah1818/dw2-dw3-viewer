@@ -21,6 +21,7 @@ def triangles(bone):
 MAX_DEPTH = 7          # depth field 0..7: eight DW2 hierarchy levels
 MAX_PART = 256         # vertex / normal / triangle indices are one byte per part
 MAX_PARTS = 64
+CREASE = 0.5           # cos 60 degrees: sharper bends keep a hard edge
 
 
 def bone_chunks(bone):
@@ -103,6 +104,54 @@ def source_matrices(source, motion):
     if rows.ndim != 3 or rows.shape[1:] != (len(source['bones']), 16) or not np.isfinite(rows).all():
         raise ValueError('Ungültige DW3-Motionsdaten.')
     return rows.reshape(len(rows), len(source['bones']), 4, 4).transpose(0, 1, 3, 2)
+
+
+# DW2 keeps sizes closer together than DW3: over the 106 species both games share (same model code),
+# DW2 standing height = 72.47 * DW3 standing height ** 0.40 (fitted on the USA discs; median
+# deviation 12 %). Used for species DW2 does not have, so a Rookie stays small and a Mega large.
+SIZE_A, SIZE_B = 72.4667, 0.3999
+
+
+def standing_height(points):
+    return float(np.ptp(np.asarray(points)[:, 1]))
+
+
+def source_height(source):
+    """Standing height of a DW3 model (first frame of its first motion, axis 1 up)."""
+    src_local = source_matrices(source, 0)[0]
+    world, pts = [], []
+    for i, b in enumerate(source['bones']):
+        world.append(src_local[i] if i == 0 else world[b['parent']] @ src_local[i])
+        if b['vertices']:
+            v = np.asarray(b['vertices'], dtype=float)
+            pts.extend((np.c_[v, np.ones(len(v))] @ world[i].T)[:, :3])
+    return standing_height(pts)
+
+
+def natural_scale(source, dw2_height=None):
+    """Scale that gives a DW3 model its DW2 size: the height of the same species in DW2 when the
+    game has it (DW2_HEIGHT), otherwise the fitted size curve."""
+    h3 = source_height(source)
+    if h3 < 1e-6:
+        raise ValueError('DW3-Modell ohne Höhe.')
+    target = dw2_height if dw2_height else SIZE_A * h3 ** SIZE_B
+    return float(target / h3)
+
+
+def model_height(target, target_animation):
+    """Standing height of a native DW2 model in its first pose."""
+    from .native_gltf import Animation
+    from .rig_animation import parents_from_depths, D
+    model = NativeModel(target)
+    depths = struct.unpack_from(f'<{model.bone_count}I', target, 12+12*model.bone_count)
+    local = Animation(target_animation, model.bone_count).local_pose()
+    parents = parents_from_depths(list(depths))
+    world, points = [], []
+    for i, part in enumerate(model.parts):
+        world.append(local[i] if parents[i] < 0 else world[parents[i]] @ local[i])
+        v = np.asarray([struct.unpack_from('<hhh', target, part.vertices+6+j*6) for j in range(part.vertex_count)]) @ D
+        points.extend((np.c_[v, np.ones(len(v))] @ world[i].T)[:, :3])
+    return standing_height(points)
 
 
 def fit_scale(source, target, target_animation):
@@ -278,6 +327,24 @@ def atlas(source, folder, hd_scale=4, face=None):
     return tim, hd, tiles, records
 
 
+def auto_hd_scale(source, folder, with_face=False):
+    """Smallest HD factor (2, 4, 8 or 16) at which every DW3 page keeps at least its own resolution
+    in the atlas tile (the native tile is a fraction of 128 x 224; the HD texture is that tile times
+    the factor). 16 = 2048 x 4096, the largest the port takes."""
+    count = len(source['images']) + (1 if with_face else 0)
+    columns = math.ceil(math.sqrt(count))
+    rows = math.ceil(count / columns)
+    tw, th = 128 // columns, 224 // rows
+    need = 1.0
+    for name in source['images']:
+        with Image.open(Path(folder) / name) as image:
+            need = max(need, image.width / tw, image.height / th)
+    for k in (2, 4, 8, 16):
+        if k >= need - 1e-6:
+            return k
+    return 16
+
+
 def face_records(records):
     """Gfx_AnimateModelTex list: entries 0/1 the eyes (0xFF when unused), then cycling parts, 0xFF
     ends. 10 bytes: dstX, dstY, w, h (x / w in VRAM halfwords = 4 texels), three source corners."""
@@ -307,6 +374,8 @@ def encode_model(source, folder, scale=1., hd_scale=4, face=None):
     nodes = plan(source)
     order, depths = [x['src'] for x in nodes], [x['depth'] for x in nodes]
     parts, face_notes = face_plan(source, face)
+    if not hd_scale:
+        hd_scale = auto_hd_scale(source, folder, bool(parts))
     try:
         tim, hd, tiles, records = atlas(source, folder, hd_scale, parts)
     except ValueError as exc:
@@ -334,20 +403,41 @@ def encode_model(source, folder, scale=1., hd_scale=4, face=None):
         if len(vertices) > 256 or not len(vertices) or np.abs(vertices).max() > 32767:
             raise ValueError(f'DW3-Knochen {bone}: 1–256 Vertices im 16-Bit-Bereich erforderlich.')
         normals, normal_ids, prims = [], {}, [[],[]]
+        # Smooth shading: each corner gets the area-weighted mean normal of the part's faces at that
+        # vertex, unless the face bends away by more than CREASE (a hard edge keeps the face normal).
+        # One normal per triangle (until 1.0) lit every face flat: the faceted look in battle.
+        face_n, vert_sum = [], np.zeros((len(vertices), 3))
         for face, corners in part:
+            ids = [remap[face['indices'][k]] for k in corners]
+            v = vertices[ids].astype(float)
+            n_area = np.cross(v[1]-v[0], v[2]-v[0])
+            face_n.append(n_area/max(np.linalg.norm(n_area),1e-9))
+            for i in ids:
+                vert_sum[i] += n_area
+        vert_n = vert_sum/np.maximum(np.linalg.norm(vert_sum,axis=1,keepdims=True),1e-9)
+        def normal_index(nv):
+            key = tuple(int(c) for c in np.rint(nv*4096))
+            if key not in normal_ids:
+                if len(normals) >= 256:
+                    return None
+                normal_ids[key] = len(normals); normals.append(key)
+            return normal_ids[key]
+        for fi, (face, corners) in enumerate(part):
             img = face['image']
             if type(img) is not int or not 0 <= img < len(tiles):
                 raise ValueError('Ungültige Materialzuordnung.')
             tx,ty,tw,th,iw,ih = tiles[img]
             ids = [remap[face['indices'][k]] for k in corners]
-            v = vertices[ids]
-            normal = np.cross(v[1]-v[0],v[2]-v[0]).astype(float)
-            normal /= max(np.linalg.norm(normal),1e-9)
-            normal = tuple(np.rint(normal*4096).astype(int))
-            if normal not in normal_ids:
-                normal_ids[normal] = len(normals);normals.append(normal)
-            if len(normals) > 256:
-                raise ValueError('Mehr als 256 Normalen in einem Knochen.')
+            fn = face_n[fi]
+            corner_n = []
+            for i in ids:
+                nv = vert_n[i] if float(vert_n[i] @ fn) >= CREASE else fn
+                k = normal_index(nv)
+                if k is None:              # table full: the face normal, which is often shared
+                    k = normal_index(fn)
+                if k is None:
+                    raise ValueError('Mehr als 256 Normalen in einem Knochen.')
+                corner_n.append(k)
             uv=[]
             for k in corners:
                 u,v=face['uv'][k]
@@ -360,7 +450,7 @@ def encode_model(source, folder, scale=1., hd_scale=4, face=None):
                 raise ValueError('Ungültiger PS1-Mischmodus.')
             # Input faces are CCW in the exported GLB; DW2 stores reversed triangles.
             rev=(2,1,0)
-            payload=bytes(ids[k] for k in rev)+bytes([normal_ids[normal]]*3)+bytes(c for k in rev for c in uv[k])+struct.pack('<HH',clut,((abr-1)<<5) if abr else 0)
+            payload=bytes(ids[k] for k in rev)+bytes(corner_n[k] for k in rev)+bytes(c for k in rev for c in uv[k])+struct.pack('<HH',clut,((abr-1)<<5) if abr else 0)
             prims[0 if abr else 1].append(payload)
             triangle_count+=1
         if not normals or not any(prims):
