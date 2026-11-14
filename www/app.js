@@ -837,3 +837,18 @@ function layoutDesktopTools() {
 }
 window.addEventListener('resize', layoutDesktopTools);
 layoutDesktopTools();
+
+// ---------------------------------------------------------------- PC-Port-Mods verwalten (nichts wird gelöscht)
+$('#b-port-off').onclick = async () => {
+  if (!(await confirmBox('Alle aktiven Mods im gewählten PC-Port-Ordner deaktivieren? Die Dateien werden nach Mods\\disabled verschoben, nicht gelöscht. Das Spiel lädt danach wieder die Originale.'))) return;
+  try {
+    const r = await native('port_mods_dialog', 'disable');
+    if (r) { log(`PC-Port-Mods deaktiviert (${r.set}): ${r.moved.join(', ')}`); toast(`${r.moved.length} Datei(en) deaktiviert. PC-Port neu starten.`); }
+  } catch (e) { await fail(e); } finally { setOverlay(false); }
+};
+$('#b-port-on').onclick = async () => {
+  try {
+    const r = await native('port_mods_dialog', 'enable');
+    if (r) { log(`PC-Port-Mods aktiviert (${r.set}): ${r.moved.join(', ')}`); toast(`${r.moved.length} Datei(en) aktiviert. PC-Port neu starten.`); }
+  } catch (e) { await fail(e); } finally { setOverlay(false); }
+};

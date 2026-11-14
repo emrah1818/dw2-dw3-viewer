@@ -172,6 +172,15 @@ class Bridge(QObject):
                 if not port:
                     self.reply(call_id); return
                 self.queue(call_id, 'export_port_mod', [port, pak_path])
+            elif method == 'port_mods_dialog':
+                # Ordner wird nur über den nativen Dialog gewählt; die Oberfläche übergibt keine Pfade.
+                action = args[0] if args else 'status'
+                if action not in ('status', 'disable', 'enable'):
+                    raise ValueError('Unbekannte Mod-Aktion.')
+                port = QFileDialog.getExistingDirectory(self.window, 'PC-Port-Ordner mit dw2.exe wählen')
+                if not port:
+                    self.reply(call_id); return
+                self.queue(call_id, 'port_mod_' + action, [port])
             elif method.startswith('pick_'):
                 filters = {
                     'pick_image': 'DW2 Image / PAK (*.pak *.bin *.iso *.img *.cue);;Alle Dateien (*)',
@@ -200,7 +209,7 @@ class Bridge(QObject):
                 self.queue(call_id, '_save_export', [source, name])
             elif method in api._METHODS or method == 'overwrite_original':
                 # Configuration and source paths are controlled by native file dialogs.
-                if method in {'configure', 'open_image', 'open_dw3', 'export_port_mod', 'export_hd_pack', 'adopt_image'}:
+                if method in {'configure', 'open_image', 'open_dw3', 'export_port_mod', 'export_hd_pack', 'port_mod_status', 'port_mod_disable', 'port_mod_enable', 'adopt_image'}:
                     raise ValueError('Diese Methode ist dem Desktop vorbehalten.')
                 self.queue(call_id, method, args)
             else:

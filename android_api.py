@@ -92,6 +92,21 @@ def export_port_mod(port_dir, pak_path=None):
     return export(s, pak, port_dir, mod_name='DW2/DW3 Viewer 0.15b')
 
 
+def port_mod_status(port_dir):
+    from dw2studio.port_mod_manage import status
+    return status(port_dir)
+
+
+def port_mod_disable(port_dir):
+    from dw2studio.port_mod_manage import disable
+    return disable(port_dir)
+
+
+def port_mod_enable(port_dir, set_name=None):
+    from dw2studio.port_mod_manage import enable
+    return enable(port_dir, set_name)
+
+
 # --------------------------------------------------------------------------- Setup
 def configure(files_dir, native_dir, data_dir=None):
     global CACHE, NATIVE_DIR
@@ -841,6 +856,7 @@ _METHODS = {
     'dw3_native_plan': dw3_native_plan, 'dw3_native_apply': dw3_native_apply,
     'evolution_info': evolution_info, 'set_evolution': set_evolution,
     'open_dw3': open_dw3, 'prepare_dw3': prepare_dw3, 'export_dw3': export_dw3, 'export_port_mod': export_port_mod,
+    'port_mod_status': port_mod_status, 'port_mod_disable': port_mod_disable, 'port_mod_enable': port_mod_enable,
     'configure': configure, 'open_image': open_image, 'catalog': catalog_list,
     'name_info': name_info, 'rename': rename, 'type_info': type_info, 'set_type': set_type,
     'specialty_info': specialty_info, 'set_specialty': set_specialty,
