@@ -205,11 +205,11 @@ def face_plan(source, face):
         return [], []
     if not pages or not origin:
         return [], ['DW3-Modell mit dem neuen Konverter erneut öffnen (Seiteninformation fehlt).']
-    used = {}
+    used = {}   # per image the UV rectangles of its polygons
     for b in source['bones']:
         for f in b['faces']:
-            for u, v in f['uv']:
-                used.setdefault(f['image'], []).append((u, v))
+            us, vs = [u for u, _ in f['uv']], [v for _, v in f['uv']]
+            used.setdefault(f['image'], []).append((min(us), min(vs), max(us), max(vs)))
     out, skipped = [], []
     for slot, r in enumerate(face):
         if not r['w'] or not r['h']:
@@ -223,7 +223,9 @@ def face_plan(source, face):
             if not (px <= X and X + r['w'] <= px + 64 and py <= Y and Y + r['h'] <= py + 256):
                 continue
             u0, v0 = (X - px) * 4, Y - py
-            hits = sum(u0 <= u < u0 + r['w'] * 4 and v0 <= v < v0 + r['h'] for u, v in used.get(i, ()))
+            # polygons that sample the rect: an eye is often one quad whose corners lie on or
+            # outside the rect's edges (DW3 Greymon), so corners inside it are not required
+            hits = sum(a < u0 + r['w'] * 4 and u0 < c and b < v0 + r['h'] and v0 < d for a, b, c, d in used.get(i, ()))
             frames = []
             for fx, fy in r['frames']:
                 FX, FY = origin[0] + fx, origin[1] + fy
@@ -240,115 +242,337 @@ def face_plan(source, face):
     return out, skipped
 
 
-def atlas(source, folder, hd_scale=4, face=None):
-    """All source pages in one atlas, with independent native 16-colour CLUTs.
+ATLAS_W, ATLAS_H = 128, 224    # drawable texels of the native 4-bit slot (the last 32 rows: CLUTs)
+PAD = 1                        # free texels between packed pages: no bleeding when HD filters
 
-    HD keeps the original RGBA pages; native fallback quantizes each page.
-    The native last 32 rows hold 64 palettes, not drawable texture pixels.
-    FACE (face_plan): the open frame goes into the page; every frame of every face part, scaled
-    like its page and in that page's palette, goes into one spare tile, 4-pixel aligned (a VRAM
-    halfword), so Gfx_AnimateModelTex can copy it with DR_MOVE. Returns tim, hd, tiles, records.
-    """
-    names = source['images']
+
+def charts(source, sizes, face=None):
+    """The pieces of each page the model uses: polygons that share a UV corner form one chart; the
+    charts' rectangles (one texel of margin) that touch are merged, as are those under a face
+    rect (its frames are copied there in VRAM, so that chart is never rotated).
+    Returns [{'image', 'box': (x0, y0, w, h), 'face': bool}] and {id(face_dict): chart}."""
+    out, owner = [], {}
+    by_image = {}
+    for b in source['bones']:
+        for f in b['faces']:
+            by_image.setdefault(f['image'], []).append(f)
     face = face or []
-    if not 1 <= len(names) <= 64 or hd_scale not in (1,2,4,8,16):
-        raise ValueError('Nicht unterstützte Anzahl Texturseiten / HD-Skalierung.')
-    count = len(names) + (1 if face else 0)
-    columns = math.ceil(math.sqrt(count))
-    rows = math.ceil(count/columns)
-    tw, th = 128//columns, 224//rows
-    hd = Image.new('RGBA', (128*hd_scale, 256*hd_scale))
-    indices = np.zeros((256,128), dtype=np.uint8)
-    palettes, tiles, variants = [], [], {}
-    for i, name in enumerate(names):
+    for img in sorted(set(by_image) | {p['image'] for p in face}):
+        faces = by_image.get(img, [])
+        iw, ih = sizes[img]
+        parent = list(range(len(faces)))
+        def find(a):
+            while parent[a] != a:
+                parent[a] = parent[parent[a]]; a = parent[a]
+            return a
+        corner = {}
+        for i, f in enumerate(faces):
+            for uv in f['uv']:
+                j = corner.setdefault(tuple(uv), i)
+                parent[find(i)] = find(j)
+        boxes = {}
+        for i, f in enumerate(faces):
+            r = boxes.setdefault(find(i), [1 << 30, 1 << 30, -1, -1, False, []])
+            for u, v in f['uv']:
+                r[0], r[1], r[2], r[3] = min(r[0], u), min(r[1], v), max(r[2], u), max(r[3], v)
+            r[5].append(f)
+        items = list(boxes.values())
+        for p in (q for q in face if q['image'] == img):
+            (u0, v0), (w, h) = p['dst'], p['size']
+            items.append([u0, v0, u0 + w - 1, v0 + h - 1, True, []])
+        # one texel of margin, then merge rectangles that touch until none do
+        rects = [[max(0, int(math.floor(a)) - 1), max(0, int(math.floor(b_)) - 1),
+                  min(iw, int(math.ceil(c)) + 2), min(ih, int(math.ceil(d)) + 2), fc, fs] for a, b_, c, d, fc, fs in items]
+        merged = True
+        while merged:
+            merged = False
+            for i in range(len(rects)):
+                for j in range(i + 1, len(rects)):
+                    a, b_ = rects[i], rects[j]
+                    if a[0] < b_[2] and b_[0] < a[2] and a[1] < b_[3] and b_[1] < a[3]:
+                        rects[i] = [min(a[0], b_[0]), min(a[1], b_[1]), max(a[2], b_[2]), max(a[3], b_[3]),
+                                    a[4] or b_[4], a[5] + b_[5]]
+                        del rects[j]
+                        merged = True
+                        break
+                if merged:
+                    break
+        for x0, y0, x1, y1, fc, fs in rects:
+            for f in fs:
+                owner[id(f)] = len(out)
+            out.append({'image': img, 'box': (x0, y0, max(1, x1 - x0), max(1, y1 - y0)), 'face': fc})
+    return out, owner
+
+
+class _Shelves:
+    """Skyline bottom-left packing in the 128 x 224 native area (each rectangle where its top edge
+    ends lowest, then leftmost), PAD texels apart."""
+    def __init__(self):
+        self.sky = [[0, 0, ATLAS_W]]            # segments: x, height so far, width
+
+    def place(self, w, h, align=1):
+        if w > ATLAS_W or h > ATLAS_H:
+            return None
+        best = None
+        xs = sorted({sg[0] for sg in self.sky} | {-(-sg[0] // align) * align for sg in self.sky})
+        for x in xs:
+            if x % align or x + w > ATLAS_W:
+                continue
+            top = max(sg[1] for sg in self.sky if sg[0] < x + w and x < sg[0] + sg[2])
+            if top + h > ATLAS_H:
+                continue
+            if best is None or (top + h, x) < (best[1] + h, best[0]):
+                best = (x, top)
+        if best is None:
+            return None
+        x, y = best
+        x1, top = min(ATLAS_W, x + w + PAD), y + h + PAD
+        out = []
+        for sx, sh, sw in self.sky:            # cut [x, x1) out, raise it to top
+            if sx + sw <= x or x1 <= sx:
+                out.append([sx, sh, sw])
+                continue
+            if sx < x:
+                out.append([sx, sh, x - sx])
+            if sx + sw > x1:
+                out.append([x1, sh, sx + sw - x1])
+        out.append([x, top, x1 - x])
+        out.sort()
+        merged = []
+        for sg in out:
+            if merged and merged[-1][1] == sg[1] and merged[-1][0] + merged[-1][2] == sg[0]:
+                merged[-1][2] += sg[2]
+            else:
+                merged.append(sg)
+        self.sky = merged
+        return x, y
+
+
+def tile_uv(tile, u, v):
+    """Source texel (u, v) of a chart -> its atlas texel (texel centres kept in place)."""
+    x, y, tw, th, cx, cy, cw, ch, rot = tile
+    fu, fv = (u - cx + .5) / cw, (v - cy + .5) / ch
+    if rot:                                  # stored transposed: source v runs along atlas x
+        return (x + min(tw - 1, max(0, int(fv * tw))), y + min(th - 1, max(0, int(fu * th))))
+    return (x + min(tw - 1, max(0, int(fu * tw))), y + min(th - 1, max(0, int(fv * th))))
+
+
+def _face_box(tile, part):
+    """The 4-texel aligned atlas rectangle a face rect covers in its (unrotated) chart's tile."""
+    x, y, tw, th, cx, cy, cw, ch, _ = tile
+    fx, fy = tw / cw, th / ch
+    u0, v0 = part['dst']
+    w, h = part['size']
+    ax0 = (x + int(math.floor((u0 - cx) * fx))) // 4 * 4
+    ax1 = -(-(x + int(math.ceil((u0 + w - cx) * fx))) // 4) * 4
+    ay0, ay1 = y + int(math.floor((v0 - cy) * fy)), y + int(math.ceil((v0 + h - cy) * fy))
+    return ax0, ay0, max(ax1, ax0 + 4) - ax0, max(ay1, ay0 + 1) - ay0
+
+
+def layout(chart_list, face=None):
+    """Pack every chart at one common scale (the largest that fits, at most 1: the 1x atlas never
+    magnifies), so no chart is squeezed more in one direction than in the other; a chart may be
+    stored transposed (not those under face rects). Returns (scale, tiles, frame_slots):
+    tiles[c] = (x, y, w, h, cx, cy, cw, ch, rotated), frame_slots[p] = three (x, y) for face
+    part p (copied by DR_MOVE, so x is 4-texel aligned)."""
+    face = face or []
+    def attempt(s, policy):
+        shelves, tiles = _Shelves(), [None] * len(chart_list)
+        dims = []
+        for c in chart_list:
+            cw, ch = c['box'][2:]
+            w, h = max(1, round(cw * s)), max(1, round(ch * s))
+            rot = not c['face'] and ((policy == 'wide' and h > w) or (policy == 'tall' and w > h) or w > ATLAS_W)
+            dims.append((h, w, rot) if rot else (w, h, rot))
+        for i in sorted(range(len(chart_list)), key=lambda i: (-max(dims[i][:2]), -dims[i][0] * dims[i][1])):
+            w, h, rot = dims[i]
+            at = shelves.place(w, h)
+            if at is None:
+                return None
+            tiles[i] = (at[0], at[1], w, h, *chart_list[i]['box'], rot)
+        slots = []
+        for part in face:
+            c = next(i for i, ch_ in enumerate(chart_list) if ch_['face'] and ch_['image'] == part['image'] and
+                     ch_['box'][0] <= part['dst'][0] and ch_['box'][1] <= part['dst'][1] and
+                     part['dst'][0] + part['size'][0] <= ch_['box'][0] + ch_['box'][2] and
+                     part['dst'][1] + part['size'][1] <= ch_['box'][1] + ch_['box'][3])
+            _, _, pw, ph = _face_box(tiles[c], part)
+            got = []
+            for _ in range(3):
+                at = shelves.place(pw, ph, 4)
+                if at is None or pw > 255 * 4:
+                    return None
+                got.append(at)
+            slots.append((c, got))
+        return tiles, slots
+    best = None
+    for policy in ('need', 'wide', 'tall'):
+        got = attempt(1.0, policy)
+        if got is not None:
+            return 1.0, got[0], got[1]
+        lo, hi, keep = 0.0, 1.0, None
+        for _ in range(20):
+            mid = (lo + hi) / 2
+            got = attempt(mid, policy)
+            if got is None:
+                hi = mid
+            else:
+                lo, keep = mid, got
+        if keep is not None and (best is None or lo > best[0]):
+            best = (lo, keep)
+    if best is None:
+        raise ValueError('Texturseiten passen nicht in den 128×224-Atlas.')
+    return best[0], best[1][0], best[1][1]
+
+
+def _load_pages(source, folder):
+    names = source['images']
+    if not 1 <= len(names) <= 64:
+        raise ValueError('Nicht unterstützte Anzahl Texturseiten.')
+    pages = []
+    for name in names:
         path = (Path(folder)/name).resolve()
         if not path.is_relative_to(Path(folder).resolve()):
             raise ValueError('Texturpfad außerhalb des DW3-Modells.')
         with Image.open(path) as image:
-            rgba = image.convert('RGBA')
+            pages.append(image.convert('RGBA'))
+    return pages
+
+
+def atlas(source, folder, hd_scale=4, face=None):
+    """The used parts (charts) of all source pages in one atlas, with independent native
+    16-colour CLUTs per page.
+
+    Only what the polygons sample goes in (most of a 256 x 256 DW3 page is other models' texels or
+    empty), all charts at one common scale. HD keeps the original RGBA pixels (an exact copy where
+    the HD tile has the chart's own size, LANCZOS otherwise); the native 1x quantizes each page to
+    15 colours. The native last 32 rows hold 64 palettes, not drawable texture pixels.
+    FACE (face_plan): the open frame goes into the page; every frame of every face part, scaled
+    like its chart and in that page's palette, goes into free atlas space, 4-pixel aligned (a VRAM
+    halfword), so Gfx_AnimateModelTex can copy it with DR_MOVE.
+    Returns tim, hd, tiles (per chart), records, owner ({id(face dict): chart}), scale."""
+    face = face or []
+    if hd_scale not in (1,2,4,8,16):
+        raise ValueError('Nicht unterstützte HD-Skalierung.')
+    pages = _load_pages(source, folder)
+    chart_list, owner = charts(source, [p.size for p in pages], face)
+    scale, tiles, slots = layout(chart_list, face)
+    hd = Image.new('RGBA', (128*hd_scale, 256*hd_scale))
+    indices = np.zeros((256,128), dtype=np.uint8)
+    palettes = [[0x8000] + [0]*15 for _ in pages]
+    variants, hd_frames = {}, {}
+    def with_frame(img, part, k):
+        (sx, sy), (w, h) = part['frames'][k], part['size']
+        out = img.copy()
+        out.paste(img.crop((sx, sy, sx + w, sy + h)), part['dst'])
+        return out
+    def region_of(img, t):
+        x, y, tw, th, cx, cy, cw, ch, rot = t
+        r = img.crop((cx, cy, cx + cw, cy + ch))
+        return r.transpose(Image.Transpose.TRANSPOSE) if rot else r
+    for i, rgba in enumerate(pages):
         mine = [f for f in face if f['image'] == i]
-        def with_frame(img, part, k):
-            (sx, sy), (w, h) = part['frames'][k], part['size']
-            out = img.copy()
-            out.paste(img.crop((sx, sy, sx + w, sy + h)), part['dst'])
-            return out
         for part in mine:                       # the page shows the open frame
             rgba = with_frame(rgba, part, 0)
-        x, y = i % columns * tw, i//columns * th
-        hd.paste(rgba.resize((tw*hd_scale, th*hd_scale), Image.Resampling.LANCZOS), (x*hd_scale,y*hd_scale))
-        thumb = rgba.resize((tw,th), Image.Resampling.BOX)
-        quant = thumb.convert('RGB').quantize(colors=15, dither=Image.Dither.NONE)
+        here = [c for c, ch_ in enumerate(chart_list) if ch_['image'] == i]
+        if not here:
+            continue
+        thumbs = {}
+        for c in here:
+            t = tiles[c]
+            region = region_of(rgba, t)
+            size = (t[2]*hd_scale, t[3]*hd_scale)
+            # upscaling keeps every source texel as it is (a block of HD pixels, NEAREST): the HD
+            # texture is the original page, not a filtered guess; the port's sampler filters it
+            # (or not: pixel look). Only a smaller tile (scale below 1) is filtered (LANCZOS).
+            up = size[0] >= region.width and size[1] >= region.height
+            hd.paste(region if region.size == size else
+                     region.resize(size, Image.Resampling.NEAREST if up else Image.Resampling.LANCZOS),
+                     (t[0]*hd_scale, t[1]*hd_scale))
+            thumbs[c] = region.resize(t[2:4], Image.Resampling.BOX) if region.size != t[2:4] else region
+        # one palette for the page: quantize the opaque texels of all its charts together
+        texels = np.concatenate([np.asarray(im).reshape(-1, 4) for im in thumbs.values()])
+        texels = texels[texels[:, 3] >= 128] if np.any(texels[:, 3] >= 128) else texels
+        strip = Image.fromarray(texels.reshape(1, -1, 4).astype(np.uint8), 'RGBA')
+        opaque = np.ones((1, len(texels)), bool)
+        quant = strip.convert('RGB').quantize(colors=15, dither=Image.Dither.NONE)
         rgb = (quant.getpalette() or []) + [0]*45
         pal = [0]
         for c in range(15):
             r,g,b = rgb[c*3:c*3+3]
             word = (r>>3) | ((g>>3)<<5) | ((b>>3)<<10)
-            alpha=np.asarray(thumb)[:,:,3][np.asarray(quant)==c]
+            alpha=np.asarray(strip)[:,:,3][(np.asarray(quant)==c)&opaque]
             if np.any((alpha>=128)&(alpha<255)):word|=0x8000
             pal.append(word or 0x8000)  # opaque black must not become transparent
         def index_pixels(img_thumb):
-            q = img_thumb.convert('RGB').quantize(palette=quant, dither=Image.Dither.NONE) if img_thumb is not thumb else quant
+            q = img_thumb.convert('RGB').quantize(palette=quant, dither=Image.Dither.NONE)
             px = np.asarray(q).astype(np.uint8)+1
             px[np.asarray(img_thumb)[:,:,3] < 128] = 0
             return px
-        pixels = index_pixels(thumb)
-        indices[y:y+th,x:x+tw] = pixels
-        for part in mine:
-            variants[part['slot']] = [index_pixels(with_frame(rgba, part, k).resize((tw,th), Image.Resampling.BOX))
-                                      for k in range(3)]
-        palettes.append(pal)
-        tiles.append((x,y,tw,th,rgba.width,rgba.height))
+        for c in here:
+            x, y, tw, th = tiles[c][:4]
+            indices[y:y+th, x:x+tw] = index_pixels(thumbs[c])
+        for p_i, part in enumerate(face):
+            if part['image'] != i:
+                continue
+            c = slots[p_i][0]
+            t = tiles[c]
+            variants[p_i] = [index_pixels(region_of(with_frame(rgba, part, k), t).resize(t[2:4], Image.Resampling.BOX))
+                             for k in range(3)]
+            hd_frames[p_i] = []
+            for k in range(3):        # the whole HD atlas as it looks with frame k in this tile
+                frame_hd = hd.copy()
+                region = region_of(with_frame(rgba, part, k), t)
+                size = (t[2]*hd_scale, t[3]*hd_scale)
+                up = size[0] >= region.width and size[1] >= region.height
+                frame_hd.paste(region if region.size == size else
+                               region.resize(size, Image.Resampling.NEAREST if up else Image.Resampling.LANCZOS),
+                               (t[0]*hd_scale, t[1]*hd_scale))
+                hd_frames[p_i].append(frame_hd)
+        palettes[i] = pal
     records = []
-    if face:
-        spare = len(names)
-        sx0, sy0 = spare % columns * tw, spare//columns * th
-        cx, cy, line = -(-sx0 // 4) * 4, sy0, 0
-        for part in face:
-            x, y, _, _, iw, ih = tiles[part['image']]
-            fx, fy = tw / iw, th / ih
-            u0, v0 = part['dst']
-            w, h = part['size']
-            ax0 = (x + int(math.floor(u0 * fx))) // 4 * 4
-            ax1 = -(-(x + int(math.ceil((u0 + w) * fx))) // 4) * 4
-            ay0, ay1 = y + int(math.floor(v0 * fy)), y + int(math.ceil((v0 + h) * fy))
-            ax1, ay1 = max(ax1, ax0 + 4), max(ay1, ay0 + 1)
-            pw, ph = ax1 - ax0, ay1 - ay0
-            sources = []
-            for k in range(3):
-                patch = indices[ay0:ay1, ax0:ax1].copy()
-                tile = variants[part['slot']][k]
-                for yy in range(ay0, ay1):
-                    for xx in range(ax0, ax1):
-                        if x <= xx < x + tw and y <= yy < y + th:
-                            patch[yy - ay0, xx - ax0] = tile[yy - y, xx - x]
-                if cx + pw > sx0 + tw:
-                    cx, cy, line = -(-sx0 // 4) * 4, cy + line, 0
-                if cy + ph > sy0 + th or cx + pw > sx0 + tw or pw > 255 * 4:
-                    raise ValueError('Gesichtsteile passen nicht in den freien Atlasbereich.')
-                indices[cy:cy+ph, cx:cx+pw] = patch
-                sources.append((cx, cy))
-                cx += pw
-                line = max(line, ph)
-            records.append({'slot': part['slot'], 'dst': (ax0, ay0), 'size': (pw, ph), 'frames': sources})
+    for p_i, part in enumerate(face):
+        c, slot = slots[p_i]
+        x, y, tw, th = tiles[c][:4]
+        ax0, ay0, pw, ph = _face_box(tiles[c], part)
+        sources = []
+        for k in range(3):
+            patch = indices[ay0:ay0+ph, ax0:ax0+pw].copy()
+            tile = variants[p_i][k]
+            for yy in range(ay0, ay0 + ph):
+                for xx in range(ax0, ax0 + pw):
+                    if x <= xx < x + tw and y <= yy < y + th:
+                        patch[yy - ay0, xx - ax0] = tile[yy - y, xx - x]
+            sx, sy = slot[k]
+            indices[sy:sy+ph, sx:sx+pw] = patch
+            sources.append((sx, sy))
+            # the HD picture holds the same frame (the port copies it there like the 1x texels
+            # when the eye blinks: TexRep_OnMove), the page's HD tile drawn with frame k
+            hd.paste(hd_frames[p_i][k].crop((ax0 * hd_scale, ay0 * hd_scale, (ax0 + pw) * hd_scale, (ay0 + ph) * hd_scale)),
+                     (sx * hd_scale, sy * hd_scale))
+        records.append({'slot': part['slot'], 'dst': (ax0, ay0), 'size': (pw, ph), 'frames': sources})
     raw = bytearray((indices[:,0::2] | (indices[:,1::2]<<4)).tobytes())
     for i,pal in enumerate(palettes):
         struct.pack_into('<16H', raw, (224+i//2)*64 + (i%2)*32, *pal)
     tim = struct.pack('<II I4H', 16, 0, 12+len(raw), 0, 0, 32, 256) + raw
-    return tim, hd, tiles, records
+    return tim, hd, tiles, records, owner, scale
 
 
-def auto_hd_scale(source, folder, with_face=False):
-    """Smallest HD factor (2, 4, 8 or 16) at which every DW3 page keeps at least its own resolution
-    in the atlas tile (the native tile is a fraction of 128 x 224; the HD texture is that tile times
-    the factor). 16 = 2048 x 4096, the largest the port takes."""
-    count = len(source['images']) + (1 if with_face else 0)
-    columns = math.ceil(math.sqrt(count))
-    rows = math.ceil(count / columns)
-    tw, th = 128 // columns, 224 // rows
-    need = 1.0
+def atlas_scale(source, folder, face=None):
+    sizes = []
     for name in source['images']:
-        with Image.open(Path(folder) / name) as image:
-            need = max(need, image.width / tw, image.height / th)
+        with Image.open(Path(folder)/name) as image:
+            sizes.append(image.size)
+    return layout(charts(source, sizes, face)[0], face)[0]
+
+
+def auto_hd_scale(source, folder, with_face=False, face=None):
+    """Smallest HD factor (2, 4, 8 or 16) at which every used chart gets at least two HD pixels per
+    source texel (the 1x atlas holds it at layout()'s scale s; HD is that times the factor): every
+    source texel is then kept exactly, as a block of 2-3+ pixels whose size varies by at most one.
+    16 = 2048 x 4096, the largest the port takes."""
+    s = atlas_scale(source, folder, face if with_face else None)
+    need = 2 / max(s, 1e-6)
     for k in (2, 4, 8, 16):
         if k >= need - 1e-6:
             return k
@@ -385,14 +609,14 @@ def encode_model(source, folder, scale=1., hd_scale=4, face=None):
     order, depths = [x['src'] for x in nodes], [x['depth'] for x in nodes]
     parts, face_notes = face_plan(source, face)
     if not hd_scale:
-        hd_scale = auto_hd_scale(source, folder, bool(parts))
+        hd_scale = auto_hd_scale(source, folder, bool(parts), parts)
     try:
-        tim, hd, tiles, records = atlas(source, folder, hd_scale, parts)
+        tim, hd, tiles, records, owner, tex_scale = atlas(source, folder, hd_scale, parts)
     except ValueError as exc:
         if not parts:
             raise
         face_notes.append(str(exc))
-        tim, hd, tiles, records = atlas(source, folder, hd_scale, [])
+        tim, hd, tiles, records, owner, tex_scale = atlas(source, folder, hd_scale, [])
     n = len(order)
     out = bytearray(12 + 16*n)
     out += face_records(records)
@@ -434,9 +658,10 @@ def encode_model(source, folder, scale=1., hd_scale=4, face=None):
             return normal_ids[key]
         for fi, (face, corners) in enumerate(part):
             img = face['image']
-            if type(img) is not int or not 0 <= img < len(tiles):
+            if type(img) is not int or not 0 <= img < len(source['images']) or id(face) not in owner:
                 raise ValueError('Ungültige Materialzuordnung.')
-            tx,ty,tw,th,iw,ih = tiles[img]
+            tile = tiles[owner[id(face)]]
+            cx,cy,cw,ch = tile[4:8]
             ids = [remap[face['indices'][k]] for k in corners]
             fn = face_n[fi]
             corner_n = []
@@ -452,9 +677,9 @@ def encode_model(source, folder, scale=1., hd_scale=4, face=None):
             uv=[]
             for k in corners:
                 u,v=face['uv'][k]
-                if not 0 <= u < iw or not 0 <= v < ih:
+                if not cx <= u < cx+cw or not cy <= v < cy+ch:
                     raise ValueError('Wiederholende DW3-UVs müssen vor dem Import aufgeteilt werden.')
-                uv.append((tx+round(u/max(iw-1,1)*(tw-1)),ty+round(v/max(ih-1,1)*(th-1))))
+                uv.append(tile_uv(tile, u, v))
             clut = ((224+img//2)<<6) | (img%2)
             abr = face['abr']
             if type(abr) is not int or not 0 <= abr <= 4:
@@ -475,7 +700,8 @@ def encode_model(source, folder, scale=1., hd_scale=4, face=None):
     out.extend(bytes((-len(out))%4));tim_start=len(out);out.extend(tim)
     struct.pack_into('<III',out,0,tim_start,0,n)
     NativeModel(out)
-    return bytes(out),hd,{'bones':n,'triangles':triangle_count,'scale':scale,'textures':len(tiles),
+    return bytes(out),hd,{'bones':n,'triangles':triangle_count,'scale':scale,'textures':len(source['images']),
+                          'charts':len(tiles),'texture_scale':round(tex_scale,3),'hd_scale':hd_scale,
                           'face_parts':len(records),'eyes':sum(r['slot'] < 2 for r in records),'face_notes':face_notes}
 
 

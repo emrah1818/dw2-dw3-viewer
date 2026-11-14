@@ -52,7 +52,7 @@ def test_plan_maps_rect_to_page_pixels(tmp_path):
 def test_atlas_holds_three_aligned_frames_and_record(tmp_path):
     s = source(tmp_path)
     parts, _ = face_plan(s, FACE)
-    tim, hd, tiles, records = atlas(s, tmp_path, 1, parts)
+    tim, hd, tiles, records = atlas(s, tmp_path, 1, parts)[:4]
     assert len(records) == 1
     r = records[0]
     assert r['dst'][0] % 4 == 0 and r['size'][0] % 4 == 0 and all(f[0] % 4 == 0 for f in r['frames'])
