@@ -56,7 +56,7 @@ AREAS = ['page-files', 'page-view', 'page-list', 'page-edit', 'page-attacks', 'p
 def test_window_has_the_nine_areas_and_every_tab_has_a_page():
     html = (ROOT / 'www/index.html').read_text(encoding='utf-8')
     tabs = re.findall(r'data-page="([^"]+)" class="tab"', html)
-    assert tabs[:9] == AREAS
+    assert tabs[:10] == AREAS
     for page in tabs:
         assert page == 'page-tex' or f'id="{page}"' in html                   # page-tex opens the texture card
     js = (ROOT / 'www/app.js').read_text(encoding='utf-8')
