@@ -550,7 +550,12 @@ function renderEdit() {
   if (id == null || !state.image) { $('#edit-name').textContent = t('Digimon wählen'); $('#edit-sub').textContent = ''; boxes.forEach(s => { $(s).innerHTML = ''; }); return; }
   const c = state.catalog.find(x => x.id === id);
   $('#edit-name').textContent = `#${String(id).padStart(3, '0')} ${c.name}`; $('#edit-sub').textContent = ` · ${c.code}`;
-  renderName(id); renderSize(id); renderType(id); renderEvolution(id); renderCamera(id); renderAttacks(id); renderEnemy(id); renderRoster(id);
+  // Größe: erst beim Aufklappen (die Größentabelle aller Digimon braucht beim ersten Mal bis zu einer Minute
+  // und hielt sonst jede weitere Aktion auf, z. B. das Umbenennen)
+  const sizeCard = $('#f-size').closest('details');
+  if (sizeCard.open) renderSize(id);
+  else sizeCard.ontoggle = () => { if (sizeCard.open && state.id === id) renderSize(id); };
+  renderName(id); renderType(id); renderEvolution(id); renderCamera(id); renderAttacks(id); renderEnemy(id); renderRoster(id);
 }
 async function renderEvolution(id) {
   const box = $('#f-evolution');
@@ -583,8 +588,8 @@ async function renderName(id) {
     const apply = async text => {
       try {
         await native('rename', id, text);
-        state.catalog = await native('catalog');
-        toast(t('Name vorgemerkt')); renderList(); renderEdit(); refreshPending();
+        await afterChange(t('Name vorgemerkt'));   // Liste, Änderungen und die Anzeige unter dem 3D-Bild
+        renderEdit();
       } catch (e) { await fail(e); }
     };
     $('#b-name-ok').onclick = () => apply($('#in-name').value);
@@ -869,6 +874,9 @@ $('#b-clear').onclick = async () => {
   try {
     const a = await native('app_info');
     $('#about').textContent = `v${a.version} · ${t('Nur eigene Spiel-Images verwenden. Die App enthält keine Spieldaten.')}`;
+    $('#app-title').textContent = `DW2 MOD STUDIO ${a.version}`;
+    $('#app-h2').textContent = `DW2 Mod Studio ${a.version}`;
+    document.title = `DW2 Mod Studio ${a.version} · PC`;
     $('#space-hint').textContent = `${t('Freier Speicher')}: ${a.free_mb} MB · ${t('Dateien werden lokal auf diesem PC verarbeitet.')}`;
   } catch { /* nur Anzeige */ }
 })();

@@ -1052,10 +1052,10 @@ def battle_camera_set(identifier, setting=None):
 _HEIGHTS = {}
 
 
-def _height_of(candidate, original=False):
+def _height_of(candidate, original=False, repo=None):
     from dw2studio.core.dw3_native import model_height
     s = _need_session()
-    family, _, _ = _model_family(candidate)
+    family, _, _ = _model_family(candidate, original=original, repo=repo)
     model = next(e for e in family if Path(e.path).name.startswith('M'))
     anim = next(e for e in family if Path(e.path).name[0] == 'A')
     get = s.original if original else s.current
@@ -1067,21 +1067,37 @@ def size_info(identifier):
     and for DW3 imports the factor it was imported with (dw3_resize changes it)."""
     ident = int(identifier)
     cand = _find(ident)
-    if not _HEIGHTS:
-        for c in S.catalog:
+    if _HEIGHTS.get('_image') != S.index_key:
+        # one name table for all 395 Digimon: discovering it per Digimon took most of a minute
+        # on a BIN and blocked every other Studio action queued behind it (renaming, export)
+        from dw2studio.core.digimon_names import NameRepository
+        _HEIGHTS.clear()
+        _HEIGHTS['_image'] = S.index_key
+        cache = CACHE / 'heights' / f'{S.index_key}.json'
+        try:
+            _HEIGHTS.update({int(k): tuple(v) for k, v in json.loads(cache.read_text(encoding='utf-8')).items()})
+        except (OSError, ValueError):
+            repo = NameRepository(_need_session(), S.entries)
+            for c in S.catalog:
+                try:
+                    _HEIGHTS[c.id] = (c.name, round(_height_of(c, original=True, repo=repo)))
+                except Exception:
+                    pass
             try:
-                _HEIGHTS[c.id] = (c.name, round(_height_of(c, original=True)))
-            except Exception:
+                cache.parent.mkdir(parents=True, exist_ok=True)
+                cache.write_text(json.dumps({k: v for k, v in _HEIGHTS.items() if k != '_image'}), encoding='utf-8')
+            except OSError:
                 pass
     now = round(_height_of(cand))
     job = (getattr(S, 'dw3_imports', {}) or {}).get(ident)
-    near = sorted(((abs(h - now), n, h) for i, (n, h) in _HEIGHTS.items() if i != ident))[:3]
-    return {'height': now, 'original_height': _HEIGHTS.get(ident, (None, None))[1],
+    table = {i: v for i, v in _HEIGHTS.items() if i != '_image'}
+    near = sorted(((abs(h - now), n, h) for i, (n, h) in table.items() if i != ident))[:3]
+    return {'height': now, 'original_height': table.get(ident, (None, None))[1],
             'imported': bool(job), 'factor': job.get('scale', 1.) if job else None,
             'size_mode': job.get('size_mode', 'dw2') if job else None,
             'source': job.get('source_name') if job else None,
             'similar': [{'name': n, 'height': h} for _, n, h in near],
-            'range': [min(h for _, h in _HEIGHTS.values()), max(h for _, h in _HEIGHTS.values())]}
+            'range': [min(h for _, h in table.values()), max(h for _, h in table.values())]}
 
 
 def dw3_resize(target, factor, size_mode=None):
