@@ -45,6 +45,8 @@ def check(session, pak, port_dir):
     if extended and report['api'] != 2:
         report['errors'].append('Größere Dateien brauchen den mitgelieferten PC-Port mit Mod-Schnittstelle 2 '
                                 '(dw2_mod_api.json mit "mod_api": 2 fehlt im Ordner).')
+    from .core.format_limits import check_staged
+    report['errors'].extend('Formatgrenze: ' + p for p in check_staged(session))
     files = port / 'Mods' / 'files'
     active = {int(m.group(1), 16): p for p in (files.iterdir() if files.is_dir() else []) if (m := MOD_FILE.match(p.name))}
     for c in changes:

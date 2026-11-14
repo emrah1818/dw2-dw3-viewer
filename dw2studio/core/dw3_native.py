@@ -18,7 +18,38 @@ def triangles(bone):
             for fan in range(1, len(face['indices'])-1)]
 
 
-def hierarchy(source):
+MAX_DEPTH = 7          # depth field 0..7: eight DW2 hierarchy levels
+MAX_PART = 256         # vertex / normal / triangle indices are one byte per part
+MAX_PARTS = 64
+
+
+def bone_chunks(bone):
+    """Triangles of one DW3 bone in parts of at most 256 triangles and 256 vertices.
+
+    A native vertex index is one byte, so a bone with more vertices is split into sibling parts
+    that share the bone's transform; every part keeps only the vertices it uses."""
+    tris = triangles(bone)
+    if not tris:
+        return [[]]
+    chunks, cur, used = [], [], set()
+    for tri in tris:
+        face, corners = tri
+        ids = {face['indices'][k] for k in corners}
+        if cur and (len(cur) >= MAX_PART or len(used | ids) > MAX_PART):
+            chunks.append(cur)
+            cur, used = [], set()
+        cur.append(tri)
+        used |= ids
+    chunks.append(cur)
+    return chunks
+
+
+def plan(source):
+    """Native part list: [{'src', 'depth', 'chain', 'chunk'}].
+
+    Bones deeper than the eight DW2 levels are attached to their ancestor on level 7 (depth 6),
+    and their animation matrix becomes the product of the skipped local matrices ('chain'), so
+    the pose stays exact. Large bones become several sibling parts (bone_chunks)."""
     bones = source['bones']
     if not 2 <= len(bones) <= 65 or bones[0]['parent'] != -1:
         raise ValueError('DW3-Skelett benötigt 1–64 Körperknochen und eine Wurzel.')
@@ -28,23 +59,43 @@ def hierarchy(source):
         if type(p) is not int or not 0 <= p < i:
             raise ValueError('Ungültige DW3-Knochenhierarchie.')
         children[p].append(i)
-    order, depths = [], []
-    def visit(i, depth):
-        if depth > 7:
-            raise ValueError('Skelett überschreitet die 8 DW2-Hierarchieebenen.')
-        # A native normal index is one byte. Split large rigid meshes into
-        # sibling parts of at most 256 triangles, retaining exact flat normals.
-        # Put the final copy immediately before the children: DW2's depth stack
-        # then uses the same source transform for their parent.
-        copies = max(1, math.ceil(len(triangles(bones[i]))/256))
-        order.extend([i]*copies); depths.extend([depth]*copies)
+    nodes = []
+
+    def visit(i, depth, chain):
+        if depth > MAX_DEPTH:
+            depth = MAX_DEPTH          # chain: skipped ancestors below level 7, then this bone
+        else:
+            chain = [i]
+        # The final copy goes immediately before the children: DW2's depth stack then uses the
+        # same source transform for their parent.
+        for k in range(len(bone_chunks(bones[i]))):
+            nodes.append({'src': i, 'depth': depth, 'chain': list(chain), 'chunk': k})
         for child in children[i]:
-            visit(child, depth+1)
+            if depth >= MAX_DEPTH:
+                visit(child, depth + 1, chain + [child])
+            else:
+                visit(child, depth + 1, [child])
     for child in children[0]:
-        visit(child, 0)
-    if len(order) > 64:
-        raise ValueError('Teilmesh-Aufteilung benötigt mehr als 64 native Körperknochen.')
-    return order, depths
+        visit(child, 0, [child])
+    if len(nodes) > MAX_PARTS:
+        raise ValueError(f'Das Modell braucht {len(nodes)} DW2-Teile (höchstens {MAX_PARTS}): zu viele Knochen '
+                         'oder zu große Teilmeshes.')
+    return nodes
+
+
+def hierarchy(source):
+    nodes = plan(source)
+    return [n['src'] for n in nodes], [n['depth'] for n in nodes]
+
+
+def limits_report(source):
+    """What the conversion has to do to fit DW2's format limits (shown before export)."""
+    nodes = plan(source)
+    bones = source['bones']
+    deep = sorted({n['src'] for n in nodes if len(n['chain']) > 1})
+    split = sorted({n['src'] for n in nodes if len(bone_chunks(bones[n['src']])) > 1})
+    return {'parts': len(nodes), 'max_parts': MAX_PARTS, 'flattened_bones': deep, 'split_bones': split,
+            'max_depth': max(n['depth'] for n in nodes) + 1}
 
 
 def source_matrices(source, motion):
@@ -131,7 +182,8 @@ def atlas(source, folder, hd_scale=4):
 def encode_model(source, folder, scale=1., hd_scale=4):
     if not math.isfinite(scale) or scale <= 0:
         raise ValueError('Ungültige Skalierung.')
-    order, depths = hierarchy(source)
+    nodes = plan(source)
+    order, depths = [x['src'] for x in nodes], [x['depth'] for x in nodes]
     tim, hd, tiles = atlas(source, folder, hd_scale)
     n = len(order)
     out = bytearray(12 + 16*n)
@@ -140,22 +192,25 @@ def encode_model(source, folder, scale=1., hd_scale=4):
         out.extend(bytes((-len(out))%4));at=len(out);out.extend(data);return at
     pointers = [[],[],[]]
     triangle_count = 0
-    chunks = {}
-    for bone in order:
+    for node in nodes:
+        bone = node['src']
         b = source['bones'][bone]
-        vertices = np.rint(np.asarray(b['vertices'], dtype=float)*scale).astype(np.int64)
+        part = bone_chunks(b)[node['chunk']]
+        all_vertices = np.rint(np.asarray(b['vertices'], dtype=float)*scale).astype(np.int64)
+        used = sorted({f['indices'][k] for f, c in part for k in c})
+        if any(type(v) is not int or not 0 <= v < len(all_vertices) for v in used):
+            raise ValueError('Ungültiger Vertexindex.')
+        remap = {v: i for i, v in enumerate(used)}
+        vertices = all_vertices[used] if used else all_vertices[:0]
         if len(vertices) > 256 or not len(vertices) or np.abs(vertices).max() > 32767:
             raise ValueError(f'DW3-Knochen {bone}: 1–256 Vertices im 16-Bit-Bereich erforderlich.')
         normals, normal_ids, prims = [], {}, [[],[]]
-        chunk = chunks.get(bone, 0); chunks[bone] = chunk+1
-        for face, corners in triangles(b)[chunk*256:(chunk+1)*256]:
+        for face, corners in part:
             img = face['image']
             if type(img) is not int or not 0 <= img < len(tiles):
                 raise ValueError('Ungültige Materialzuordnung.')
             tx,ty,tw,th,iw,ih = tiles[img]
-            ids = [face['indices'][k] for k in corners]
-            if any(type(v) is not int or not 0 <= v < len(vertices) for v in ids):
-                raise ValueError('Ungültiger Vertexindex.')
+            ids = [remap[face['indices'][k]] for k in corners]
             v = vertices[ids]
             normal = np.cross(v[1]-v[0],v[2]-v[0]).astype(float)
             normal /= max(np.linalg.norm(normal),1e-9)
@@ -195,7 +250,7 @@ def encode_model(source, folder, scale=1., hd_scale=4):
 
 def encode_animation(source, mapping, scale=1., loops=()):
     """mapping: native clip index -> DW3 motion index; no semantic labels inferred."""
-    order,_=hierarchy(source);n=len(order)
+    nodes=plan(source);order=[x['src'] for x in nodes];n=len(order)
     if not mapping or any(type(i)is not int or not 0<=i<10 for i in mapping):
         raise ValueError('DW2-Datei benötigt Clip-Indizes 0–9.')
     keys=[[] for _ in order];lookup=[{} for _ in order];clips={}
@@ -207,7 +262,9 @@ def encode_animation(source, mapping, scale=1., loops=()):
         for frame in frames:
             row=[]
             for b,src in enumerate(order):
-                matrix=frame[src]
+                matrix=frame[nodes[b]['chain'][0]]
+                for c in nodes[b]['chain'][1:]:
+                    matrix=matrix@frame[c]
                 values=np.rint(np.r_[matrix[:3,:3].ravel()*4096,matrix[:3,3]*scale]).astype(np.int64)
                 if np.any(values < -32768) or np.any(values > 32767):
                     raise ValueError('Animationsmatrix außerhalb des 16-Bit-Bereichs.')

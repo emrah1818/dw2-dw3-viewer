@@ -9,6 +9,9 @@ from .core.native_anim import parse_anim_file
 from .core.dw3_native import encode_model, encode_animation, fit_scale, hd_name
 
 
+from .core.dw3_native import limits_report
+
+
 def prepare(api, source_id, target_id):
     session = api._need_session()
     if not isinstance(session, PakSession):
@@ -57,7 +60,8 @@ def prepare(api, source_id, target_id):
     return {'source': source,'folder':folder,'model':model,'animations':animations,
             'info':{'name':info['name'],'target':candidate.name,'scale':scale,
                     'motions':[{'id':m['id'],'frames':len(m['frames'])} for m in source['motions']],
-                    'assignments':descriptors,'source_bones':len(source['bones'])-1,'target_bones':n}}
+                    'assignments':descriptors,'source_bones':len(source['bones'])-1,'target_bones':n,
+                    'limits':limits_report(source)}}
 
 
 def apply(api, source_id, target_id, assignments, scale_factor=1., hd_scale=4, camera=None):
