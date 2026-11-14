@@ -54,7 +54,7 @@ def export(session, pak, port_dir, *, mod_name='DW2 Mod Studio'):
         try:
             api = json.loads(capabilities.read_text(encoding='utf-8'))
         except (OSError, ValueError) as exc:
-            raise ValueError('Für größere Dateien den mit dem Viewer gelieferten PC-Port mit Mod-Schnittstelle 2 verwenden (dw2_mod_api.json fehlt).') from exc
+            raise ValueError('Für größere Dateien den mit dem Viewer gelieferten PC-Port mit Mod-Schnittstelle 2 (Overlay-API 2) verwenden (dw2_mod_api.json fehlt).') from exc
         if api.get('mod_api') != 2:
             raise ValueError('PC-Port unterstützt Overlay-API 2 nicht.')
     changes = plan(session, pak, allow_resize=extended)
