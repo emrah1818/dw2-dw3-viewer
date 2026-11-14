@@ -71,14 +71,42 @@ def fighters(disc):
         info = enemies + index * 0x48 if enemy else partners + index * 0xC4
         if info + 12 > len(data):
             raise ValueError('DW3-Kämpfertabelle ist abgeschnitten.')
-        model, motions, effects = struct.unpack_from('<3I', data, info)
+        model, motions, effects, face_ptr = struct.unpack_from('<4I', data, info)
         out.append({'id': ident, 'kind': kind, 'enemy': enemy,
                     'model': (model >> 16, model & 0xFFFF), 'motions': (motions >> 16, motions & 0xFFFF),
-                    'effects': (effects >> 16, effects & 0xFFFF)})
+                    'effects': (effects >> 16, effects & 0xFFFF), 'face': _face(data, face_ptr - base)})
         at += 4
     if not out:
         raise ValueError('DW3-Kämpfertabelle ist leer.')
     return table, out
+
+
+def _face(data, at):
+    """FighterInfo.face: up to 16 FaceRects of 10 bytes (x, y, w, h in VRAM halfwords relative to the
+    model's texture origin; three source frames open / half / closed), ended by an x of 0xFF.
+    Rect 0 and 1 are the eyes (getEyesFrame), the others cycle (FIGHTSTG_updateFace)."""
+    rects = []
+    for i in range(16):
+        p = at + i * 10
+        if not 0 <= p <= len(data) - 10 or data[p] == 0xFF:
+            break
+        x, y, w, h, *uv = data[p:p + 10]
+        rects.append({'x': x, 'y': y, 'w': w, 'h': h, 'frames': [(uv[0], uv[1]), (uv[2], uv[3]), (uv[4], uv[5])]})
+    return rects
+
+
+def face_for(disc_path, entry):
+    """Face rectangles of the fighter that uses the model file at ENTRY, or None."""
+    disc = Disc(disc_path)
+    try:
+        table, rows = fighters(disc)
+    finally:
+        disc.close()
+    fids = [fid for fid, (lba, _) in table.items() if lba == entry.lba]
+    if len(fids) != 1:
+        return None
+    faces = [r['face'] for r in rows if r['model'][0] == fids[0] and r['face']]
+    return faces[0] if faces else None
 
 
 def _converter():

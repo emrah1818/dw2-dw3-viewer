@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -63,6 +64,10 @@ class Dw3Disc:
             raise ValueError('DW3-Konverter fehlt. Bitte tools/build_dw3_converter.py mit einem C++17-Compiler ausführen oder das Windows-Paket verwenden.')
         target = self.cache / f'model_{identifier:04d}'
         result = target / 'model.glb'
+        source_json = target / 'native_source.json'
+        if result.is_file() and source_json.is_file() and b'"pages"' not in source_json.read_bytes():
+            # converted before 1.0: no page data for the face transfer, convert again
+            shutil.rmtree(target, ignore_errors=True)
         if not result.is_file():
             with tempfile.TemporaryDirectory(prefix='dw3-', dir=self.cache) as tmp:
                 tmp = Path(tmp)

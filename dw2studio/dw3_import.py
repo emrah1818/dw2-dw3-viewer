@@ -57,11 +57,19 @@ def prepare(api, source_id, target_id):
     except (OSError, ValueError):
         scripts = None
     apply_defaults(descriptors, scripts['scripts'] if scripts else [], {m['id'] for m in source['motions']})
-    return {'source': source,'folder':folder,'model':model,'animations':animations,
+    from .dw3_fighters import face_for
+    try:
+        face = face_for(api.DW3.path, api.DW3.entries[source_id])
+    except (OSError, ValueError):
+        face = None
+    from .core.dw3_native import face_plan
+    face_parts, face_notes = face_plan(source, face)
+    return {'source': source,'folder':folder,'model':model,'animations':animations,'face':face,
             'info':{'name':info['name'],'target':candidate.name,'scale':scale,
                     'motions':[{'id':m['id'],'frames':len(m['frames'])} for m in source['motions']],
                     'assignments':descriptors,'source_bones':len(source['bones'])-1,'target_bones':n,
-                    'limits':limits_report(source)}}
+                    'limits':limits_report(source),
+                    'face':{'parts':len(face_parts),'eyes':sum(f['slot'] < 2 for f in face_parts),'notes':face_notes}}}
 
 
 def apply(api, source_id, target_id, assignments, scale_factor=1., hd_scale=4, camera=None):
@@ -69,7 +77,7 @@ def apply(api, source_id, target_id, assignments, scale_factor=1., hd_scale=4, c
     prepared = prepare(api, source_id, target_id)
     source,session = prepared['source'],api._need_session()
     scale = prepared['info']['scale']*float(scale_factor)
-    native,hd,report = encode_model(source,prepared['folder'],scale,int(hd_scale))
+    native,hd,report = encode_model(source,prepared['folder'],scale,int(hd_scale),prepared.get('face'))
     expected = {(d['slot'],d['clip']) for d in prepared['info']['assignments']}
     if not isinstance(assignments,list) or len(assignments)!=len(expected):
         raise ValueError('Alle DW2-Animationsplätze müssen genau einmal zugeordnet werden.')

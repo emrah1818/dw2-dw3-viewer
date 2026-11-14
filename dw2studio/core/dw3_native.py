@@ -134,27 +134,87 @@ def fit_scale(source, target, target_animation):
     return float(height / source_height)
 
 
-def atlas(source, folder, hd_scale=4):
+def face_plan(source, face):
+    """DW3 FaceRects (dw3_fighters._face) in source-image pixels.
+
+    A rect's x / w count VRAM halfwords from the model's texture origin (tex_origin); the image that
+    shows it is the 4-bit page at that VRAM spot whose polygons cover the rect. Returns
+    [{'slot', 'image', 'dst', 'size', 'frames'}] (slot 0/1 eyes, 2.. cycling parts) and the reasons
+    for rects that cannot be carried over."""
+    pages, origin = source.get('pages'), source.get('tex_origin')
+    if not face:
+        return [], []
+    if not pages or not origin:
+        return [], ['DW3-Modell mit dem neuen Konverter erneut öffnen (Seiteninformation fehlt).']
+    used = {}
+    for b in source['bones']:
+        for f in b['faces']:
+            for u, v in f['uv']:
+                used.setdefault(f['image'], []).append((u, v))
+    out, skipped = [], []
+    for slot, r in enumerate(face):
+        if not r['w'] or not r['h']:
+            continue
+        X, Y = origin[0] + r['x'], origin[1] + r['y']
+        found = None
+        for i, (tp, clut) in enumerate(pages):
+            if tp < 0 or (tp >> 7) & 3:
+                continue
+            px, py = (tp & 15) * 64, (tp >> 4 & 1) * 256
+            if not (px <= X and X + r['w'] <= px + 64 and py <= Y and Y + r['h'] <= py + 256):
+                continue
+            u0, v0 = (X - px) * 4, Y - py
+            hits = sum(u0 <= u < u0 + r['w'] * 4 and v0 <= v < v0 + r['h'] for u, v in used.get(i, ()))
+            frames = []
+            for fx, fy in r['frames']:
+                FX, FY = origin[0] + fx, origin[1] + fy
+                if not (px <= FX and FX + r['w'] <= px + 64 and py <= FY and FY + r['h'] <= py + 256):
+                    frames = None
+                    break
+                frames.append(((FX - px) * 4, FY - py))
+            if frames and (found is None or hits > found[0]):
+                found = (hits, {'slot': slot, 'image': i, 'dst': (u0, v0), 'size': (r['w'] * 4, r['h']), 'frames': frames})
+        if found is None or not found[0]:
+            skipped.append(f'Gesichtsteil {slot}: keine Seite des Modells zeigt dieses Rechteck.')
+            continue
+        out.append(found[1])
+    return out, skipped
+
+
+def atlas(source, folder, hd_scale=4, face=None):
     """All source pages in one atlas, with independent native 16-colour CLUTs.
 
     HD keeps the original RGBA pages; native fallback quantizes each page.
     The native last 32 rows hold 64 palettes, not drawable texture pixels.
+    FACE (face_plan): the open frame goes into the page; every frame of every face part, scaled
+    like its page and in that page's palette, goes into one spare tile, 4-pixel aligned (a VRAM
+    halfword), so Gfx_AnimateModelTex can copy it with DR_MOVE. Returns tim, hd, tiles, records.
     """
     names = source['images']
+    face = face or []
     if not 1 <= len(names) <= 64 or hd_scale not in (1,2,4,8,16):
         raise ValueError('Nicht unterstützte Anzahl Texturseiten / HD-Skalierung.')
-    columns = math.ceil(math.sqrt(len(names)))
-    rows = math.ceil(len(names)/columns)
+    count = len(names) + (1 if face else 0)
+    columns = math.ceil(math.sqrt(count))
+    rows = math.ceil(count/columns)
     tw, th = 128//columns, 224//rows
     hd = Image.new('RGBA', (128*hd_scale, 256*hd_scale))
     indices = np.zeros((256,128), dtype=np.uint8)
-    palettes, tiles = [], []
+    palettes, tiles, variants = [], [], {}
     for i, name in enumerate(names):
         path = (Path(folder)/name).resolve()
         if not path.is_relative_to(Path(folder).resolve()):
             raise ValueError('Texturpfad außerhalb des DW3-Modells.')
         with Image.open(path) as image:
             rgba = image.convert('RGBA')
+        mine = [f for f in face if f['image'] == i]
+        def with_frame(img, part, k):
+            (sx, sy), (w, h) = part['frames'][k], part['size']
+            out = img.copy()
+            out.paste(img.crop((sx, sy, sx + w, sy + h)), part['dst'])
+            return out
+        for part in mine:                       # the page shows the open frame
+            rgba = with_frame(rgba, part, 0)
         x, y = i % columns * tw, i//columns * th
         hd.paste(rgba.resize((tw*hd_scale, th*hd_scale), Image.Resampling.LANCZOS), (x*hd_scale,y*hd_scale))
         thumb = rgba.resize((tw,th), Image.Resampling.BOX)
@@ -167,27 +227,96 @@ def atlas(source, folder, hd_scale=4):
             alpha=np.asarray(thumb)[:,:,3][np.asarray(quant)==c]
             if np.any((alpha>=128)&(alpha<255)):word|=0x8000
             pal.append(word or 0x8000)  # opaque black must not become transparent
-        pixels = np.asarray(quant).astype(np.uint8)+1
-        pixels[np.asarray(thumb)[:,:,3] < 128] = 0
+        def index_pixels(img_thumb):
+            q = img_thumb.convert('RGB').quantize(palette=quant, dither=Image.Dither.NONE) if img_thumb is not thumb else quant
+            px = np.asarray(q).astype(np.uint8)+1
+            px[np.asarray(img_thumb)[:,:,3] < 128] = 0
+            return px
+        pixels = index_pixels(thumb)
         indices[y:y+th,x:x+tw] = pixels
+        for part in mine:
+            variants[part['slot']] = [index_pixels(with_frame(rgba, part, k).resize((tw,th), Image.Resampling.BOX))
+                                      for k in range(3)]
         palettes.append(pal)
         tiles.append((x,y,tw,th,rgba.width,rgba.height))
+    records = []
+    if face:
+        spare = len(names)
+        sx0, sy0 = spare % columns * tw, spare//columns * th
+        cx, cy, line = -(-sx0 // 4) * 4, sy0, 0
+        for part in face:
+            x, y, _, _, iw, ih = tiles[part['image']]
+            fx, fy = tw / iw, th / ih
+            u0, v0 = part['dst']
+            w, h = part['size']
+            ax0 = (x + int(math.floor(u0 * fx))) // 4 * 4
+            ax1 = -(-(x + int(math.ceil((u0 + w) * fx))) // 4) * 4
+            ay0, ay1 = y + int(math.floor(v0 * fy)), y + int(math.ceil((v0 + h) * fy))
+            ax1, ay1 = max(ax1, ax0 + 4), max(ay1, ay0 + 1)
+            pw, ph = ax1 - ax0, ay1 - ay0
+            sources = []
+            for k in range(3):
+                patch = indices[ay0:ay1, ax0:ax1].copy()
+                tile = variants[part['slot']][k]
+                for yy in range(ay0, ay1):
+                    for xx in range(ax0, ax1):
+                        if x <= xx < x + tw and y <= yy < y + th:
+                            patch[yy - ay0, xx - ax0] = tile[yy - y, xx - x]
+                if cx + pw > sx0 + tw:
+                    cx, cy, line = -(-sx0 // 4) * 4, cy + line, 0
+                if cy + ph > sy0 + th or cx + pw > sx0 + tw or pw > 255 * 4:
+                    raise ValueError('Gesichtsteile passen nicht in den freien Atlasbereich.')
+                indices[cy:cy+ph, cx:cx+pw] = patch
+                sources.append((cx, cy))
+                cx += pw
+                line = max(line, ph)
+            records.append({'slot': part['slot'], 'dst': (ax0, ay0), 'size': (pw, ph), 'frames': sources})
     raw = bytearray((indices[:,0::2] | (indices[:,1::2]<<4)).tobytes())
     for i,pal in enumerate(palettes):
         struct.pack_into('<16H', raw, (224+i//2)*64 + (i%2)*32, *pal)
     tim = struct.pack('<II I4H', 16, 0, 12+len(raw), 0, 0, 32, 256) + raw
-    return tim, hd, tiles
+    return tim, hd, tiles, records
 
 
-def encode_model(source, folder, scale=1., hd_scale=4):
+def face_records(records):
+    """Gfx_AnimateModelTex list: entries 0/1 the eyes (0xFF when unused), then cycling parts, 0xFF
+    ends. 10 bytes: dstX, dstY, w, h (x / w in VRAM halfwords = 4 texels), three source corners."""
+    def rec(r):
+        (dx, dy), (w, h) = r['dst'], r['size']
+        out = [dx // 4, dy, w // 4, h]
+        for fx, fy in r['frames']:
+            out += [fx // 4, fy]
+        if any(not 0 <= v <= 253 for v in out):
+            raise ValueError('Gesichtsrechteck außerhalb des DW2-Bereichs.')
+        return bytes(out)
+    eyes = {r['slot']: r for r in records if r['slot'] < 2}
+    rest = [r for r in records if r['slot'] >= 2][:8]
+    out = bytearray()
+    for k in range(2):
+        out += rec(eyes[k]) if k in eyes else bytes([255]) + bytes(9)
+    for r in rest:
+        out += rec(r)
+    out += bytes([255])
+    out += bytes(-len(out) % 4)
+    return bytes(out)
+
+
+def encode_model(source, folder, scale=1., hd_scale=4, face=None):
     if not math.isfinite(scale) or scale <= 0:
         raise ValueError('Ungültige Skalierung.')
     nodes = plan(source)
     order, depths = [x['src'] for x in nodes], [x['depth'] for x in nodes]
-    tim, hd, tiles = atlas(source, folder, hd_scale)
+    parts, face_notes = face_plan(source, face)
+    try:
+        tim, hd, tiles, records = atlas(source, folder, hd_scale, parts)
+    except ValueError as exc:
+        if not parts:
+            raise
+        face_notes.append(str(exc))
+        tim, hd, tiles, records = atlas(source, folder, hd_scale, [])
     n = len(order)
     out = bytearray(12 + 16*n)
-    out += bytes([255])+bytes(9)+bytes([255])+bytes(9)+bytes([255,0,0,0])
+    out += face_records(records)
     def block(data):
         out.extend(bytes((-len(out))%4));at=len(out);out.extend(data);return at
     pointers = [[],[],[]]
@@ -245,7 +374,8 @@ def encode_model(source, folder, scale=1., hd_scale=4):
     out.extend(bytes((-len(out))%4));tim_start=len(out);out.extend(tim)
     struct.pack_into('<III',out,0,tim_start,0,n)
     NativeModel(out)
-    return bytes(out),hd,{'bones':n,'triangles':triangle_count,'scale':scale,'textures':len(tiles)}
+    return bytes(out),hd,{'bones':n,'triangles':triangle_count,'scale':scale,'textures':len(tiles),
+                          'face_parts':len(records),'eyes':sum(r['slot'] < 2 for r in records),'face_notes':face_notes}
 
 
 def encode_animation(source, mapping, scale=1., loops=()):

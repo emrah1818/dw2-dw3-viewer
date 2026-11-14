@@ -43,7 +43,12 @@ static bool export_native_source(Model &m, const std::string &dir) {
     }
     out << "],\"images\":[";
     for (size_t i = 0; i < stage.images.size(); i++) out << (i ? "," : "") << "\"tex" << i << ".png\"";
-    out << "],\"motions\":[";
+    /* each image's game page (tpage & 0x19F) and CLUT, -1 for images of their own, and where the
+       model's textures lie in VRAM: the fighters' face rectangles are relative to TEX_X / TEX_Y */
+    out << "],\"pages\":[";
+    for (size_t i = 0; i < stage.images.size(); i++)
+        out << (i ? "," : "") << '[' << stage.images[i].tpage << ',' << stage.images[i].pageClut << ']';
+    out << "],\"tex_origin\":[" << TEX_X << ',' << TEX_Y << "],\"motions\":[";
     for (size_t motion = 0; motion < m.motions.size(); motion++) {
         m.setMotion(int(motion)+1);
         out << (motion ? "," : "") << "{\"id\":" << motion+1 << ",\"frames\":[";

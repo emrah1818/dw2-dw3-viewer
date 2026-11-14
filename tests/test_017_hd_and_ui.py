@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 def test_import_atlas_offers_every_size_up_to_2048x4096(tmp_path, k):
     from test_015_native import source
     from dw2studio.core.dw3_native import atlas
-    _, hd, _ = atlas(source(tmp_path), tmp_path, k)
+    _, hd, _, _ = atlas(source(tmp_path), tmp_path, k)
     assert hd.size == (128 * k, 256 * k)
 
 

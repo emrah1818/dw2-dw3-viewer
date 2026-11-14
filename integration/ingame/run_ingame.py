@@ -155,13 +155,34 @@ def scene_evo(args, check):
     shutil.copy(card, os.path.join(reload_dir, 'saves', 'card1.mcd'))
     sys.path.insert(0, args.autoplay)
     from dw2bot import Game  # noqa: E402
-    g = Game(os.path.join(port, os.path.basename(args.port)), os.path.join(port, 'dw2.pak'), reload_dir)
+    g = Game(os.path.join(port, os.path.basename(args.port)), os.path.join(port, 'dw2.pak'), reload_dir,
+             extra=('--cheats',))  # nur für den Warp ins Labor danach
     mode = load_slot1(g)
     loaded = roster(g, idx)
     g.shot('loaded')
     check(scene, 'Nach Neustart geladen: MegaloGrowmon (#12) Lv25 im Spielstand',
           (mode >> 8) == 3 and loaded['digi'] == 12 and loaded['level'] == 25, mode=hex(mode), slot=loaded)
+
+    # Blinzeln: DW3-Augenrechteck als DW2-Augenanimation. Im Labor die VRAM-Texturseiten über 60 Bilder
+    # vergleichen: Gfx_AnimateModelTex kopiert beim Blinzeln halb/zu-Rahmen über das Auge.
+    g.devedit('warp=0x301,0'); g.run(400); g.devedit('warp=0x32F,0'); g.run(300)
+    g.tap('Cross', 3, 90); g.tap('Cross', 3, 200)
+    import numpy as np  # noqa: E402
+    from PIL import Image  # noqa: E402
+    frames = []
+    for k in range(90):
+        g.run(4)
+        g.shot('blink_%02d' % k)
+        frames.append(np.asarray(Image.open(os.path.join(reload_dir, 'shots', 'blink_%02d_vram.png' % k)).convert('RGB')).astype(int))
     g.close()
+    changed = set()
+    for k in range(1, len(frames)):
+        d = np.abs(frames[k] - frames[0]).sum(2) > 0
+        d[:, :640] = False                      # Bildspeicher links; Texturseiten ab x 640
+        changed |= set(zip(*[a.tolist() for a in np.nonzero(d)[::-1]]))
+    xs = [c[0] for c in changed]
+    check(scene, 'Blinzeln im Spiel: Augenrahmen wird in die Texturseite kopiert',
+          0 < len(changed) <= 64 and max(xs) - min(xs) < 16, texels=len(changed), area=sorted(changed)[:8])
 
 
 # --- Szene 2: Gruppe kopieren, Mitglieder ändern, auf Boot Domain 1F setzen ----------------------
