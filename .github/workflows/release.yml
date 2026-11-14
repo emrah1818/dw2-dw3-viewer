@@ -75,7 +75,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: emrah1818/dw2-pc-port
-          ref: c9989534d2ff4e1ef1a7c9efcd808736c8cc27c3
+          ref: c512623efeb07bda9b421c0605b2e478a79fd295
           path: pc-port
       - uses: msys2/setup-msys2@v2
         id: msys2
@@ -104,6 +104,11 @@ jobs:
           $b = 'pc-port/build/native64_rel_nodisc'
           $api = & "$b/dw2.exe" --mod-api | ConvertFrom-Json
           if ($LASTEXITCODE -ne 0 -or $api.mod_api -ne 2) { throw 'Overlay API 2 check failed' }
+          if ($api.digivolve_levels -ne 1 -or $api.battle_camera -ne 1) { throw 'Port lacks digivolve_levels/battle_camera' }
+          foreach ($t in 'modconf_test', 'hd_test') {
+            if (Test-Path "$b/$t.exe") { & "$b/$t.exe"; if ($LASTEXITCODE -ne 0) { throw "$t failed" } }
+            else { Write-Host "$t not built by this configuration" }
+          }
           & "$b/dw2.exe" --check-cache
           if ($LASTEXITCODE -ne 0) { throw 'Full CD-cache regression test failed' }
           & "$b/fonts_test.exe"
