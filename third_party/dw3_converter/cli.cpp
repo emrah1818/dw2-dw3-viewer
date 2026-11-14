@@ -120,7 +120,39 @@ bool SDL_SavePNG(SDL_Surface *s, const char *path) {
     out.write(reinterpret_cast<const char *>(png.data()), png.size());
     return bool(out);
 }
+
+// --scripts MODEL.BIN ENTRY: the motions each action script of the model file's
+// archive entry ENTRY plays on its own model (FighterInfo.effects, read_scripts).
+// JSON of numbers only. The game runs script N as archive entry N
+// (dw3_decomp battle_script.c, getArchiveEntry(script->index, ...)).
+static int dump_scripts(const char *path, int entry) {
+    std::ifstream in(path, std::ios::binary);
+    if (!in) return 2;
+    std::vector<uint8_t> bytes(std::istreambuf_iterator<char>(in), {});
+    if (bytes.size() < 8 || bytes.size() > 32 * 1024 * 1024) return 2;
+    Archive arc{bytes.data(), bytes.size()};
+    if (entry < 0 || entry >= arc.count() || !arc.entry(entry)) return 3;
+    auto scripts = read_scripts(arc.entry(entry), arc.entry_size(entry));
+    std::cout << "{\"format\":1,\"scripts\":[";
+    for (size_t i = 0; i < scripts.size(); i++) {
+        std::cout << (i ? "," : "") << "{\"index\":" << i << ",\"motions\":[";
+        bool comma = false, moves = false, hits = false;
+        int current = 0, strike = 0; /* STRIKE: the motion playing at the script's first hit */
+        for (const ScriptLine &l : scripts[i]) {
+            if (l.motion > 0) std::cout << (comma ? "," : "") << l.motion, comma = true, current = l.motion;
+            if (l.moveCmd == 3 || l.moveCmd == 8) moves = true;
+            if (l.text.rfind("hit:", 0) == 0 && !hits) hits = true, strike = current;
+        }
+        std::cout << "],\"moves\":" << (moves ? "true" : "false") << ",\"hits\":" << (hits ? "true" : "false")
+                  << ",\"strike\":" << strike << "}";
+    }
+    std::cout << "]}\n";
+    return 0;
+}
 int main(int argc, char **argv) {
+    if (argc == 4 && std::string(argv[1]) == "--scripts") {
+        try { return dump_scripts(argv[2], std::stoi(argv[3])); } catch (const std::exception &e) { std::cerr << e.what(); return 5; }
+    }
     if (argc != 3) { std::cerr << "Usage: dw3_converter MODEL.BIN OUTPUT_DIR\n"; return 2; }
     try {
         std::ifstream in(argv[1], std::ios::binary);

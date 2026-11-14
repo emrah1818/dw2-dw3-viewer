@@ -1,0 +1,124 @@
+"""DW3 battle data for the motion mapping: file numbers, the fighters' file, action scripts.
+
+Sources (dw3_decomp, MIT, https://github.com/ReGame-Labs/dw3_decomp):
+- config/us/symbols.txt: FILE_SECTORS = 0x80044B78 (s32 first sector per file number),
+  FILE_SECTOR_COUNTS = 0x80046DD4 (u16 sectors); the EU tables lie elsewhere.
+- include/battle/battle_mode/model.h: FILE_FIGHTERS = 0x1BE (US/JP), 0x1CC (EU); FightersFile,
+  FighterEntry {u16 id, u8 index, u8 kind}, FighterInfo (partner 0xC4 bytes) and
+  FighterInfoEnemy (0x48 bytes); model/motions/effects = (file number << 16) | archive entry.
+- battle_script.c: the game runs script N as archive entry N of FighterInfo.effects.
+Nothing here is guessed: a table that does not validate is an error.
+"""
+from pathlib import Path
+import json
+import os
+import struct
+import subprocess
+import sys
+
+from .core.disc import Disc
+
+VERSIONS = {
+    # executable: (FILE_SECTORS, FILE_SECTOR_COUNTS, FILE_FIGHTERS)
+    'SLUS_014.36': (0x80044B78, 0x80046DD4, 0x1BE),
+    'SLES_039.36': (0x80044F6C, 0x800474A4, 0x1CC),
+}
+
+
+def _exe(disc):
+    for e in disc.entries:
+        name = Path(e.path).name.upper().split(';')[0]
+        if name in VERSIONS:
+            return name, disc.read(e.lba, e.size)
+    raise ValueError('DW3-Programm (SLUS_014.36 oder SLES_039.36) nicht gefunden.')
+
+
+def file_table(disc):
+    """{file number: (first sector, sectors)} from the executable's own table."""
+    name, exe = _exe(disc)
+    if exe[:8] != b'PS-X EXE':
+        raise ValueError(f'{name} ist kein PS-X EXE.')
+    text = struct.unpack_from('<I', exe, 0x18)[0]
+    sectors_at, counts_at, _ = VERSIONS[name]
+    count = (counts_at - sectors_at) // 4
+    def offset(addr):
+        o = addr - text + 0x800
+        if not 0x800 <= o < len(exe):
+            raise ValueError('DW3-Dateitabelle liegt außerhalb des Programms.')
+        return o
+    starts = struct.unpack_from(f'<{count}i', exe, offset(sectors_at))
+    lengths = struct.unpack_from(f'<{count}H', exe, offset(counts_at))
+    table = {fid: (lba, n) for fid, (lba, n) in enumerate(zip(starts, lengths)) if lba > 0 and n > 0}
+    if len(table) < 100 or any(lba + n > disc.sector_count for lba, n in table.values()):
+        raise ValueError('DW3-Dateitabelle passt nicht zum Abbild.')
+    return name, table
+
+
+def fighters(disc):
+    """Every fighter of the fighters' file: id, kind, enemy, model/motions/effects (fid, entry)."""
+    name, table = file_table(disc)
+    fid = VERSIONS[name][2]
+    lba, sectors = table[fid]
+    data = disc.read(lba, sectors * 2048)
+    base, entries, partners, enemies = struct.unpack_from('<4I', data, 0)
+    out = []
+    at = entries
+    while at + 4 <= len(data):
+        ident, index, kind = struct.unpack_from('<HBB', data, at)
+        if ident == 0:
+            break
+        enemy = kind >= 0x3A
+        info = enemies + index * 0x48 if enemy else partners + index * 0xC4
+        if info + 12 > len(data):
+            raise ValueError('DW3-Kämpfertabelle ist abgeschnitten.')
+        model, motions, effects = struct.unpack_from('<3I', data, info)
+        out.append({'id': ident, 'kind': kind, 'enemy': enemy,
+                    'model': (model >> 16, model & 0xFFFF), 'motions': (motions >> 16, motions & 0xFFFF),
+                    'effects': (effects >> 16, effects & 0xFFFF)})
+        at += 4
+    if not out:
+        raise ValueError('DW3-Kämpfertabelle ist leer.')
+    return table, out
+
+
+def _converter():
+    root = Path(getattr(sys, '_MEIPASS', Path(__file__).resolve().parent.parent))
+    exe = root / 'tools' / 'dw3_converter' / ('dw3_converter.exe' if os.name == 'nt' else 'dw3_converter')
+    if not exe.is_file():
+        raise ValueError('DW3-Konverter fehlt (tools/build_dw3_converter.py).')
+    return exe
+
+
+def script_motions(disc_path, entry, work):
+    """Action scripts of the model file at ENTRY (a Disc entry) and the motions each plays.
+
+    Returns {'fighter': {...}, 'scripts': [{'index', 'motions', 'moves', 'hits'}]} or None
+    when no fighter of the battle uses this file with its own scripts."""
+    disc = Disc(disc_path)
+    try:
+        table, rows = fighters(disc)
+        fids = [fid for fid, (lba, _) in table.items() if lba == entry.lba]
+        if len(fids) != 1:
+            return None
+        fid = fids[0]
+        own = [r for r in rows if r['model'][0] == fid and r['effects'][0] == fid]
+        if not own:
+            return None
+        effects = {r['effects'][1] for r in own}
+        if len(effects) != 1:
+            raise ValueError('Mehrere Skriptarchive für dieselbe DW3-Modelldatei.')
+        work = Path(work)
+        work.mkdir(parents=True, exist_ok=True)
+        source = work / f'fid_{fid:04d}.bin'
+        if not source.is_file():
+            source.write_bytes(disc.read(entry.lba, entry.size))
+    finally:
+        disc.close()
+    proc = subprocess.run([str(_converter()), '--scripts', str(source), str(effects.pop())],
+                          capture_output=True, text=True, timeout=60,
+                          creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+    if proc.returncode != 0:
+        raise ValueError('DW3-Skripte nicht lesbar: ' + (proc.stderr.strip()[:300] or str(proc.returncode)))
+    doc = json.loads(proc.stdout)
+    return {'fighter': {'fid': fid, 'ids': [r['id'] for r in own], 'enemy': all(r['enemy'] for r in own)},
+            'scripts': doc['scripts']}

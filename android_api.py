@@ -89,7 +89,7 @@ def export_port_mod(port_dir, pak_path=None):
     from dw2studio.port_mod import export
     s = _need_session()
     pak = s.pak if hasattr(s, 'pak') else PakFile(pak_path)
-    return export(s, pak, port_dir, mod_name='DW2/DW3 Viewer 0.15b')
+    return export(s, pak, port_dir, mod_name='DW2/DW3 Viewer 0.16b')
 
 
 def port_mod_status(port_dir):

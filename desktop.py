@@ -149,7 +149,7 @@ class Bridge(QObject):
         try:
             args = json.loads(raw)
             if method == 'app_info':
-                self.reply(call_id, {'version': '0.15b PC', 'free_mb': shutil.disk_usage(self.storage).free >> 20})
+                self.reply(call_id, {'version': '0.16b PC', 'free_mb': shutil.disk_usage(self.storage).free >> 20})
             elif method == 'open_studio':
                 self.window.open_studio()
                 self.reply(call_id, True)
@@ -244,7 +244,7 @@ class Page(QWebEnginePage):
 class Desktop(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle('DW2 / DW3 · Viewer 0.15b')
+        self.setWindowTitle('DW2 / DW3 · Viewer 0.16b')
         self.resize(1540, 940)
         self.setMinimumSize(800, 600)
         self.setWindowIcon(QIcon(str(ROOT / 'assets/DW2_3D_Viewer.ico')))

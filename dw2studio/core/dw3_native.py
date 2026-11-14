@@ -73,8 +73,14 @@ def fit_scale(source, target, target_animation):
         if b['vertices']:
             v = np.asarray(b['vertices'], dtype=float)
             src_points.extend((np.c_[v, np.ones(len(v))] @ src_world[i].T)[:, :3])
-    size = np.ptp(np.asarray(points), axis=0).max()
-    return float(size / max(np.ptp(np.asarray(src_points), axis=0).max(), 1e-9))
+    # Same standing height as the replaced Digimon (axis 1 is up after D). The largest extent
+    # mixed axes: a target long front-to-back (ears, tail) made an upright source far too tall.
+    height = np.ptp(np.asarray(points)[:, 1])
+    source_height = np.ptp(np.asarray(src_points)[:, 1])
+    if height < 1e-6 or source_height < 1e-6:
+        size = np.ptp(np.asarray(points), axis=0).max()
+        return float(size / max(np.ptp(np.asarray(src_points), axis=0).max(), 1e-9))
+    return float(height / source_height)
 
 
 def atlas(source, folder, hd_scale=4):

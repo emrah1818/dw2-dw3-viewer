@@ -1,11 +1,14 @@
-# PC-Port Overlay API 2
+# Begleit-PC-Port mit Mod-Schnittstelle 2
 
-Quellbasis: emrah1818/dw2-pc-port, Commit in pc_port_base.txt. Der Patch erweitert den bestehenden Form-1-Mod-Lader um virtuelle CD-Dateibereiche, korrekte Sektorgrößen und einen 6-MiB-Spielheap im bestehenden 16-MiB-Fenster. Die ursprüngliche PAK und ihre Prüftabelle bleiben unverändert. PS1-Adressspiegelung bleibt bei 2 MiB; nur der native Heap wird separat erweitert.
+Seit 0.16b liegen die Änderungen am Port nicht mehr als Patch hier, sondern im Port selbst:
+emrah1818/dw2-pc-port, Branch `development/dw3-mod-studio`, Beschreibung in `doc/MOD_API2.md`.
+Der Build verwendet genau den Commit aus `pc_port_base.txt` (Basis 1.6.2-preview).
 
-Maximal 2 MiB je Ersatzdatei, 64 MiB Overlay-Speicher, virtuelle CD unter 450.000 Sektoren. Vergrößerte Dateien werden nur über die angepasste Dateitabelle gelesen. Audio-/Video-Ersatz ist weiterhin gesperrt. --no-mods stellt die Originaldaten bereit.
+- Bis 2 MiB je Ersatzdatei, 64 MiB gesamt, virtuelle CD unter 450.000 Sektoren. Audio-/Videodateien
+  bleiben gesperrt. `--no-mods` startet ohne Mods. `dw2.pak` und `dw2.pak.slus` werden nicht verändert.
+- `--mod-api` gibt die Schnittstellenversion aus, `--check-model MODELL ANIMATION` prüft ein Modell
+  im Spielcode (kein vollständiger Spieltest).
 
-Anwenden: passende Quellbasis auschecken, git apply /absoluter/Pfad/pc_port_api2.patch ausführen und tools/build_native.py --release --no-disc verwenden. Die vorhandene Build-Anleitung des PC-Ports gilt. Keine Spieldaten in das Repository kopieren.
-
-Das Begleitpaket der Viewer-Version enthält dw2.exe, SDL3.dll und dw2_mod_api.json. Das Paket in einen eigenen Ordner entpacken, die eigenen dw2.pak und dw2.pak.slus dazu legen und den Mod dorthin exportieren. Bestehende Spielstände/Originaldaten werden nicht geändert.
-
---mod-api gibt die API-Version ohne Spielstart aus. --check-model MODELLDATEI ANIMATIONSDATEI prüft nach echtem Spielstart das Laden, Gfx_AttachModel, 120 Schritte Anim_StepModelAnim und Gfx_CalcModelBoneMatrices. IDs dezimal oder mit 0x-Präfix. Das ist ein Integrationscheck und kein vollständiger Kampf-/Gameplay-Test.
+Das Begleitpaket enthält dw2.exe, SDL3.dll, dw2_mod_api.json, die deutschen Texte und die Schriftlizenzen.
+In einen eigenen Ordner entpacken, die eigenen dw2.pak und dw2.pak.slus dazulegen und den Mod dorthin
+exportieren. Spielstände des Ports liegen weiter in %APPDATA%\DW2-Online\.

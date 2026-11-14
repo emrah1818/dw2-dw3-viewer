@@ -1,4 +1,4 @@
-"""DW2 / DW3 Viewer 0.15b desktop entry point."""
+"""DW2 / DW3 Viewer 0.16b desktop entry point."""
 import sys
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QApplication
@@ -10,7 +10,7 @@ def main():
     QGuiApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
     app = QApplication(sys.argv)
     app.setApplicationName('DW2 3D Viewer')
-    app.setApplicationVersion('0.15b')
+    app.setApplicationVersion('0.16b')
     app.setOrganizationName('DW2 3D Viewer')
     from desktop import Desktop
     window = Desktop()
@@ -27,7 +27,7 @@ def main():
                 return
             finished = True
             ok = bool(value)
-            Path(report).write_text(json.dumps({'ok': ok, 'version': '0.15b', 'check': 'frozen Qt / WebEngine / WebGL / Python bridge'}), encoding='utf-8')
+            Path(report).write_text(json.dumps({'ok': ok, 'version': '0.16b', 'check': 'frozen Qt / WebEngine / WebGL / Python bridge'}), encoding='utf-8')
             window.close()
             app.exit(0 if ok else 1)
         def check(ok):

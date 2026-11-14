@@ -17,7 +17,7 @@ def prepare(api, source_id, target_id):
     folder = Path(info['path']).parent
     source_path = folder/'native_source.json'
     if not source_path.is_file():
-        raise ValueError('DW3-Modell mit dem 0.15b-Konverter erneut öffnen.')
+        raise ValueError('DW3-Modell mit dem Konverter ab 0.15b erneut öffnen.')
     source = json.loads(source_path.read_text())
     candidate = api._find(target_id)
     family, _, meta = api._model_family(candidate)
@@ -46,6 +46,14 @@ def prepare(api, source_id, target_id):
         raise ValueError('Kein verifiziertes A–K-Ziel für diesen Slot.')
     first = next(iter(animations.values()))[0]
     scale = fit_scale(source, session.current(model), session.current(first))
+    # Defaults from the DW3 battle scripts (dw3_motion_map); every row says where it comes from.
+    from .dw3_fighters import script_motions
+    from .dw3_motion_map import apply_defaults
+    try:
+        scripts = script_motions(api.DW3.path, api.DW3.entries[source_id], api.DW3.cache / 'scripts')
+    except (OSError, ValueError):
+        scripts = None
+    apply_defaults(descriptors, scripts['scripts'] if scripts else [], {m['id'] for m in source['motions']})
     return {'source': source,'folder':folder,'model':model,'animations':animations,
             'info':{'name':info['name'],'target':candidate.name,'scale':scale,
                     'motions':[{'id':m['id'],'frames':len(m['frames'])} for m in source['motions']],
@@ -63,7 +71,7 @@ def apply(api, source_id, target_id, assignments, scale_factor=1., hd_scale=4):
     seen=set();groups={};loops={}
     motion_index={m['id']:i for i,m in enumerate(source['motions'])}
     for row in assignments:
-        key=(row['slot'],row['clip'])
+        key=(row.get('slot'),row.get('clip'))
         if key not in expected or key in seen or type(row['motion'])is not int or row['motion'] not in motion_index or type(row['loop'])is not bool:
             raise ValueError('Ungültige oder doppelte Animationszuordnung.')
         seen.add(key);groups.setdefault(key[0],{})[key[1]]=motion_index[row['motion']]
