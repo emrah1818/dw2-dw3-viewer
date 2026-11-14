@@ -52,7 +52,15 @@ export class Viewer {
     const p = this.canvas.parentElement;
     const w = Math.max(1, p.clientWidth), h = Math.max(1, p.clientHeight);
     this.renderer.setSize(w, h, false);
-    this.camera.aspect = w / h;
+    if (this.battleAspect) {   // 4:3-Bild des Spiels, mittig; außen bleibt der Hintergrund
+      const vw = Math.min(w, h * this.battleAspect), vh = vw / this.battleAspect;
+      const x = (w - vw) / 2, y = (h - vh) / 2;
+      this.renderer.setViewport(x, y, vw, vh); this.renderer.setScissor(x, y, vw, vh); this.renderer.setScissorTest(true);
+      this.camera.aspect = this.battleAspect;
+    } else {
+      this.renderer.setViewport(0, 0, w, h); this.renderer.setScissorTest(false);
+      this.camera.aspect = w / h;
+    }
     this.camera.updateProjectionMatrix();
   }
 
@@ -111,6 +119,7 @@ export class Viewer {
     this.model.position.sub(new THREE.Vector3(center.x, box.min.y, center.z));
     this.grid.scale.setScalar(Math.max(r / 5, 0.1));
     this.camera.near = r / 100; this.camera.far = r * 100; this.camera.updateProjectionMatrix();
+    if (this.savedCam) this.endBattleCamera();
     this.home.pos.set(0, size.y * 0.6, r * 2.1);
     this.home.target.set(0, size.y * 0.45, 0);
     this.resetCamera();
@@ -340,6 +349,33 @@ export class Viewer {
         ...Object.entries(p.skipped || {}).map(([k, w]) => `${k}: übersprungen (${w})`),
         ...(n.tex?.outside ? [`${n.tex.outside} Texturkopien außerhalb der Modelltextur (abgeschnitten)`] : [])],
     };
+  }
+
+  /** Kampf-Nahaufnahme wie im Spiel (Stg30_CameraUpdate 2–7): Werte in DW2-Einheiten, y nach oben.
+   *  Senkrechter Bildwinkel aus der Projektion 0x5DC auf 240 Zeilen; das Modell steht im Ursprung. */
+  battleCamera(c) {
+    if (!this.model) return;
+    if (!this.savedCam) this.savedCam = { fov: this.camera.fov, near: this.camera.near, far: this.camera.far,
+      pos: this.camera.position.clone(), target: this.controls.target.clone() };
+    this.camera.fov = 2 * Math.atan((c.screen[1] / 2) / c.projection) * 180 / Math.PI;
+    this.camera.near = 50; this.camera.far = 200000;
+    // Das Spiel stellt den Modellursprung auf den Boden; die Ansicht hat das Modell auf seine Unterkante
+    // verschoben. Die Kamera wandert mit, damit der Bildausschnitt dem Spiel entspricht.
+    const o = this.model.position;
+    this.camera.position.set(o.x, o.y + c.eye_height, o.z + c.distance);
+    this.controls.target.set(o.x, o.y + c.look_height, o.z);
+    this.camera.updateProjectionMatrix(); this.controls.update();
+    this.controls.enabled = false;
+    this.battleAspect = c.screen[0] / c.screen[1];
+    this.resize();
+  }
+  endBattleCamera() {
+    const s = this.savedCam;
+    if (!s) return;
+    this.savedCam = null; this.battleAspect = null; this.controls.enabled = true;
+    this.camera.fov = s.fov; this.camera.near = s.near; this.camera.far = s.far;
+    this.camera.position.copy(s.pos); this.controls.target.copy(s.target);
+    this.camera.updateProjectionMatrix(); this.controls.update(); this.resize();
   }
 
   resetCamera() {

@@ -931,8 +931,10 @@ def evolution_validate():
 def camera_info(identifier):
     from dw2studio.core.battle_camera import CameraRepository, FIELD_MIN, FIELD_MAX, HIT_MIN, HIT_MAX
     repo = CameraRepository(_need_session(), S.entries)
+    from dw2studio.core.battle_camera import closeup
     return {'current': repo.values(int(identifier)), 'original': repo.values(int(identifier), original=True),
-            'limits': {'field': [FIELD_MIN, FIELD_MAX], 'hit': [HIT_MIN, HIT_MAX]}}
+            'limits': {'field': [FIELD_MIN, FIELD_MAX], 'hit': [HIT_MIN, HIT_MAX]},
+            'closeups': [closeup(0x300 + 256 * b) for b in range(9)]}
 
 
 def camera_set(identifier, field, hit):

@@ -30,3 +30,5 @@ tr.edited td{color:#9fe3c4}
 #tabs .tab span{font-size:11px}
 #page-domains .row select,#page-evo .row select{max-width:240px}
 #page-domains input[type=number],#page-evo input[type=number]{width:80px}
+
+#cam-overlay{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);z-index:5;background:rgba(10,20,40,.85);border:1px solid #3c6cb0;border-radius:6px;padding:6px 10px;color:#dfe9ff;font-size:13px;white-space:nowrap}

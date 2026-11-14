@@ -921,10 +921,28 @@ async function renderCamera(id) {
     box.innerHTML = `<p class="hint">Die Nahaufnahme im Kampf wählt Abstand und Blickhöhe in 9 Stufen aus diesem Wert (src/stag3000/camera.c). Beim DW3-Import wird er automatisch aus der Höhe des neuen Modells gesetzt. Aktuell Stufe ${c.current.bucket}, Original ${c.original.field_1E} (Stufe ${c.original.bucket}).</p>` +
       `<label class="f">Kamerahöhe (${c.limits.field[0]}–${c.limits.field[1]})</label>${numIn('cam-f', c.current.field_1E, ...c.limits.field)}` +
       `<label class="f">Höhe der Treffereffekte (${c.limits.hit[0]}–${c.limits.hit[1]})</label>${numIn('cam-h', c.current.hit_fx_y, ...c.limits.hit)}` +
-      `<div class="btns"><button id="cam-up" class="small">Stufe +1</button><button id="cam-down" class="small">Stufe −1</button><button id="cam-orig" class="small">Original</button><button id="cam-save" class="primary">Übernehmen</button></div>`;
-    $('#cam-up').onclick = () => { $('#cam-f').value = Math.min(c.limits.field[1], Number($('#cam-f').value) + 256); };
-    $('#cam-down').onclick = () => { $('#cam-f').value = Math.max(c.limits.field[0], Number($('#cam-f').value) - 256); };
-    $('#cam-orig').onclick = () => { $('#cam-f').value = c.original.field_1E; $('#cam-h').value = c.original.hit_fx_y; };
+      `<div class="btns"><button id="cam-up" class="small">Stufe +1</button><button id="cam-down" class="small">Stufe −1</button><button id="cam-orig" class="small">Original</button><button id="cam-view" class="small">Vorschau: Nahaufnahme wie im Kampf</button><button id="cam-save" class="primary">Übernehmen</button></div>` +
+      `<p class="hint" id="cam-note">Vorschau zeigt die Nahaufnahme bei Befehlseingabe und Zielwahl (4:3, Bildwinkel, Abstand und Blickhöhe aus den Tabellen des Spiels, von vorn wie am mittleren Platz). Im Spiel verglichen: Größe und Stufenfolge stimmen; die Seitenplätze sehen schräg (60°), Bildlage kann je Pose leicht abweichen. Die Kameras während einer Attacke sind im Spielcode fest und hängen nicht von diesem Wert ab.</p>`;
+    const preview = () => {
+      if (!view.savedCam) return;
+      const f = Number($('#cam-f').value), b = Math.max(0, Math.min(8, Math.floor(Math.max(0, f - 0x300) / 256)));
+      view.battleCamera(c.closeups[b]);
+      $('#cam-view').textContent = `Vorschau beenden (Stufe ${b})`;
+      $('#cam-ov-text').textContent = `Kampf-Nahaufnahme #${pad3(id)} · Wert ${f} · Stufe ${b} von 0–8 (Abstand ${c.closeups[b].distance})`;
+    };
+    const end = () => { view.endBattleCamera(); $('#cam-overlay').hidden = true; $('#cam-view').textContent = 'Vorschau: Nahaufnahme wie im Kampf'; };
+    const step = d => { $('#cam-f').value = Math.max(c.limits.field[0], Math.min(c.limits.field[1], Number($('#cam-f').value) + d)); preview(); };
+    $('#cam-ov-up').onclick = () => step(256); $('#cam-ov-down').onclick = () => step(-256); $('#cam-ov-end').onclick = end;
+    $('#cam-view').onclick = () => {
+      if (view.savedCam) return end();
+      show('page-view');
+      $('#cam-overlay').hidden = false;
+      view.battleCamera(c.closeups[0]); preview();
+    };
+    $('#cam-f').oninput = preview;
+    $('#cam-up').onclick = () => { $('#cam-f').value = Math.min(c.limits.field[1], Number($('#cam-f').value) + 256); preview(); };
+    $('#cam-down').onclick = () => { $('#cam-f').value = Math.max(c.limits.field[0], Number($('#cam-f').value) - 256); preview(); };
+    $('#cam-orig').onclick = () => { $('#cam-f').value = c.original.field_1E; $('#cam-h').value = c.original.hit_fx_y; preview(); };
     $('#cam-save').onclick = async () => {
       try { await native('camera_set', id, Number($('#cam-f').value), Number($('#cam-h').value)); await afterChange('Kamera vorgemerkt'); renderCamera(id); }
       catch (e) { await fail(e); }

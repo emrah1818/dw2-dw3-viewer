@@ -19,6 +19,23 @@ FIELD_MAX = 0x300 + 9 * 256 - 1     # last value the nine-entry tables cover
 FIELD_MIN, HIT_MIN, HIT_MAX = 0x100, 0, 0x900
 
 
+# src/stag3000/camera.c (Stg30_CameraUpdate states 2-7, Stg30_CameraDraw): viewpoint (0, -0xC30, vpz),
+# reference point (0, vry, 0) in the fighter's frame, projection 0x5DC (Stg30_CameraInit) on 320x240.
+CLOSEUP_VPZ = (7495, 7595, 8620, 9064, 9944, 11496, 12728, 14424, 17096)
+CLOSEUP_VRY = (-304, -304, -572, -596, -728, -832, -888, -1008, -1176)
+CLOSEUP_VPY = -0xC30
+PROJECTION = 0x5DC
+
+
+def closeup(field):
+    """The command / target close-up for FIELD_1E in native units (y up): what the preview shows."""
+    b = bucket(field)
+    if not 0 <= b < 9:
+        raise ValueError('Kamerawert außerhalb der 9 Stufen.')
+    return {'bucket': b, 'distance': CLOSEUP_VPZ[b], 'eye_height': -CLOSEUP_VPY, 'look_height': -CLOSEUP_VRY[b],
+            'projection': PROJECTION, 'screen': [320, 240]}
+
+
 def bucket(field):
     h = 0 if field < 0x300 else field - 0x300
     return h // 256
