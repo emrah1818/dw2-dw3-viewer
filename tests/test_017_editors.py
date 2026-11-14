@@ -74,6 +74,15 @@ def test_damaged_dungeon_and_domain_table_are_refused():
         DomainTable(b'\x00' * 8)
 
 
+def test_clone_keeps_file_length_when_padding_allows():
+    data = enemyset() + bytes(400)                     # like the disc: zero padding up to the sector end
+    out = EnemyGroups(data).cloned(32, 40)
+    assert len(out) == len(data) and EnemyGroups(out).group(40)['members'][0]['digimon'] == 84
+    tight = enemyset()                                  # no room: the file grows by one group
+    grown = EnemyGroups(tight).cloned(32, 40)
+    assert len(grown) == len(tight) + 100 and 40 in EnemyGroups(grown).groups
+
+
 def test_domain_repository_floor_clone_and_usage(opened):
     session, entries, _ = opened
     repo = DomainRepository(session, entries)

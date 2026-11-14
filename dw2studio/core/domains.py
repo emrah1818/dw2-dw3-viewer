@@ -205,7 +205,13 @@ class EnemyGroups:
         row = bytearray(self.data[at:at + GROUP])
         row[0] = new_id
         tail = self.data[self.end:]
-        out = self.data[:self.end] + bytes(row) + (tail if len(tail) >= GROUP else bytes(GROUP))
+        if len(tail) > GROUP and not any(tail[:GROUP + 1]):
+            # write into the zero padding behind the end marker: same file length, a zero
+            # id still follows (Enemy_FindSetById stops there)
+            out = self.data[:self.end] + bytes(row) + tail[GROUP:]
+        else:
+            # no room: one more group; the old end marker (zero id) follows the new row
+            out = self.data[:self.end] + bytes(row) + (tail if tail[:1] == b'\0' else bytes(GROUP))
         result = bytes(out)
         EnemyGroups(result)
         return result
