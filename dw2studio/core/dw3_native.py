@@ -358,21 +358,26 @@ def tile_uv(tile, u, v):
 
 
 def _face_box(tile, part):
-    """The 4-texel aligned atlas rectangle a face rect covers in its (unrotated) chart's tile."""
-    x, y, tw, th, cx, cy, cw, ch, _ = tile
-    fx, fy = tw / cw, th / ch
-    u0, v0 = part['dst']
-    w, h = part['size']
-    ax0 = (x + int(math.floor((u0 - cx) * fx))) // 4 * 4
-    ax1 = -(-(x + int(math.ceil((u0 + w - cx) * fx))) // 4) * 4
-    ay0, ay1 = y + int(math.floor((v0 - cy) * fy)), y + int(math.ceil((v0 + h - cy) * fy))
+    """The 4-texel aligned atlas rectangle a face rect covers in its chart's tile (a transposed
+    tile holds it transposed: the frames are stored the same way, so the DR_MOVE copy still fits)."""
+    x, y, tw, th, cx, cy, cw, ch, rot = tile
+    (u0, v0), (w, h) = part['dst'], part['size']
+    if rot:
+        a0, a1 = (v0 - cy) * tw / ch, (v0 + h - cy) * tw / ch
+        b0, b1 = (u0 - cx) * th / cw, (u0 + w - cx) * th / cw
+    else:
+        a0, a1 = (u0 - cx) * tw / cw, (u0 + w - cx) * tw / cw
+        b0, b1 = (v0 - cy) * th / ch, (v0 + h - cy) * th / ch
+    ax0 = (x + int(math.floor(a0))) // 4 * 4
+    ax1 = -(-(x + int(math.ceil(a1))) // 4) * 4
+    ay0, ay1 = y + int(math.floor(b0)), y + int(math.ceil(b1))
     return ax0, ay0, max(ax1, ax0 + 4) - ax0, max(ay1, ay0 + 1) - ay0
 
 
 def layout(chart_list, face=None):
     """Pack every chart at one common scale (the largest that fits, at most 1: the 1x atlas never
     magnifies), so no chart is squeezed more in one direction than in the other; a chart may be
-    stored transposed (not those under face rects). Returns (scale, tiles, frame_slots):
+    stored transposed. Returns (scale, tiles, frame_slots):
     tiles[c] = (x, y, w, h, cx, cy, cw, ch, rotated), frame_slots[p] = three (x, y) for face
     part p (copied by DR_MOVE, so x is 4-texel aligned)."""
     face = face or []
@@ -382,7 +387,7 @@ def layout(chart_list, face=None):
         for c in chart_list:
             cw, ch = c['box'][2:]
             w, h = max(1, round(cw * s)), max(1, round(ch * s))
-            rot = not c['face'] and ((policy == 'wide' and h > w) or (policy == 'tall' and w > h) or w > ATLAS_W)
+            rot = ((policy == 'wide' and h > w) or (policy == 'tall' and w > h) or w > ATLAS_W)
             dims.append((h, w, rot) if rot else (w, h, rot))
         for i in sorted(range(len(chart_list)), key=lambda i: (-max(dims[i][:2]), -dims[i][0] * dims[i][1])):
             w, h, rot = dims[i]
@@ -495,7 +500,31 @@ def atlas(source, folder, hd_scale=4, face=None):
         texels = texels[texels[:, 3] >= 128] if np.any(texels[:, 3] >= 128) else texels
         strip = Image.fromarray(texels.reshape(1, -1, 4).astype(np.uint8), 'RGBA')
         opaque = np.ones((1, len(texels)), bool)
-        quant = strip.convert('RGB').quantize(colors=15, dither=Image.Dither.NONE)
+        # the page's own colours when they fit (a DW3 page is 4-bit: at most 16): averaged texels
+        # snap back to them, so a rare colour (Growlmon's white chest) is never merged away;
+        # otherwise median cut
+        own = {}
+        for c in here:
+            x0, y0, cw0, ch0 = chart_list[c]['box']
+            px0 = np.asarray(rgba.crop((x0, y0, x0 + cw0, y0 + ch0))).reshape(-1, 4)
+            for col in map(tuple, px0[px0[:, 3] >= 128, :3].tolist()):
+                own[col] = own.get(col, 0) + 1
+        while 15 < len(own) <= 64:   # one too many (16 opaque): the rarer of the closest pair goes
+            cols = list(own)
+            arr = np.asarray(cols, float)
+            d = ((arr[:, None] - arr[None]) ** 2).sum(-1) + np.eye(len(cols)) * 1e9
+            a, b = np.unravel_index(int(np.argmin(d)), d.shape)
+            gone = cols[a] if own[cols[a]] < own[cols[b]] else cols[b]
+            keep = cols[b] if gone == cols[a] else cols[a]
+            own[keep] += own.pop(gone)
+        if 0 < len(own) <= 15:
+            ref = Image.new('P', (1, 1))
+            colours = sorted(own)
+            ref.putpalette([v for c3 in colours for v in c3] + list(colours[0]) * (256 - len(colours)))
+            quant = strip.convert('RGB').quantize(palette=ref, dither=Image.Dither.NONE)
+            quant.putpalette([v for c3 in colours for v in c3])
+        else:
+            quant = strip.convert('RGB').quantize(colors=15, dither=Image.Dither.NONE)
         rgb = (quant.getpalette() or []) + [0]*45
         pal = [0]
         for c in range(15):
