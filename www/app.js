@@ -112,6 +112,7 @@ function show(page) {
   if (page === 'page-view' || window.DW2_DESKTOP) requestAnimationFrame(() => view.resize());
   if (page === 'page-edit') renderEdit();
   if (page === 'page-changes') refreshPending();
+  if (window.__onPage) window.__onPage(page);
 }
 $$('.tab').forEach(b => { b.onclick = () => { if (!state.image) return toast(t('Bitte zuerst ein Spiel-Image öffnen.')); show(b.dataset.page); }; });
 window.__back = () => {
@@ -484,7 +485,9 @@ async function nativeDw3Flow(sourceId) {
 $('#b-port-mod').hidden = !window.DW2_DESKTOP;
 $('#b-port-mod').onclick = async () => {
   try {
-    const result = await busy('PC-Port-Mod wird geprüft und exportiert …', () => native('export_port_dialog'));
+    // dw2.pak geöffnet: geprüfter Export mit Konflikterkennung; Disc-Image: bisheriger Weg (fragt nach der passenden dw2.pak)
+    const pak = state.image?.source_kind === 'pak';
+    const result = await busy('PC-Port-Mod wird geprüft und exportiert …', () => native(pak ? 'port_mods_dialog' : 'export_port_dialog', ...(pak ? ['export'] : [])));
     if (result) { log(`${result.count} Mods exportiert: ${result.manifest}`); toast(`${result.count} Mods exportiert. PC-Port neu starten.`); }
   } catch (e) { await fail(e); }
 };
@@ -520,11 +523,11 @@ async function rigFlow(ins) {
 // ---------------------------------------------------------------- Bearbeiten
 function renderEdit() {
   const id = state.id;
-  const boxes = ['#f-name', '#f-type', '#f-evolution', '#f-attacks', '#f-enemy', '#f-roster'];
+  const boxes = ['#f-name', '#f-type', '#f-evolution', '#f-camera', '#f-attacks', '#f-enemy', '#f-roster'];
   if (id == null || !state.image) { $('#edit-name').textContent = t('Digimon wählen'); $('#edit-sub').textContent = ''; boxes.forEach(s => { $(s).innerHTML = ''; }); return; }
   const c = state.catalog.find(x => x.id === id);
   $('#edit-name').textContent = `#${String(id).padStart(3, '0')} ${c.name}`; $('#edit-sub').textContent = ` · ${c.code}`;
-  renderName(id); renderType(id); renderEvolution(id); renderAttacks(id); renderEnemy(id); renderRoster(id);
+  renderName(id); renderType(id); renderEvolution(id); renderCamera(id); renderAttacks(id); renderEnemy(id); renderRoster(id);
 }
 async function renderEvolution(id) {
   const box = $('#f-evolution');
@@ -852,3 +855,331 @@ $('#b-port-on').onclick = async () => {
     if (r) { log(`PC-Port-Mods aktiviert (${r.set}): ${r.moved.join(', ')}`); toast(`${r.moved.length} Datei(en) aktiviert. PC-Port neu starten.`); }
   } catch (e) { await fail(e); } finally { setOverlay(false); }
 };
+
+
+// ================================================================ 0.17b: Bereiche des Mod Studios
+const pad3 = n => String(n).padStart(3, '0');
+const numIn = (id, value, min, max) => `<input id="${id}" type="number" min="${min}" max="${max}" value="${value}">`;
+const digiName = id => nameOf(id);
+// The current value is always an option, also when it is not in the catalogue (map figures
+// such as #322): otherwise the select would show and save its first entry instead.
+const digiOptions = (current, allowEmpty) => (allowEmpty ? `<option value="0" ${!current ? 'selected' : ''}>— leer —</option>` : '') +
+  (current && !state.catalog.some(c => c.id === current) ? `<option value="${current}" selected>#${pad3(current)} (nicht in der Digimon-Liste, unverändert)</option>` : '') +
+  state.catalog.map(c => `<option value="${c.id}" ${c.id === current ? 'selected' : ''}>#${pad3(c.id)} ${esc(c.name)}</option>`).join('');
+async function refreshCatalogNames() {
+  try { state.catalog = await native('catalog'); renderList(); } catch { /* Liste bleibt */ }
+}
+$('#dl-edit').onclick = () => { if (state.id == null) return toast('Zuerst ein Digimon in der Liste wählen.'); show('page-edit'); };
+$('#dl-view').onclick = () => { if (state.id == null) return toast('Zuerst ein Digimon in der Liste wählen.'); show('page-view'); };
+
+// ---------------------------------------------------------------- Seitenwechsel
+window.__onPage = page => {
+  const run = { 'page-files': renderFiles, 'page-attacks': renderAttacksPage, 'page-evo': renderEvoPage,
+                'page-domains': renderDomains, 'page-dw3': renderDw3Page }[page];
+  if (run) run();
+  if (page === 'page-tex') {          // Textur-Editor = Texturkarte der 3D-Ansicht
+    show('page-view');
+    const card = $('#tex-card'); if (card) { card.open = true; card.scrollIntoView({ behavior: 'smooth' }); }
+  }
+};
+// Reiter ohne geöffnetes Spiel: Datei-Explorer darf auch ohne Image
+$$('.tab').forEach(b => { b.onclick = () => {
+  if (!state.image && !['page-files', 'page-more'].includes(b.dataset.page)) return toast(t('Bitte zuerst ein Spiel-Image öffnen.'));
+  show(b.dataset.page);
+}; });
+
+// ---------------------------------------------------------------- 1 Datei-Explorer
+let filesCache = null;
+async function renderFiles() {
+  $('#files-source').textContent = state.image ? `· ${state.image.name}` : '· nichts geöffnet';
+  if (!state.image) { $('#fx-list').innerHTML = ''; return; }
+  try { filesCache = await native('files_list'); drawFiles(); } catch (e) { await fail(e); }
+}
+function drawFiles() {
+  if (!filesCache) return;
+  const q = $('#fx-q').value.toLowerCase().trim(), only = $('#fx-edited').checked;
+  const rows = filesCache.files.filter(f => (!only || f.edited) && (!q || f.name.toLowerCase().includes(q) || String(f.lba) === q)).slice(0, 400);
+  $('#fx-list').innerHTML = `<table><tr><th>Datei</th><th>LBA</th><th>Bytes</th><th></th><th></th></tr>` + rows.map(f =>
+    `<tr class="${f.edited ? 'edited' : ''}"><td>${esc(f.name)}</td><td>${f.lba}</td><td>${f.size}</td><td>${f.edited ? 'geändert' : ''}</td>` +
+    `<td><button class="small" data-x="${f.lba}">exportieren</button>${f.edited ? ` <button class="small" data-o="${f.lba}">Original</button>` : ''}</td></tr>`).join('') + '</table>' +
+    (rows.length === 400 ? '<p class="hint">Erste 400 Treffer; Suche verfeinern.</p>' : '');
+  $$('#fx-list [data-x]').forEach(b => { b.onclick = () => exportFile(native('file_export', Number(b.dataset.x), false)).catch(fail); });
+  $$('#fx-list [data-o]').forEach(b => { b.onclick = () => exportFile(native('file_export', Number(b.dataset.o), true)).catch(fail); });
+}
+$('#fx-q').oninput = drawFiles; $('#fx-edited').onchange = drawFiles;
+$('#fx-open').onclick = () => $('#btn-open').click();
+$('#fx-dw3').onclick = () => openDw3();
+$('#fx-loadproj').onclick = () => $('#b-loadproj').click();
+$('#fx-saveproj').onclick = () => $('#b-saveproj').click();
+
+// ---------------------------------------------------------------- 3 Digimon-Editor: Kamera
+async function renderCamera(id) {
+  const box = $('#f-camera');
+  try {
+    const c = await native('camera_info', id);
+    if (state.id !== id) return;
+    box.innerHTML = `<p class="hint">Die Nahaufnahme im Kampf wählt Abstand und Blickhöhe in 9 Stufen aus diesem Wert (src/stag3000/camera.c). Beim DW3-Import wird er automatisch aus der Höhe des neuen Modells gesetzt. Aktuell Stufe ${c.current.bucket}, Original ${c.original.field_1E} (Stufe ${c.original.bucket}).</p>` +
+      `<label class="f">Kamerahöhe (${c.limits.field[0]}–${c.limits.field[1]})</label>${numIn('cam-f', c.current.field_1E, ...c.limits.field)}` +
+      `<label class="f">Höhe der Treffereffekte (${c.limits.hit[0]}–${c.limits.hit[1]})</label>${numIn('cam-h', c.current.hit_fx_y, ...c.limits.hit)}` +
+      `<div class="btns"><button id="cam-up" class="small">Stufe +1</button><button id="cam-down" class="small">Stufe −1</button><button id="cam-orig" class="small">Original</button><button id="cam-save" class="primary">Übernehmen</button></div>`;
+    $('#cam-up').onclick = () => { $('#cam-f').value = Math.min(c.limits.field[1], Number($('#cam-f').value) + 256); };
+    $('#cam-down').onclick = () => { $('#cam-f').value = Math.max(c.limits.field[0], Number($('#cam-f').value) - 256); };
+    $('#cam-orig').onclick = () => { $('#cam-f').value = c.original.field_1E; $('#cam-h').value = c.original.hit_fx_y; };
+    $('#cam-save').onclick = async () => {
+      try { await native('camera_set', id, Number($('#cam-f').value), Number($('#cam-h').value)); await afterChange('Kamera vorgemerkt'); renderCamera(id); }
+      catch (e) { await fail(e); }
+    };
+  } catch (e) { box.innerHTML = `<p class="hint">${esc(e.message)}</p>`; }
+}
+
+// ---------------------------------------------------------------- 4 Attacken-Editor
+let techCache = null;
+async function renderAttacksPage() {
+  $('#at-sub').textContent = state.id != null ? `· gewählt: #${pad3(state.id)} ${digiName(state.id)}` : '· kein Digimon gewählt';
+  try { techCache = (await native('techniques_catalog')).techniques; drawTechs(); } catch (e) { await fail(e); }
+}
+function drawTechs() {
+  if (!techCache) return;
+  const q = $('#at-q').value.toLowerCase().trim();
+  const rows = techCache.filter(r => !q || r.name.toLowerCase().includes(q) || String(r.id) === q);
+  $('#at-list').innerHTML = '<table><tr><th>ID</th><th>Name</th><th>MP</th><th>Stärke</th><th>Element</th><th>Start-Anim.</th><th>genutzt von</th><th></th></tr>' + rows.map(r => {
+    const own = state.id != null && r.users.length === 1 && r.users[0] === state.id;
+    return `<tr><td>${r.id}</td><td>${esc(r.name)}</td><td>${r.mp}</td><td>${r.power}</td><td>${r.specialty}</td><td>${'FGH'[r.cast] ?? r.cast}</td>` +
+      `<td>${r.users.slice(0, 4).map(u => esc(digiName(u))).join(', ')}${r.users.length > 4 ? ` +${r.users.length - 4}` : ''}</td>` +
+      `<td>${own ? `<button class="small" data-e="${r.id}">bearbeiten</button>` : ''} <button class="small" data-c="${r.id}">als Vorlage</button></td></tr>`;
+  }).join('') + '</table>';
+  $$('#at-list [data-c]').forEach(b => { b.onclick = () => techDialog(Number(b.dataset.c), null); });
+  $$('#at-list [data-e]').forEach(b => { b.onclick = () => techDialog(null, Number(b.dataset.e)); });
+}
+$('#at-q').oninput = drawTechs;
+$('#at-new').onclick = () => techDialog(null, null);
+async function techDialog(sourceId, editId) {
+  if (state.id == null) return toast('Zuerst ein Digimon wählen (Reiter Digimon).');
+  const digimon = state.id;
+  const src = techCache.find(r => r.id === (editId ?? sourceId)) || techCache[0];
+  const enemy = editId == null ? await native('enemy_values', digimon).catch(() => ({ rows: [] })) : { rows: [] };
+  const choice = await modal((box, close) => {
+    box.innerHTML = `<h3>${editId == null ? 'Eigene Technik anlegen' : 'Eigene Technik bearbeiten'} · #${pad3(digimon)} ${esc(digiName(digimon))}</h3>` +
+      (editId == null ? `<label class="f">Vorlage (Effekte, Animationsteile, Ton)</label><select id="t-src">${techCache.map(r => `<option value="${r.id}" ${r.id === src.id ? 'selected' : ''}>${r.id} · ${esc(r.name)}</option>`).join('')}</select>` : '') +
+      `<label class="f">Name (höchstens 17 Zeichen)</label><input id="t-name" type="text" maxlength="17" value="${esc(editId == null ? '' : src.name)}">` +
+      (editId == null ? '<label class="f">Beschreibung (optional, sonst die der Vorlage)</label><input id="t-desc" type="text" maxlength="120">' : '') +
+      `<label class="f">MP-Kosten</label>${numIn('t-mp', src.mp, 0, 255)}<label class="f">Stärke (power)</label>${numIn('t-pow', src.power, -32768, 32767)}` +
+      `<label class="f">Element / Spezialität (Code 0–15)</label>${numIn('t-spec', src.specialty, 0, 15)}` +
+      `<label class="f">Startanimation</label><select id="t-cast">${['F', 'G', 'H', '(3)'].map((n, i) => `<option value="${i}" ${i === src.cast ? 'selected' : ''}>${n}</option>`).join('')}</select>` +
+      (editId == null ? `<label class="row"><input type="checkbox" id="t-def" checked> als erlernbare Technik dieses Digimon</label>` +
+        (enemy.rows || []).map((r, i) => `<label class="row"><input type="checkbox" data-enc="${i}"> Gegnergruppe ${r.key[0]}, Platz ${r.key[1] + 1}</label>`).join('') : '') +
+      '<div class="btns"><button id="t-no">Abbrechen</button><button id="t-ok" class="primary">Vormerken</button></div>';
+    $('#t-no', box).onclick = () => close(null);
+    $('#t-ok', box).onclick = () => close({
+      source: editId == null ? Number($('#t-src', box).value) : null, name: $('#t-name', box).value.trim(),
+      description: editId == null ? $('#t-desc', box).value.trim() : null,
+      values: { mp: Number($('#t-mp', box).value), power: Number($('#t-pow', box).value), specialty: Number($('#t-spec', box).value), cast: Number($('#t-cast', box).value) },
+      asDefault: editId == null ? $('#t-def', box).checked : false,
+      encounters: editId == null ? $$('[data-enc]', box).filter(x => x.checked).map(x => enemy.rows[Number(x.dataset.enc)].key) : [] });
+  });
+  if (!choice) return;
+  try {
+    if (editId == null) {
+      const r = await native('technique_create', digimon, choice.source, choice.name, choice.description, choice.values, choice.asDefault, choice.encounters);
+      await afterChange(`Eigene Technik ${r.id} „${choice.name}“ vorgemerkt`);
+    } else {
+      await native('technique_edit', editId, digimon, choice.values, choice.name);
+      await afterChange('Technik geändert');
+    }
+    renderAttacksPage();
+  } catch (e) { await fail(e); }
+}
+
+// ---------------------------------------------------------------- 5 Digitations-Editor (Linie)
+let evoLine = [];
+async function renderEvoPage() {
+  if (state.id == null) { $('#evo-sub').textContent = '· zuerst ein Digimon wählen'; $('#evo-line').innerHTML = ''; return; }
+  $('#evo-sub').textContent = `· ab #${pad3(state.id)} ${digiName(state.id)}`;
+  try {
+    evoLine = [];
+    const seen = new Set();
+    let frontier = [state.id];
+    for (let depth = 0; depth < 4 && frontier.length; depth++) {
+      const next = [];
+      for (const id of frontier) {
+        if (seen.has(id)) continue; seen.add(id);
+        const info = await native('evolution_info', id);
+        evoLine.push({ id, rank: info.rank, rows: info.rows, choices: info.choices });
+        info.rows.forEach(r => next.push(r.target));
+      }
+      frontier = next;
+    }
+    drawEvo();
+  } catch (e) { $('#evo-line').innerHTML = `<p class="hint">${esc(e.message)}</p>`; }
+}
+function drawEvo() {
+  $('#evo-line').innerHTML = evoLine.map((d, i) => `<div class="card"><b>#${pad3(d.id)} ${esc(digiName(d.id))}</b>
+    <label class="f">Stufe</label><select data-rank="${i}">${['Rookie', 'Champion', 'Ultimate', 'Mega'].map((n, k) => `<option value="${k}" ${k === d.rank ? 'selected' : ''}>${n}</option>`).join('')}</select>
+    ${[0, 1, 2, 3].map(k => { const r = d.rows[k] || { min_dp: k ? '' : 0, target: 0 };
+      return `<div class="row">DP ab <input data-dp="${i}:${k}" type="number" min="0" max="255" value="${r.min_dp}" ${k === 0 ? 'readonly' : ''}> → <select data-tg="${i}:${k}"><option value="0">— kein Ziel —</option>${d.choices.filter(c => c !== d.id).map(c => `<option value="${c}" ${c === r.target ? 'selected' : ''}>#${pad3(c)} ${esc(digiName(c))}</option>`).join('')}</select></div>`; }).join('')}
+    <button class="small" data-rm="${i}">aus Linie entfernen</button></div>`).join('');
+  $$('[data-rm]').forEach(b => { b.onclick = () => { evoLine.splice(Number(b.dataset.rm), 1); drawEvo(); }; });
+}
+function readEvo() {
+  return evoLine.map((d, i) => {
+    const rows = [];
+    for (let k = 0; k < 4; k++) {
+      const target = Number($(`[data-tg="${i}:${k}"]`).value), dp = $(`[data-dp="${i}:${k}"]`).value;
+      if (!target) break;
+      rows.push({ min_dp: Number(dp || 0), target });
+    }
+    return { id: d.id, rows, rank: Number($(`[data-rank="${i}"]`).value) };
+  });
+}
+$('#evo-add').onclick = async () => {
+  const id = await pickBox('Digimon zur Linie', state.catalog.map(c => ({ value: c.id, label: `#${pad3(c.id)} ${c.name}` })), null);
+  if (id == null || evoLine.some(d => d.id === id)) return;
+  try { const info = await native('evolution_info', id); evoLine.push({ id, rank: info.rank, rows: info.rows, choices: info.choices }); drawEvo(); } catch (e) { await fail(e); }
+};
+$('#evo-save').onclick = async () => {
+  try { const r = await native('evolution_line', readEvo()); await afterChange(r.changed.length ? `Digitationslinie vorgemerkt: ${r.changed.length} Digimon` : 'Keine Änderung'); renderEvoPage(); }
+  catch (e) { await fail(e); }
+};
+
+// ---------------------------------------------------------------- 6 Domain-Editor
+let domCache = null, groupsCache = null;
+async function renderDomains() {
+  try {
+    domCache = (await native('domains_overview')).domains;
+    groupsCache = await native('groups_list');
+    $('#dom-sub').textContent = `· ${domCache.length} Domains, ${groupsCache.groups.length} Gegnergruppen (${groupsCache.free} IDs frei)`;
+    const cur = Number($('#dom-pick').value || 0);
+    $('#dom-pick').innerHTML = domCache.map(d => `<option value="${d.index}" ${d.index === cur ? 'selected' : ''}>${d.index}: ${esc(d.name.replace(/1F$/, ''))} (${d.floors.length} Etagen)</option>`).join('');
+    const gcur = Number($('#grp-pick').value || groupsCache.groups[0]?.id);
+    $('#grp-pick').innerHTML = groupsCache.groups.map(g => `<option value="${g.id}" ${g.id === gcur ? 'selected' : ''}>Gruppe ${g.id}: ${esc(g.members.join(', '))}</option>`).join('');
+    drawFloors(); drawGroup();
+  } catch (e) { await fail(e); }
+}
+const groupOptions = cur => `<option value="0" ${!cur ? 'selected' : ''}>—</option>` +
+  (cur && !groupsCache.groups.some(g => g.id === cur) ? `<option value="${cur}" selected>${cur}: (fehlt in ENEMYSET)</option>` : '') + groupsCache.groups.map(g => `<option value="${g.id}" ${g.id === cur ? 'selected' : ''}>${g.id}: ${esc(g.members.join(', ').slice(0, 40))}</option>`).join('');
+function drawFloors() {
+  const d = domCache[Number($('#dom-pick').value || 0)];
+  $('#dom-floors').innerHTML = d.floors.map(f => `<div class="row"><b>${esc(f.name)}</b> ${f.sets.map((s, k) => `<select data-fs="${f.floor}:${k}" ${k === 0 ? 'title="Platz 0: beim Erzeugen nicht gelesen"' : ''}>${groupOptions(s)}</select>`).join('')}
+    <button class="small" data-fsave="${f.floor}">übernehmen</button></div>`).join('');
+  $$('[data-fsave]').forEach(b => { b.onclick = async () => {
+    const floor = Number(b.dataset.fsave), sets = [0, 1, 2, 3, 4].map(k => Number($(`[data-fs="${floor}:${k}"]`).value));
+    try { const r = await native('domain_set_floor', d.index, floor, sets); await afterChange(r.changed ? `${d.floors[floor].name}: Gruppen vorgemerkt` : 'Keine Änderung'); renderDomains(); }
+    catch (e) { await fail(e); }
+  }; });
+}
+$('#dom-pick').onchange = drawFloors;
+async function drawGroup() {
+  const id = Number($('#grp-pick').value);
+  if (!id) return;
+  try {
+    const g = await native('group_info', id);
+    const h = g.header;
+    $('#grp-edit').innerHTML = `<p class="hint">Verwendet in: ${g.usage.map(u => esc(u.name)).join(', ') || 'keiner Etage'}</p>
+      <label class="f">Figur auf der Karte</label><select id="g-map">${digiOptions(h.map_digimon, false)}</select>
+      <label class="f">KI-Typ (0–15)</label>${numIn('g-ai', h.ai, 0, 15)}<label class="f">Tempo (0–15)</label>${numIn('g-pace', h.pace, 0, 15)}
+      <label class="f">Lieblingsgeschenk</label>${numIn('g-gift', h.liked_gift, 0, 255)}<label class="f">Punkte pro Level</label>${numIn('g-ppl', h.points_per_level, -32768, 32767)}
+      <label class="f">Domain-Musik (0/1)</label>${numIn('g-bgm', h.dungeon_bgm, 0, 15)}<label class="f">Bosskampf (0/1)</label>${numIn('g-boss', h.boss, 0, 15)}` +
+      g.members.map((m, i) => `<div class="card"><b>Gegner ${i + 1}</b><select data-m="${i}:digimon">${digiOptions(m.digimon, true)}</select>
+        ${[['level', 'Level', 0, 99], ['hp', 'HP', 0, 9999], ['mp', 'MP', 0, 9999], ['attack', 'Angriff', 0, 255], ['defense', 'Abwehr', 0, 999], ['speed', 'Tempo', 0, 255]]
+          .map(([k, n, lo, hi]) => `<label class="f">${n}</label><input data-m="${i}:${k}" type="number" min="${lo}" max="${hi}" value="${m[k]}">`).join('')}
+        <label class="f">Techniken (IDs)</label>${[0, 1, 2].map(k => `<input data-s="${i}:${k}" type="number" min="0" max="255" value="${m.skills[k]}">`).join('')}</div>`).join('') +
+      '<div class="btns"><button id="g-save" class="primary">Gruppe übernehmen</button></div>';
+    $('#g-save').onclick = async () => {
+      const header = { map_digimon: Number($('#g-map').value), ai: Number($('#g-ai').value), pace: Number($('#g-pace').value), liked_gift: Number($('#g-gift').value),
+                       points_per_level: Number($('#g-ppl').value), dungeon_bgm: Number($('#g-bgm').value), boss: Number($('#g-boss').value) };
+      const members = g.members.map((m, i) => {
+        const out = { skills: [0, 1, 2].map(k => Number($(`[data-s="${i}:${k}"]`).value)) };
+        for (const k of ['digimon', 'level', 'hp', 'mp', 'attack', 'defense', 'speed']) out[k] = Number($(`[data-m="${i}:${k}"]`).value);
+        return out;
+      });
+      try { const r = await native('group_set', id, header, members); await afterChange(r.changed ? `Gegnergruppe ${id} vorgemerkt` : 'Keine Änderung'); renderDomains(); }
+      catch (e) { await fail(e); }
+    };
+  } catch (e) { $('#grp-edit').innerHTML = `<p class="hint">${esc(e.message)}</p>`; }
+}
+$('#grp-pick').onchange = drawGroup;
+$('#grp-clone').onclick = async () => {
+  try { const r = await native('group_clone', Number($('#grp-pick').value)); await afterChange(`Neue Gegnergruppe ${r.id}`); await renderDomains(); $('#grp-pick').value = r.id; drawGroup(); }
+  catch (e) { await fail(e); }
+};
+
+// ---------------------------------------------------------------- 7 DW3-Importer
+let dw3Cache = null; const dw3Batch = [];
+async function openDw3() {
+  try { const info = await busy('DW3-Dateien werden gesucht …', () => native('pick_dw3')); if (info) { toast(`${info.models.length} DW3-Modelle`); renderDw3Page(); } }
+  catch (e) { await fail(e); }
+}
+$('#dw3-open').onclick = openDw3;
+async function renderDw3Page() {
+  try {
+    dw3Cache = await native('dw3_models');
+    $('#dw3-sub').textContent = dw3Cache.open ? `· ${dw3Cache.name}, ${dw3Cache.models.length} Modelle · Ziel: ${state.id != null ? `#${pad3(state.id)} ${digiName(state.id)}` : 'im Reiter Digimon wählen'}` : '· noch kein DW3-Abbild geöffnet';
+    drawDw3();
+  } catch (e) { await fail(e); }
+}
+function drawDw3() {
+  if (!dw3Cache?.open) { $('#dw3-list').innerHTML = ''; drawBatch(); return; }
+  const q = $('#dw3-q').value.toLowerCase().trim();
+  $('#dw3-list').innerHTML = '<table>' + dw3Cache.models.filter(m => !q || m.name.toLowerCase().includes(q)).map(m =>
+    `<tr><td>${esc(m.name)}</td><td><button class="small" data-one="${m.id}">Einzeln importieren</button> <button class="small" data-add="${m.id}">zum Stapel</button></td></tr>`).join('') + '</table>';
+  $$('#dw3-list [data-one]').forEach(b => { b.onclick = () => (state.id == null ? toast('Zuerst Ziel-Digimon wählen.') : nativeDw3Flow(Number(b.dataset.one))); });
+  $$('#dw3-list [data-add]').forEach(b => { b.onclick = async () => {
+    const target = await pickBox('Welcher DW2-Slot wird ersetzt?', state.catalog.map(c => ({ value: c.id, label: `#${pad3(c.id)} ${c.name}` })), state.id);
+    if (target == null) return;
+    const src = dw3Cache.models.find(m => m.id === Number(b.dataset.add));
+    const name = await promptBox('Neuer Name im Spiel (leer = unverändert)', '');
+    dw3Batch.push({ source: src.id, sourceName: src.name, target, name: name || null }); drawBatch();
+  }; });
+  drawBatch();
+}
+function drawBatch() {
+  $('#dw3-batch').innerHTML = dw3Batch.length ? '<table>' + dw3Batch.map((j, i) => `<tr><td>${esc(j.sourceName)}</td><td>→ #${pad3(j.target)} ${esc(digiName(j.target))}</td><td>${esc(j.name || '')}</td><td><button class="small" data-del="${i}">×</button></td></tr>`).join('') + '</table>' : '<p class="hint">Stapel leer.</p>';
+  $$('#dw3-batch [data-del]').forEach(b => { b.onclick = () => { dw3Batch.splice(Number(b.dataset.del), 1); drawBatch(); }; });
+}
+$('#dw3-q').oninput = drawDw3;
+$('#dw3-clear').onclick = () => { dw3Batch.length = 0; drawBatch(); };
+$('#dw3-run').onclick = async () => {
+  if (!dw3Batch.length) return toast('Stapel ist leer.');
+  try {
+    const r = await busy(`${dw3Batch.length} DW3-Digimon werden importiert …`, () => native('dw3_batch_apply', dw3Batch.map(j => ({ source: j.source, target: j.target, name: j.name }))));
+    r.jobs.forEach(j => log(`DW3 → #${pad3(j.target)}: ${j.bones} Knochen, ${j.triangles} Dreiecke, Kamera Stufe ${j.camera.bucket}`));
+    dw3Batch.length = 0; drawBatch(); await refreshCatalogNames();
+    await afterChange(`${r.jobs.length} Digimon ersetzt (ein Rückgängig-Schritt)`);
+  } catch (e) { await fail(e); }
+};
+
+// ---------------------------------------------------------------- 9 Mod-Export: prüfen, ersetzen, einlesen
+function drawModReport(r) {
+  const list = (title, items, cls) => items.length ? `<p class="${cls}"><b>${title}</b><br>${items.map(esc).join('<br>')}</p>` : '';
+  $('#mod-report').innerHTML = `<p>${r.files.length} Datei(en), Schnittstelle des Ports: ${r.api}${r.textures?.length ? `, ${r.textures.length} HD-Textur(en)` : ''}</p>` +
+    list('Fehler', r.errors, 'err') + list('Konflikte', r.conflicts, 'warn') + list('Hinweise', r.warnings, 'hint') +
+    (r.files.length ? '<table><tr><th>Datei</th><th>Inhalt</th><th>Bytes</th><th></th></tr>' + r.files.map(f => `<tr><td>${f.file}</td><td>${esc(f.name)} · ${esc(f.label)}</td><td>${f.size}</td><td>${f.needs_api2 ? 'braucht Schnittstelle 2' : ''}</td></tr>`).join('') + '</table>' : '');
+}
+$('#b-mod-check').onclick = async () => {
+  try { const r = await busy('Mod wird geprüft …', () => native('port_mods_dialog', 'check')); if (r) drawModReport(r); } catch (e) { await fail(e); }
+};
+$('#b-mod-replace').onclick = async () => {
+  if (!(await confirmBox('Vorhandenen Mod im gewählten Ordner nach Mods\\disabled verschieben und diesen Mod exportieren?'))) return;
+  try { const r = await busy('Mod wird exportiert …', () => native('port_mods_dialog', 'replace')); if (r) { log(`Mod exportiert: ${r.count} Dateien${r.replaced ? `, vorheriger Mod → Mods\\disabled\\${r.replaced.set}` : ''}`); toast(`${r.count} Mod-Dateien exportiert`); } }
+  catch (e) { await fail(e); }
+};
+$('#b-mod-import').onclick = async () => {
+  try { const r = await busy('Mod wird eingelesen …', () => native('port_mods_dialog', 'import')); if (r) { await refreshCatalogNames(); await afterChange(`Mod eingelesen: ${r.files} Dateien, ${r.textures} HD-Textur(en)`); } }
+  catch (e) { await fail(e); }
+};
+
+// ---------------------------------------------------------------- 8 Textur-Editor: HD-Vorschau bis 2048×4096
+async function showHd(promise) {
+  try {
+    const r = await promise;
+    if (!r) return;
+    const info = await view.setHdPreview(BASE + r.url);
+    toast(`HD-Vorschau ${info.width}×${info.height}`); log(`HD-Vorschau ${info.width}×${info.height} (Grafikkarte: bis ${info.max})`);
+  } catch (e) { await fail(e); }
+}
+$('#b-hd-preview').onclick = async () => {
+  if (state.id == null) return toast('Zuerst ein Digimon wählen.');
+  try { const f = await native('pick_file'); if (f) await showHd(native('hd_preview', state.id, f.path)); } catch (e) { await fail(e); }
+};
+$('#b-hd-active').onclick = () => (state.id == null ? toast('Zuerst ein Digimon wählen.') : showHd(native('hd_active', state.id)));
+$('#b-hd-off').onclick = () => view.clearHdPreview();

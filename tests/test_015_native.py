@@ -89,11 +89,13 @@ def test_real_native_import_history_project_and_export(tmp_path,monkeypatch):
     reply=json.loads(api.call('dw3_native_apply',json.dumps([0,3,plan['assignments'],1.,4])))
     assert reply['ok'],reply
     assert reply['data']['bones']==18
-    assert len(api.S.session.edits)==11 and api.S.session.active_hd_files()
+    # 11 model/animation files plus MODELDT for the battle camera (0.17b, battle_camera.py)
+    assert len(api.S.session.edits)==12 and api.S.session.active_hd_files()
+    assert any(Path(e.path).name.startswith('MODELDT') for e in api.S.session.edits.values())
     model_entry=next(e for e in api.S.entries if Path(e.path).name=='M003AGUM.BIN')
     assert NativeModel(api.S.session.current(model_entry)).bone_count==18
     api.undo();assert not api.S.session.edits and not api.S.session.active_hd_files()
-    api.redo();assert len(api.S.session.edits)==11 and api.S.session.active_hd_files()
+    api.redo();assert len(api.S.session.edits)==12 and api.S.session.active_hd_files()
     project=api.save_project('015.dw2mod')
     expected={k:hashlib.sha256(v.replacement).hexdigest() for k,v in api.S.session.edits.items()}
     api.open_image(os.environ['DW2_TEST_PAK']);api.load_project(project['path'])
@@ -103,7 +105,7 @@ def test_real_native_import_history_project_and_export(tmp_path,monkeypatch):
     with pytest.raises(ValueError,match='Overlay-API 2'):api.export_port_mod(port)
     (port/'dw2_mod_api.json').write_text('{"mod_api":2}')
     result=api.export_port_mod(port)
-    assert result['count']==11 and len(list((port/'Mods/Textures').rglob('*.png')))==1
+    assert result['count']==12 and len(list((port/'Mods/Textures').rglob('*.png')))==1
     assert hashlib.sha256(api.S.image_path.read_bytes()).hexdigest()==sha
 
 

@@ -20,3 +20,13 @@ button{cursor:pointer}button:hover:not(:disabled){filter:brightness(1.16)}
  #page-view details.card{margin-top:10px;}
 }
 @media(min-width:1500px){main{grid-template-columns:290px minmax(420px,1fr) 410px;}}
+
+/* 0.17b: Tabellen der Editoren, Prüfbericht */
+.tablebox{max-height:52vh;overflow:auto;margin-top:8px}
+.tablebox table,#mod-report table,#dw3-batch table{border-collapse:collapse;width:100%;font-size:13px}
+.tablebox td,.tablebox th,#mod-report td,#mod-report th,#dw3-batch td{padding:3px 6px;border-bottom:1px solid var(--line);text-align:left}
+tr.edited td{color:#9fe3c4}
+#mod-report .err{color:#ff9a8a}#mod-report .warn{color:#ffd27a}
+#tabs .tab span{font-size:11px}
+#page-domains .row select,#page-evo .row select{max-width:240px}
+#page-domains input[type=number],#page-evo input[type=number]{width:80px}

@@ -263,8 +263,32 @@ export class Viewer {
     if (this.channels.bones && (ticks > 0 || this.smooth)) this.applyPose(false, this.smooth ? Math.min(1, (n.player.timer + n.acc) / 2) : 0);
   }
 
+  /** HD-Vorschau: ein PNG (128×256 mal 1–16, bis 2048×4096) ersetzt die Seite aller Materialien. */
+  async setHdPreview(url) {
+    const n = this.native;
+    if (!n || !n.textures.length) throw new Error('Kein natives Modell geladen.');
+    const tex = await new THREE.TextureLoader().loadAsync(url);
+    const max = this.renderer.capabilities.maxTextureSize;
+    if (tex.image.width > max || tex.image.height > max) { tex.dispose(); throw new Error(`Grafikkarte erlaubt höchstens ${max} Pixel Kantenlänge.`); }
+    tex.colorSpace = THREE.SRGBColorSpace; tex.flipY = false;
+    tex.generateMipmaps = true; tex.minFilter = THREE.LinearMipmapLinearFilter; tex.magFilter = THREE.LinearFilter;
+    tex.anisotropy = this.renderer.capabilities.getMaxAnisotropy();
+    this.clearHdPreview();
+    n.hd = tex;
+    for (const t of n.textures) { t.mat.map = tex; t.mat.needsUpdate = true; }
+    return { width: tex.image.width, height: tex.image.height, max };
+  }
+
+  clearHdPreview() {
+    const n = this.native;
+    if (!n?.hd) return;
+    for (const t of n.textures) { t.mat.map = t.tex; t.mat.needsUpdate = true; }
+    n.hd.dispose(); n.hd = null;
+  }
+
   refreshTextures(rects) {
     const n = this.native;
+    if (n.hd) return;   // HD-Vorschau aktiv: VRAM-Animationen (Blinzeln) zeigen die native Seite
     const palette = rects.some(r => r[3] > 224);
     for (const t of n.textures) {
       if (palette) decodeRect(n.tex.vram, t.clut, t.stp, t.rgba);

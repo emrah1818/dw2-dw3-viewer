@@ -60,9 +60,9 @@ def dw3_native_plan(source_id, target_id):
     return prepare(__import__(__name__),source_id,target_id)['info']
 
 
-def dw3_native_apply(source_id, target_id, assignments, scale_factor=1., hd_scale=4):
+def dw3_native_apply(source_id, target_id, assignments, scale_factor=1., hd_scale=4, camera=None):
     from dw2studio.dw3_import import apply
-    return apply(__import__(__name__),source_id,target_id,assignments,scale_factor,hd_scale)
+    return apply(__import__(__name__),source_id,target_id,assignments,scale_factor,hd_scale,camera)
 
 
 def export_hd_pack(identifier, png, port_dir):
@@ -89,7 +89,7 @@ def export_port_mod(port_dir, pak_path=None):
     from dw2studio.port_mod import export
     s = _need_session()
     pak = s.pak if hasattr(s, 'pak') else PakFile(pak_path)
-    return export(s, pak, port_dir, mod_name='DW2/DW3 Viewer 0.16b')
+    return export(s, pak, port_dir, mod_name='DW2 Mod Studio 0.17b')
 
 
 def port_mod_status(port_dir):
@@ -783,9 +783,240 @@ def native_files_export(identifier):
     return {'path': str(target), 'name': target.name}
 
 
+# --------------------------------------------------------------------------- 0.17b: Mod prüfen / ersetzen / einlesen
+def _pak():
+    s = _need_session()
+    if not hasattr(s, 'pak'):
+        raise ValueError('Dafür bitte dw2.pak öffnen.')
+    return s, s.pak
+
+
+def mod_check(port_dir):
+    from dw2studio.mod_io import check
+    s, pak = _pak()
+    return check(s, pak, port_dir)
+
+
+def mod_export(port_dir):
+    from dw2studio.mod_io import export_checked
+    s, pak = _pak()
+    return export_checked(s, pak, port_dir, replace=False, name='DW2 Mod Studio 0.17b')
+
+
+def mod_export_replace(port_dir):
+    from dw2studio.mod_io import export_checked
+    s, pak = _pak()
+    return export_checked(s, pak, port_dir, replace=True, name='DW2 Mod Studio 0.17b')
+
+
+def mod_import(port_dir):
+    from dw2studio.mod_io import import_into
+    s, _ = _pak()
+    return import_into(s, S.entries, port_dir)
+
+
+# --------------------------------------------------------------------------- 0.17b: Domains und Gegnergruppen
+def _current_names():
+    names = {c.id: c.name for c in S.catalog}
+    try:
+        from dw2studio.core.digimon_names import NameRepository
+        names.update({i: n for i, n in NameRepository(_need_session(), S.entries).names().items() if n})
+    except (ValueError, OSError, AttributeError, TypeError):
+        pass
+    return names
+
+
+def _domains():
+    from dw2studio.core.domains import DomainRepository
+    return DomainRepository(_need_session(), S.entries)
+
+
+def _ids():
+    from dw2studio.core.battle_skills import AttackRepository
+    skills, base, _ = AttackRepository(_need_session(), S.entries).tables()
+    return {c.id for c in S.catalog} | set(base.records), set(skills.records)
+
+
+def domains_overview():
+    return {'domains': _domains().overview()}
+
+
+def domain_set_floor(index, floor, sets):
+    return {'changed': _domains().set_floor(int(index), int(floor), [int(v) for v in sets])}
+
+
+def group_info(set_id):
+    repo = _domains()
+    info = repo.groups().group(int(set_id))
+    names = _current_names()
+    for m in info['members']:
+        m['name'] = names.get(m['digimon'], '')
+    info['map_name'] = names.get(info['header']['map_digimon'], '')
+    info['usage'] = repo.usage(int(set_id))
+    return info
+
+
+def group_set(set_id, header=None, members=None):
+    digimon, skills = _ids()
+    return {'changed': _domains().set_group(int(set_id), header or None, members or None, digimon, skills)}
+
+
+def group_clone(source_id):
+    return {'id': _domains().clone_group(int(source_id))}
+
+
+def groups_list():
+    g = _domains().groups()
+    names = _current_names()
+    out = []
+    for sid in sorted(g.groups):
+        info = g.group(sid)
+        out.append({'id': sid, 'members': [names.get(m['digimon'], str(m['digimon'])) for m in info['members'] if m['digimon']],
+                    'levels': [m['level'] for m in info['members'] if m['digimon']]})
+    return {'groups': out, 'free': len(g.free_ids())}
+
+
+# --------------------------------------------------------------------------- 0.17b: Individuelle Techniken
+def _techniques():
+    from dw2studio.core.techniques import TechniqueRepository
+    return TechniqueRepository(_need_session(), S.entries)
+
+
+def techniques_catalog():
+    return {'techniques': _techniques().catalog()}
+
+
+def technique_usage(technique):
+    return _techniques().usage(int(technique))
+
+
+def technique_create(digimon, source, name, description=None, values=None, as_default=True, encounters=None):
+    return _techniques().create(int(digimon), int(source), name, description=description or None,
+                                values=values or None, as_default=bool(as_default),
+                                encounters=[tuple(k) for k in (encounters or [])])
+
+
+def technique_edit(technique, digimon, values=None, name=None):
+    return {'changed': _techniques().edit(int(technique), values or None, name or None, digimon=int(digimon))}
+
+
+# --------------------------------------------------------------------------- 0.17b: Kamera, Digitationslinien, Mehrfach-Import
+def camera_info(identifier):
+    from dw2studio.core.battle_camera import CameraRepository, FIELD_MIN, FIELD_MAX, HIT_MIN, HIT_MAX
+    repo = CameraRepository(_need_session(), S.entries)
+    return {'current': repo.values(int(identifier)), 'original': repo.values(int(identifier), original=True),
+            'limits': {'field': [FIELD_MIN, FIELD_MAX], 'hit': [HIT_MIN, HIT_MAX]}}
+
+
+def camera_set(identifier, field, hit):
+    from dw2studio.core.battle_camera import CameraRepository
+    return {'changed': CameraRepository(_need_session(), S.entries).set(int(identifier), int(field), int(hit))}
+
+
+def evolution_line(lines):
+    from dw2studio.core.evolution import EvolutionRepository, change_line
+    return {'changed': change_line(EvolutionRepository(_need_session(), S.entries), lines)}
+
+
+def dw3_batch_apply(jobs):
+    """Several DW3 -> DW2 slot replacements as one step. JOBS: [{'source', 'target', 'assignments'?,
+    'scale'?, 'hd'?, 'camera'?, 'name'?}]. Missing assignments use the script-based defaults."""
+    from dw2studio.dw3_import import apply as native_apply
+    if not isinstance(jobs, list) or not jobs:
+        raise ValueError('Mindestens ein DW3-Digimon und ein Zielslot.')
+    targets = [int(j['target']) for j in jobs]
+    if len(set(targets)) != len(targets):
+        raise ValueError('Jeder DW2-Slot darf nur einmal ersetzt werden.')
+    s = _need_session()
+    before, hd = dict(s.edits), dict(getattr(s, 'hd_files', {}))
+    reports = []
+    try:
+        for job in jobs:
+            assignments = job.get('assignments') or dw3_native_plan(int(job['source']), int(job['target']))['assignments']
+            r = native_apply(__import__(__name__), int(job['source']), int(job['target']), assignments,
+                             float(job.get('scale', 1.)), int(job.get('hd', 4)), job.get('camera'))
+            if job.get('name'):
+                rename(int(job['target']), job['name'])
+            reports.append({'target': int(job['target']), **r})
+    except Exception:
+        s.edits = before
+        if hasattr(s, 'hd_files'):
+            s.hd_files = hd
+        raise
+    return {'jobs': reports}
+
+
+# --------------------------------------------------------------------------- 0.17b: Datei-Explorer
+def files_list():
+    s = _need_session()
+    edited = {(e.path, e.lba) for e in s.edits.values()}
+    rows = []
+    for e in S.entries:
+        if e.directory:
+            continue
+        rows.append({'path': e.path, 'name': Path(e.path).name, 'lba': e.lba, 'size': e.size,
+                     'edited': (e.path, e.lba) in edited})
+    rows.sort(key=lambda r: (r['name'], r['lba']))
+    return {'source': S.image_path.name if S.image_path else '', 'files': rows}
+
+
+def file_export(lba, original=False):
+    s = _need_session()
+    matches = [e for e in S.entries if not e.directory and e.lba == int(lba)]
+    if not matches:
+        raise ValueError('Datei nicht gefunden.')
+    entry = matches[0]
+    data = s.original(entry) if original else s.current(entry)
+    target = _exports() / _unique_name(_exports(), Path(entry.path).name)
+    target.write_bytes(data)
+    return {'path': str(target), 'name': target.name}
+
+
+def dw3_models():
+    if DW3 is None:
+        return {'open': False, 'models': []}
+    return {'open': True, 'name': DW3.path.name, 'models': DW3.catalog()}
+
+
+# --------------------------------------------------------------------------- 0.17b: HD-Vorschau
+def _hd_publish(data):
+    import io
+    from PIL import Image
+    with Image.open(io.BytesIO(data)) as image:
+        if image.format != 'PNG':
+            raise ValueError('HD-Textur muss PNG sein.')
+        w, h = image.size
+    if w % 128 or h % 256 or w // 128 != h // 256 or not 1 <= w // 128 <= 16:
+        raise ValueError('HD-PNG muss 128×256 mal 1–16 groß sein (bis 2048×4096).')
+    folder = CACHE / 'hdpreview'
+    folder.mkdir(parents=True, exist_ok=True)
+    name = hashlib.sha256(data).hexdigest()[:24] + '.png'
+    (folder / name).write_bytes(data)
+    return {'url': f'hdpreview/{name}', 'size': [w, h]}
+
+
+def hd_preview(identifier, path):
+    from dw2studio.core.png_source import verified_png
+    payload, info = verified_png(path)
+    return _hd_publish(payload)
+
+
+def hd_active(identifier):
+    from dw2studio.core.native_rom_bridge import native_model_entry
+    s = _need_session()
+    if not hasattr(s, 'hd_files'):
+        raise ValueError('HD-Texturen gibt es nur bei geöffneter dw2.pak.')
+    entry = native_model_entry(S.entries, _find(int(identifier)))
+    files = s.hd_files.get(hashlib.sha256(s.current(entry)).hexdigest(), {})
+    if not files:
+        raise ValueError('Für dieses Modell ist keine HD-Textur vorgemerkt (z. B. aus dem DW3-Import).')
+    return _hd_publish(next(iter(files.values())))
+
+
 # --------------------------------------------------------------------------- Verlauf (Rückgängig / Wiederherstellen)
 UNDO, REDO = [], []
-MUTATING = {'dw3_native_apply', 'set_evolution', 'rename', 'set_type', 'set_specialty', 'set_enemy_values', 'apply_attacks', 'roster_change',
+MUTATING = {'dw3_native_apply', 'dw3_batch_apply', 'mod_import', 'domain_set_floor', 'group_set', 'group_clone',
+            'technique_create', 'technique_edit', 'camera_set', 'evolution_line', 'set_evolution', 'rename', 'set_type', 'set_specialty', 'set_enemy_values', 'apply_attacks', 'roster_change',
             'roster_restore', 'discard', 'load_project', 'png_apply', 'transfer_apply', 'bin_apply',
             'rig_apply', 'restore_original'}
 
@@ -854,7 +1085,14 @@ def translate(texts, language):
 _METHODS = {
     'export_hd_pack': export_hd_pack,
     'dw3_native_plan': dw3_native_plan, 'dw3_native_apply': dw3_native_apply,
-    'evolution_info': evolution_info, 'set_evolution': set_evolution,
+    'evolution_info': evolution_info, 'set_evolution': set_evolution, 'evolution_line': evolution_line,
+    'mod_check': mod_check, 'mod_export': mod_export, 'mod_export_replace': mod_export_replace, 'mod_import': mod_import,
+    'domains_overview': domains_overview, 'domain_set_floor': domain_set_floor, 'group_info': group_info,
+    'group_set': group_set, 'group_clone': group_clone, 'groups_list': groups_list,
+    'techniques_catalog': techniques_catalog, 'technique_usage': technique_usage,
+    'technique_create': technique_create, 'technique_edit': technique_edit,
+    'hd_preview': hd_preview, 'hd_active': hd_active, 'files_list': files_list, 'file_export': file_export, 'dw3_models': dw3_models,
+    'camera_info': camera_info, 'camera_set': camera_set, 'dw3_batch_apply': dw3_batch_apply,
     'open_dw3': open_dw3, 'prepare_dw3': prepare_dw3, 'export_dw3': export_dw3, 'export_port_mod': export_port_mod,
     'port_mod_status': port_mod_status, 'port_mod_disable': port_mod_disable, 'port_mod_enable': port_mod_enable,
     'configure': configure, 'open_image': open_image, 'catalog': catalog_list,

@@ -60,7 +60,8 @@ def prepare(api, source_id, target_id):
                     'assignments':descriptors,'source_bones':len(source['bones'])-1,'target_bones':n}}
 
 
-def apply(api, source_id, target_id, assignments, scale_factor=1., hd_scale=4):
+def apply(api, source_id, target_id, assignments, scale_factor=1., hd_scale=4, camera=None):
+    """CAMERA: None = automatic (battle_camera.suggest), or {'field_1E': int, 'hit_fx_y': int}."""
     prepared = prepare(api, source_id, target_id)
     source,session = prepared['source'],api._need_session()
     scale = prepared['info']['scale']*float(scale_factor)
@@ -82,13 +83,43 @@ def apply(api, source_id, target_id, assignments, scale_factor=1., hd_scale=4):
         changes.append((entry,encode_animation(source,mapping,scale,loops.get(slot,[])),f'DW3-Bewegungen → {slot}'))
     buffer=io.BytesIO();hd.save(buffer,format='PNG')
     sha=hashlib.sha256(native).hexdigest()
+    cam=_camera_plan(api,prepared,target_id,native,changes,camera)
     before=session.edits.copy()
     try:
         for entry,payload,label in changes:
             session.stage(entry,payload,label)
+        if cam['repo'].set(target_id,cam['field_1E'],cam['hit_fx_y'],f'Kamera / Treffereffekt #{target_id:03} (DW3-Import)'):
+            report['camera_changed']=True
     except Exception:
         session.edits=before
         raise
+    report['camera']={k:v for k,v in cam.items() if k!='repo'}
     session.hd_files[sha]={f'Textures/DW2Studio_015/{hd_name(native)}':buffer.getvalue()}
     report.update(files=len(changes),hd_size=list(hd.size),requires_mod_api=2)
     return report
+
+
+def _camera_plan(api, prepared, target_id, native, changes, camera):
+    """Close-up camera for the new model: from the slot's own values plus the height change."""
+    from .core.battle_camera import CameraRepository, measure, suggest, bucket
+    session = api._need_session()
+    repo = CameraRepository(session, api.S.entries)
+    slot = repo.values(target_id, original=True)
+    anims = {slot_: entry for slot_, (entry, _) in prepared['animations'].items()}
+    new_payload = {entry.path: payload for entry, payload, _ in changes}
+    def heights(model, read):
+        attacks = [read(anims[s]) for s in 'FGH' if s in anims]
+        return measure(model, read(anims['A']), attacks)
+    if 'A' not in anims:
+        raise ValueError('Ziel ohne Standby-Animation (A); Kamera kann nicht angepasst werden.')
+    old_h = heights(session.original(prepared['model']), session.original)
+    new_h = heights(native, lambda e: new_payload.get(e.path, session.current(e)))
+    auto = suggest(slot['field_1E'], slot['hit_fx_y'], old_h, new_h)
+    if camera:
+        field, hit = int(camera['field_1E']), int(camera['hit_fx_y'])
+    else:
+        field, hit = auto
+    return {'repo': repo, 'field_1E': field, 'hit_fx_y': hit, 'bucket': bucket(field),
+            'auto': {'field_1E': auto[0], 'hit_fx_y': auto[1], 'bucket': bucket(auto[0])},
+            'slot': slot, 'heights': {'slot': [round(v) for v in old_h], 'new': [round(v) for v in new_h]},
+            'manual': bool(camera)}

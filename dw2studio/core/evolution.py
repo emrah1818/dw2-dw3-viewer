@@ -73,3 +73,34 @@ class EvolutionRepository:
             target_for(bounds, targets, dp)
         self.session.stage(self.entry, out, f'Digitation / DP #{identifier:03}')
         return True
+
+
+def change_line(repo, lines):
+    """Several species' evolution rows in one step. LINES: [{'id', 'rows', 'rank'?, 'dna_group'?}].
+
+    Every row set is checked first; nothing is staged unless all are valid. The final
+    DIGIMNDT bytes go in as one edit, so one undo step reverts the whole line."""
+    if not isinstance(lines, list) or not lines:
+        raise ValueError('Mindestens ein Digimon der Linie angeben.')
+    ids = [row.get('id') for row in lines]
+    if len(set(ids)) != len(ids):
+        raise ValueError('Jedes Digimon nur einmal pro Linie.')
+    session, entry = repo.session, repo.entry
+    original = session.edits.get((entry.path, entry.lba))
+    staged = []
+    try:
+        for row in lines:
+            if repo.change(row['id'], row.get('rows', []), row.get('rank'), row.get('dna_group')):
+                staged.append(row['id'])
+    except Exception:
+        key = (entry.path, entry.lba)
+        if original is None:
+            session.edits.pop(key, None)
+        else:
+            session.edits[key] = original
+        raise
+    if staged:
+        from dataclasses import replace
+        key = (entry.path, entry.lba)
+        session.edits[key] = replace(session.edits[key], label='Digitationslinie: ' + ', '.join(f'#{i:03}' for i in staged))
+    return staged
