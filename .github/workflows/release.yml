@@ -75,7 +75,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: emrah1818/dw2-pc-port
-          ref: f7cc2562ce7b11216645e61bf76c695b4a4df313
+          ref: c7de3a6946e237880e98eb82b7b5369c2a78971a
           path: pc-port
       - uses: msys2/setup-msys2@v2
         id: msys2
