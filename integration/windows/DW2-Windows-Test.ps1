@@ -1,4 +1,4 @@
-# DW2 Mod Studio 1.0.0-rc4: Windows-Test. Aendert keine vorhandene Datei ausserhalb dieses Ordners.
+# DW2 Mod Studio 1.0.0-rc5 (P0 Qualitaet): Windows-Test. Aendert keine vorhandene Datei ausserhalb dieses Ordners.
 # Liest ..\dw2.pak (nur lesen). Ergebnisse in results\ .
 $ErrorActionPreference = 'Continue'
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -50,10 +50,13 @@ function RunGame($name, [string[]]$extra) {
 }
 
 $battle = (Join-Path $here 'press_battle.txt')
-$winshots = @('--window-shot-vb', '4921', '--window-shot-vb', '5421', '--window-shot-vb', '5921', '--window-shot-vb', '6821', '--window-shot-vb', '7921', '--window-shot-vb', '9821', '--window-shot-vb', '11821', '--window-shot-vb', '14321')
-$softshots = @()
+# Fensterbilder alle 100 VBlanks im Kampf (DW3-Importe: Greymon #5, MegaloGrowmon #131, Growlmon #48)
+$shots = @(); foreach ($vb in (4800..8000 | Where-Object { $_ % 100 -eq 21 })) { $shots += @('--window-shot-vb', "$vb") }
 
-# GPU-Renderer mit HD-Paket (2048x4096) und ohne Paket zum Vergleich, gleiche Eingaben
-RunGame 'gpu_hd' (@('--renderer', 'gpu', '--scale', '4', '--windowed', '--cheats', '--pad2-keys', '--press-file', $battle, '--vblanks', '6300', '--window-shot-vb', '4921', '--window-shot-vb', '5421', '--window-shot-vb', '5921', '--window-shot-vb', '6821', '--window-shot-vb', '7921'))
-RunGame 'gpu_nopack' (@('--renderer', 'gpu', '--scale', '4', '--windowed', '--no-texture-packs', '--cheats', '--pad2-keys', '--press-file', $battle, '--vblanks', '6300', '--window-shot-vb', '4921', '--window-shot-vb', '5421', '--window-shot-vb', '5921', '--window-shot-vb', '6821', '--window-shot-vb', '7921'))
+# GPU-Renderer (Vulkan) mit HD-Paket und ohne Paket zum Vergleich, gleiche Eingaben
+RunGame 'gpu_hd' (@('--renderer', 'gpu', '--scale', '4', '--windowed', '--cheats', '--pad2-keys', '--press-file', $battle, '--vblanks', '8100') + $shots)
+RunGame 'gpu_nopack' (@('--renderer', 'gpu', '--scale', '4', '--windowed', '--no-texture-packs', '--cheats', '--pad2-keys', '--press-file', $battle, '--vblanks', '8100') + $shots)
+foreach ($n in 'gpu_hd', 'gpu_nopack') {
+  foreach ($l in (Select-String -Path (Join-Path $res "$n.log") -Pattern '\[gpu\]|HD summary|copied area|over the per-texture|not 1..16|cannot read|memory' -ErrorAction SilentlyContinue)) { L "$n | $($l.Line)" }
+}
 L 'FERTIG'
