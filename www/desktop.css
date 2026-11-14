@@ -33,3 +33,6 @@ tr.edited td{color:#9fe3c4}
 
 #cam-overlay{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);z-index:5;background:rgba(10,20,40,.85);border:1px solid #3c6cb0;border-radius:6px;padding:6px 10px;color:#dfe9ff;font-size:13px;white-space:nowrap}
 #bc-box input[type=number]{width:72px}#bc-box .warn{color:#ffd27a}
+
+.mode-banner { margin: .4em 0; padding: .5em .7em; border-left: 4px solid var(--accent, #4a9); background: rgba(80,160,120,.12); }
+.mode-group { margin: .6em 0; padding: .4em .6em; border: 1px solid rgba(128,128,128,.35); border-radius: 6px; }

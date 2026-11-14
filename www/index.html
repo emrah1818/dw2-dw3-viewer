@@ -133,19 +133,30 @@
     <div class="card">
       <b id="pending-count">0</b>
       <div id="pending-list"></div>
+      <p id="mode-banner" class="mode-banner"></p>
+      <div id="grp-ps1" class="mode-group">
+        <b data-i18n="Modus B: PS1-Image (BIN/CUE, IMG/CCD, ISO)">Modus B: PS1-Image (BIN/CUE, IMG/CCD, ISO)</b>
+        <div class="btns">
+          <button id="b-saveimg" class="primary" data-i18n="Neues Image exportieren">Neues Image exportieren</button>
+          <button id="b-overwrite" data-i18n="Image überschreiben …">Image überschreiben …</button>
+          <button id="b-backup" data-i18n="Sicherung exportieren" hidden>Sicherung exportieren</button>
+        </div>
+      </div>
+      <div id="grp-pc" class="mode-group">
+        <b data-i18n="Modus A: PC-Port (Mods-Ordner)">Modus A: PC-Port (Mods-Ordner)</b>
+        <div class="btns">
+          <button id="b-mod-check">Mod prüfen</button>
+          <button id="b-port-mod" class="primary">PC-Port-Mod exportieren</button>
+          <button id="b-mod-replace">Vorhandenen Mod ersetzen</button>
+          <button id="b-mod-import">Mod einlesen</button>
+          <button id="b-port-off">PC-Port-Mods deaktivieren</button>
+          <button id="b-port-on">PC-Port-Mods aktivieren</button>
+        </div>
+      </div>
       <div class="btns">
-        <button id="b-saveimg" class="primary" data-i18n="Neues Image exportieren">Neues Image exportieren</button>
-        <button id="b-mod-check">Mod prüfen</button>
-        <button id="b-port-mod" class="primary">PC-Port-Mod exportieren</button>
-        <button id="b-mod-replace">Vorhandenen Mod ersetzen</button>
-        <button id="b-mod-import">Mod einlesen</button>
-        <button id="b-port-off">PC-Port-Mods deaktivieren</button>
-        <button id="b-port-on">PC-Port-Mods aktivieren</button>
         <button id="b-saveproj" data-i18n="Mod-Projekt speichern">Mod-Projekt speichern</button>
         <button id="b-loadproj" data-i18n="Mod-Projekt laden">Mod-Projekt laden</button>
         <button id="b-saveroster" data-i18n="Spielstand/Memorycard exportieren">Spielstand/Memorycard exportieren</button>
-        <button id="b-overwrite" data-i18n="Image überschreiben …">Image überschreiben …</button>
-        <button id="b-backup" data-i18n="Sicherung exportieren" hidden>Sicherung exportieren</button>
         <button id="b-undo2" data-i18n="Rückgängig">Rückgängig</button>
         <button id="b-redo2" data-i18n="Wiederherstellen">Wiederherstellen</button>
       </div>

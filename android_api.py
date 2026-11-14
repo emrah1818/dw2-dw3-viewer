@@ -169,7 +169,7 @@ def open_image(path):
     S.source_names = {c.id: c.name for c in catalog}
     return {'name': S.image_path.name, 'count': len(catalog), 'cached': info['cached'],
             'seconds': round(info['seconds'], 2), 'sector_size': info['sector_size'],
-            'name_error': info.get('name_error', '')}
+            'name_error': info.get('name_error', ''), 'source_kind': 'image'}
 
 
 def catalog_list():

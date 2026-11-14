@@ -1,5 +1,30 @@
 # Änderungsprotokoll
 
+## 1.0.0-rc2 – 14.11.2026 (Release-Kandidat, mit passendem PC-Port)
+
+Neu
+- **PC-Port, Zweig `development/mod-studio-1.0`:** liest `Mods\digivolve_levels.json` (Mindestlevel je Digimon im
+  Digi-Labor, Mega bleibt gesperrt) und `Mods\battle_camera.json` (Abstand, Höhe, Zielpunkt, Winkel für Angriffs-, Ziel-
+  und Nahaufnahmekamera je Digimon). `--mod-api` meldet beides. Fehlende, kaputte oder neuere Dateien ändern nichts.
+- **Kampfkamera je Digimon** im Studio mit Vorschau jeder Einstellung (gleiche Projektion wie das Spiel, mit dem
+  Modellrechteck des Spiels abgeglichen). Beim DW3-Import automatisch so gesetzt, dass das Modell ganz im Bild ist.
+- **Größe:** Maßstab aus den Modellmaßen (DW2-Verhältnisse: gleiche Art wie in DW2, sonst Größenkurve; oder
+  DW3-Verhältnisse), Schieberegler je Digimon mit Live-Vorschau, im Projekt gespeichert.
+- **Qualität:** weiche Normalen (Knickwinkel bleibt hart), HD-Stufe automatisch passend zur DW3-Textur.
+- **Namen:** Knopf „Name ändern“ und Reiter „Bearbeiten“.
+- **Zwei Modi:** A PC-Port, B PS1-Image. Im PS1-Modus: DW3-Import mit kontrollierter Verkleinerung (Dreiecke
+  zusammenfassen, Animation mit Bildschritt), Bericht der Änderungen; jeder BIN-Export schreibt eine CUE-Datei.
+- Projekte speichern Digitationslevel, Kameras und DW3-Importe mit.
+
+Behoben
+- Port: HD-Ersatztexturen wurden beim ersten Teilschreiben in die Texturseite (Blinzeln, Farbblitz) verworfen.
+  Importierte Digimon erschienen deshalb im Kampf mit der niedrigen Textur.
+- PS1-Verkleinerung: kleine Teile, die ganz zusammenfallen würden, bleiben jetzt erhalten.
+- Nach einem DW3-Import in ein PS1-Image brach die Oberfläche bei der HD-Anzeige ab.
+
+Unverändert
+- Die grüne Gitter-Darstellung bei der Befehlswahl (DW2-Original).
+
 ## 1.0.0-rc1 – 14.11.2026 (Release-Kandidat)
 
 Neu

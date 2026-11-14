@@ -1,6 +1,7 @@
 # Digitationslevel je Digimon: benötigte Port-Schnittstelle
 
-Stand 0.17b. Der PC-Port wird dafür **nicht** verändert; diese Datei beschreibt, was er bräuchte.
+Stand 1.0.0-rc2: **umgesetzt** im PC-Port, Zweig `development/mod-studio-1.0` (`host/modconf.c`, Prüfung in
+`src/stag2000/labinfo.c`), im Spiel geprüft. Ursprünglich (0.17b) beschrieb diese Datei nur, was der Port bräuchte.
 
 ## Wie das Spiel heute entscheidet (dw2-pc-port, nur gelesen)
 
@@ -25,4 +26,4 @@ Stand 0.17b. Der PC-Port wird dafür **nicht** verändert; diese Datei beschreib
    und schreibt die Datei in den Mod-Export.
 4. Spielstände bleiben unverändert, die Datei ist rein optional.
 
-Bis der Port das liest, zeigt der Digitations-Editor die feste Regel nur an.
+Ältere Ports ohne diese Fähigkeit ignorieren die Datei; das Studio warnt beim Export.

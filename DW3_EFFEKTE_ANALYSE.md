@@ -1,4 +1,4 @@
-# DW3-Effekte und -Aktionen: Analyse für 1.0.0-rc1
+# DW3-Effekte und -Aktionen: Analyse (Stand 1.0.0-rc2)
 
 Stand 14.11.2026. Quellen: DW3-Decompilation (dw3_decomp, nur gelesen), der mitgelieferte DW3-Konverter
 (`third_party/dw3_converter`, `--scripts`), der DW2-PC-Port (nur gelesen).
@@ -23,7 +23,7 @@ Stand 14.11.2026. Quellen: DW3-Decompilation (dw3_decomp, nur gelesen), der mitg
 | Gesicht (Augen, Gesichtszyklen) | **ja (1.0)** | `face_plan`/`atlas`: Augenrahmen offen/halb/zu als DW2-Augenanimation. Im Spiel nachgewiesen (VRAM-Kopie beim Blinzeln) |
 | Effektgrafik (Partikel, Sprites) | **nein** | Andere Datenformate und ein anderer Abspielcode. DW2 kann nur DW2-Effektteile abspielen. Das bräuchte einen DW3-Effektinterpreter im Port |
 | Ortswechsel / Sprünge im Skript | nein | DW2 bewegt Kämpfer in festen Abläufen. Skriptgesteuerte Wege gibt es dort nicht |
-| Kamerafahrten der Technik | nein | DW2-Attackenkameras sind im Code fest (Einstellungen 10–21), ohne Daten je Digimon oder Technik |
+| Kamerafahrten der Technik | nein (Ersatz) | Die DW3-Fahrten werden nicht übertragen. Seit rc2 lassen sich die DW2-Attackenkameras (Einstellungen 10–21) und die Nahaufnahme **je Digimon** anpassen (`Mods\battle_camera.json`, PC-Port aus dem Mod-Studio-Zweig), damit große Modelle ganz im Bild sind |
 | Ton | nein | DW3-Töne liegen in DW3-eigenen Soundbänken. DW2 spielt XA-Rufe aus seinen eigenen Dateien |
 | Sichtbarkeit einzelner Teile je Aktion | nein | DW2-Modelle haben keine Sichtbarkeitsspur je Animation. Bewegungen werden 1:1 übernommen, ausgeblendete DW3-Teile bleiben sichtbar |
 
@@ -36,6 +36,8 @@ Stand 14.11.2026. Quellen: DW3-Decompilation (dw3_decomp, nur gelesen), der mitg
 
 ## Was eine Port-Erweiterung bräuchte
 Einen Interpreter für DW3-Effektarchive im Kampfcode des Ports: Lader für die DW3-Effektformate, Abspielen
-der Effektbefehle aus den Skripten, Zuordnung der DW3-Zeitachse auf den DW2-Technikablauf. Das ist eine große
-Änderung am Spielcode und nach Auftrag ausgeschlossen („Der DW2 PC-Port bleibt unverändert“). Darum ist das
-hier nur beschrieben, nicht vorbereitet.
+der Effektbefehle aus den Skripten, Zuordnung der DW3-Zeitachse auf den DW2-Technikablauf, eigene Soundbank-Wiedergabe.
+Seit rc2 sind Port-Änderungen erlaubt, umgesetzt wurden Digitationslevel und Kameras je Digimon. Ein
+Effektinterpreter ist **nicht** umgesetzt: Er wäre ein zweiter Kampf-Effektcode im Port und lässt sich ohne eine
+vollständige Analyse der DW3-Effektroutinen nicht verlässlich bauen. Im PS1-Modus ist er grundsätzlich nicht möglich
+(der Spielcode auf der CD bleibt der DW2-Code). Ein DW3-Import gilt darum nicht als vollständiger DW3-Import der Techniken.

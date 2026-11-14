@@ -122,14 +122,24 @@ window.__back = () => {
 };
 
 // ---------------------------------------------------------------- Image öffnen
+// Zwei getrennte Modi: A = PC-Port (dw2.pak, Mods-Ordner, HD, Level, Kameras), B = PS1-Image (neues Image für Emulatoren).
+function showMode(info) {
+  const pak = info?.source_kind === 'pak';
+  $('#grp-ps1').hidden = pak;
+  $('#mode-banner').textContent = pak
+    ? t('Modus A: PC-Port. Änderungen gehen als Mod in den Mods-Ordner des Ports (HD-Texturen, Digitationslevel, Kampfkameras, größere Dateien).')
+    : t('Modus B: PS1-Image. „Neues Image exportieren“ schreibt ein neues, geprüftes Image (mit CUE) für PS1-Emulatoren; das Original bleibt unverändert. Ersatzdateien müssen in die Originalgröße passen. HD-Texturen, Digitationslevel und Kampfkameras gibt es nur im PC-Port (Modus A, braucht deine dw2.pak).');
+  $('#subtitle').dataset.mode = pak ? 'A' : 'B';
+}
 async function openImage() {
   try {
     const info = await native('pick_image');
     if (!info) return;
     state.image = info; state.id = null; state.loaded = null; state.prefetch.clear(); view.clear();
     $('#b-saveimg').disabled = $('#b-overwrite').disabled = info.source_kind === 'pak';
+    showMode(info);
     state.catalog = await native('catalog');
-    $('#subtitle').textContent = `${info.name} · ${info.count} Digimon`;
+    $('#subtitle').textContent = `${info.name} · ${info.count} Digimon · ${info.source_kind === 'pak' ? t('Modus A: PC-Port') : t('Modus B: PS1-Image')}`;
     log(`Image: ${info.name}, ${info.count} Digimon, ${info.cached ? 'Index aus Cache' : 'neu analysiert'} (${info.seconds} s)`);
     if (info.name_error) log('Namenstabelle: ' + info.name_error);
     $('#search').value = ''; renderList(); show('page-list'); refreshPending();
@@ -469,7 +479,7 @@ async function nativeDw3Flow(sourceId) {
   const targetId=state.id;
   const p=await busy('Nativer DW3-Import wird geprüft …',()=>native('dw3_native_plan',sourceId,targetId));
   const choice=await modal((box,close)=>{
-    box.innerHTML=`<h3>${esc(p.name)} → ${esc(p.target)}</h3><p>${p.source_bones} DW3-Knochen ersetzen ${p.target_bones} DW2-Knochen. Benötigt den beiliegenden PC-Port mit Overlay-API 2.</p>${p.limits ? `<p class="hint">DW2-Formatgrenzen: ${p.limits.parts} von ${p.limits.max_parts} Modellteilen, ${p.limits.max_depth} von 8 Ebenen${p.limits.split_bones.length ? `; ${p.limits.split_bones.length} große Knochen werden in Teile mit höchstens 256 Vertices geteilt` : ''}${p.limits.flattened_bones.length ? `; ${p.limits.flattened_bones.length} Knochen unter Ebene 8 hängen exakt an Ebene 8` : ''}.</p>` : ''}${p.face ? `<p class="hint">Gesicht: ${p.face.eyes ? 'Augen blinzeln wie in DW3 (Augenrahmen aus DW3 übernommen)' : 'keine DW3-Augenrahmen'}${p.face.parts - p.face.eyes > 0 ? `, ${p.face.parts - p.face.eyes} weitere Gesichtsteile im Zyklus` : ''}${p.face.notes.length ? ' · ' + esc(p.face.notes.join(' ')) : ''}.</p>` : ''}<p class="hint">Vorbelegt aus den DW3-Kampfskripten des Modells (Standby, Treffer, K.o., Angriff) und den Kampfplätzen von DW2. Die Quelle steht neben jedem Platz. Jede Motion lässt sich ändern.</p>`+
+    box.innerHTML=`<h3>${esc(p.name)} → ${esc(p.target)}</h3><p>${p.source_bones} DW3-Knochen ersetzen ${p.target_bones} DW2-Knochen. ${state.image?.source_kind === 'pak' ? 'Benötigt den beiliegenden PC-Port mit Overlay-API 2.' : 'PS1-Image (Modus B): Modell und Bewegungen müssen in die Originaldateien passen; zu große Daten werden kontrolliert verkleinert, der Bericht danach nennt die Werte.'}</p>${p.limits ? `<p class="hint">DW2-Formatgrenzen: ${p.limits.parts} von ${p.limits.max_parts} Modellteilen, ${p.limits.max_depth} von 8 Ebenen${p.limits.split_bones.length ? `; ${p.limits.split_bones.length} große Knochen werden in Teile mit höchstens 256 Vertices geteilt` : ''}${p.limits.flattened_bones.length ? `; ${p.limits.flattened_bones.length} Knochen unter Ebene 8 hängen exakt an Ebene 8` : ''}.</p>` : ''}${p.face ? `<p class="hint">Gesicht: ${p.face.eyes ? 'Augen blinzeln wie in DW3 (Augenrahmen aus DW3 übernommen)' : 'keine DW3-Augenrahmen'}${p.face.parts - p.face.eyes > 0 ? `, ${p.face.parts - p.face.eyes} weitere Gesichtsteile im Zyklus` : ''}${p.face.notes.length ? ' · ' + esc(p.face.notes.join(' ')) : ''}.</p>` : ''}<p class="hint">Vorbelegt aus den DW3-Kampfskripten des Modells (Standby, Treffer, K.o., Angriff) und den Kampfplätzen von DW2. Die Quelle steht neben jedem Platz. Jede Motion lässt sich ändern.</p>`+
     p.assignments.map((a,i)=>`<label>${a.slot}${a.clip}<select data-motion="${i}">${p.motions.map(m=>`<option value="${m.id}" ${m.id===a.motion?'selected':''}>Motion ${m.id} · ${m.frames} Bilder</option>`).join('')}</select><input data-loop="${i}" type="checkbox" ${a.loop?'checked':''}> Schleife <small class="hint">${esc(a.reason||'')}</small></label>`).join('')+
     `<label>Größenmaßstab <select id="d-mode"><option value="dw2" selected>DW2-Verhältnisse (${p.heights ? p.heights.dw2 : '–'} hoch)</option><option value="dw3">DW3-Verhältnisse (${p.heights ? p.heights.dw3 : '–'} hoch)</option></select></label>` +
     `<label>Größenfaktor <input id="d-scale" type="number" min="0.1" max="10" step="0.05" value="1"></label><p class="hint" id="d-size">${p.heights ? `Ersetzter Platz: ${p.heights.slot} hoch. ${esc(p.size_source || '')}.` : ''} Später unter Bearbeiten › Größe im Spiel änderbar.</p>`+
@@ -479,8 +489,19 @@ async function nativeDw3Flow(sourceId) {
   });
   if(!choice)return;
   const r=await busy('Skelett, Geometrie und Bewegungen werden konvertiert …',()=>native('dw3_native_apply',sourceId,targetId,choice.assignments,choice.scale,choice.hd,null,choice.mode));
-  log(`DW3 nativ: ${r.bones} Knochen, ${r.triangles} Dreiecke, ${r.files} Dateien. HD: ${r.hd_size.join('×')}`);
-  await afterChange('DW3-Modell und Bewegungen vorgemerkt. Unter Änderungen als PC-Port-Mod exportieren.');
+  log(`DW3 nativ: ${r.bones} Knochen, ${r.triangles} Dreiecke, ${r.files} Dateien. ${r.hd_size ? 'HD: ' + r.hd_size.join('×') : 'PS1-Image, ohne HD'}`);
+  if (r.ps1) {
+    const opt = Object.entries(r.optimized || {});
+    await modal((box, close) => {
+      box.innerHTML = `<h3>${t('PS1-Image: Import angepasst')}</h3>` +
+        (opt.length ? `<p>${t('Damit jede Datei in die Originalgröße passt, wurde kontrolliert verkleinert:')}</p><ul>${opt.map(([k, v]) => `<li><b>${esc(k)}</b>: ${esc(v)}</li>`).join('')}</ul><p class="hint">${t('Weniger Dreiecke wirken kantiger, weniger Bilder machen Bewegungen ruckiger. Im PC-Port (Modus A) gibt es diese Grenze nicht.')}</p>` : `<p>${t('Alles passt ohne Verkleinerung in die Originaldateien.')}</p>`) +
+        `<p class="hint">${esc(r.note || '')}</p><div class="btns"><button class="primary">OK</button></div>`;
+      box.querySelector('button').onclick = () => close(true);
+    });
+    await afterChange('DW3-Modell und Bewegungen vorgemerkt. Unter Änderungen „Neues Image exportieren“.');
+  } else {
+    await afterChange('DW3-Modell und Bewegungen vorgemerkt. Unter Änderungen als PC-Port-Mod exportieren.');
+  }
   show('page-view');
 }
 
@@ -1307,7 +1328,7 @@ $('#dw3-run').onclick = async () => {
   if (!dw3Batch.length) return toast('Stapel ist leer.');
   try {
     const r = await busy(`${dw3Batch.length} DW3-Digimon werden importiert …`, () => native('dw3_batch_apply', dw3Batch.map(j => ({ source: j.source, target: j.target, name: j.name }))));
-    r.jobs.forEach(j => log(`DW3 → #${pad3(j.target)}: ${j.bones} Knochen, ${j.triangles} Dreiecke, Kamera Stufe ${j.camera.bucket}`));
+    r.jobs.forEach(j => log(`DW3 → #${pad3(j.target)}: ${j.bones} Knochen, ${j.triangles} Dreiecke` + (j.camera ? `, Kamera Stufe ${j.camera.bucket}` : '') + (j.optimized ? `, PS1 verkleinert: ${Object.entries(j.optimized).map(([k, v]) => k + ' ' + v).join('; ')}` : '')));
     dw3Batch.length = 0; drawBatch(); await refreshCatalogNames();
     await afterChange(`${r.jobs.length} Digimon ersetzt (ein Rückgängig-Schritt)`);
   } catch (e) { await fail(e); }
