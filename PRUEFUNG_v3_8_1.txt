@@ -1,0 +1,41 @@
+DW2 3D Viewer v3.8.1 — Hotfix-Prüfung am 01.11.2026
+
+255 Tests bestanden (232 bisherige + 23 neue), Laufzeit 24,78 Sekunden.
+Aufruf: python -m pytest tests -q
+Python 3.12, Linux, PyQt6, Qt offscreen, VTK EGL.
+ruff E9/F821/F822/F823, Bytecode-Kompilierung und Versionsmetadaten bestanden.
+
+FEHLERREPRODUKTION VOR DER ÄNDERUNG
+Der unveränderte 3.8-Leser erzeugte jeweils WAZADATA-Endeintrag fehlt:
+- vollständiger letzter Technikdatensatz direkt am logischen Dateiende;
+- zusätzlich zwei Nullbytes;
+- zusätzlich vier Nullbytes.
+Die alten Tests enthielten immer einen vollständigen 68-Byte-Nullsatz.
+
+NEUE REGRESSIONSPRÜFUNG
+Konstruierte Tabelle mit dem Layout aus den bereitgestellten DW2-TT-
+Tutorialbildern e6.PNG/e9.PNG: Anfang 0x20AC, letzte Zeile 0x6468,
+256 selbst erzeugte Zeilen, logische Dateigröße 0x64AC, 13 CD-Sektoren.
+Geprüft: genaues EOF, 2/4/67/68 Null-Endbytes und 852 Null-Paddingbytes;
+MP-/Power-Änderungen bei gleicher Länge, Endbytes und allen übrigen Bytes.
+Nichtnull-Enddatensätze um 1/2/3/12/30/66/67 Bytes gekürzt: abgewiesen.
+Einzelne Restbytes und neue unvollständige Datensätze: abgewiesen.
+Doppelte IDs und ungültige Textzeiger am Dateiende: weiter abgewiesen.
+
+INTEGRATION
+Jeweils ISO 2048 und RAW-BIN 2352 mit direkten Verzeichniseinträgen bzw.
+privaten SLUS-Dateieinträgen: Vormerken von Standard-/Gegnertechniken und
+MP/AP; .dw2mod speichern/laden; Image exportieren; Tabellen wieder einlesen;
+unverändertes Quell-Image und Image-Größe; gültige EDC/ECC aller RAW-Sektoren.
+Ein Qt-Test klickt den tatsächlichen Attacken-Button für Agumon, öffnet
+256 Katalogzeilen, ändert die Standardtechnik und prüft die Anzeige.
+Die vollständigen bisherigen Tests für Namen, Paletten, Import/Export,
+Rigging, Modell-/Animationsersetzung und Dateiverlagerung bestehen weiter.
+
+GRENZEN
+Das Foto bestätigt die genaue Fehlermeldung, enthält aber keine WAZADATA-
+Binärdaten. Die persönliche Spieldatei wurde nicht geprüft. Die Testdatei
+entspricht den dokumentierten Grenzen, besteht aber aus selbst erzeugten
+Datensätzen. Kein vollständiger Emulator-/Windowslauf mit dem Nutzer-Image.
+Technische Grundlage und Änderung: WAZADATA_FIX_v3_8_1.md.
+Es werden keine Original-Spieldaten im Paket verteilt.

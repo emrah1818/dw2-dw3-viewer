@@ -1,0 +1,150 @@
+
+==================================== ERRORS ====================================
+_______________ ERROR collecting tests/test_battle_skills_v38.py _______________
+ImportError while importing test module '/mnt/data/dev/DW2_3D_Viewer_v4_0/tests/test_battle_skills_v38.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.13/importlib/__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_battle_skills_v38.py:5: in <module>
+    from PyQt6.QtCore import Qt
+E   ModuleNotFoundError: No module named 'PyQt6'
+_____________ ERROR collecting tests/test_color_protection_v33.py ______________
+ImportError while importing test module '/mnt/data/dev/DW2_3D_Viewer_v4_0/tests/test_color_protection_v33.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.13/importlib/__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_color_protection_v33.py:6: in <module>
+    from PyQt6.QtWidgets import QFileDialog
+E   ModuleNotFoundError: No module named 'PyQt6'
+__________________ ERROR collecting tests/test_desktop_v40.py __________________
+ImportError while importing test module '/mnt/data/dev/DW2_3D_Viewer_v4_0/tests/test_desktop_v40.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.13/importlib/__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_desktop_v40.py:8: in <module>
+    from desktop import AssetServer, Worker, copy_export
+desktop.py:12: in <module>
+    from PyQt6.QtCore import (QObject, QThread, QUrl, QFile, QIODevice, QStandardPaths,
+E   ModuleNotFoundError: No module named 'PyQt6'
+_______________ ERROR collecting tests/test_digimon_names_v31.py _______________
+ImportError while importing test module '/mnt/data/dev/DW2_3D_Viewer_v4_0/tests/test_digimon_names_v31.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.13/importlib/__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_digimon_names_v31.py:5: in <module>
+    from PyQt6.QtCore import Qt
+E   ModuleNotFoundError: No module named 'PyQt6'
+_______________ ERROR collecting tests/test_digimon_types_v39.py _______________
+ImportError while importing test module '/mnt/data/dev/DW2_3D_Viewer_v4_0/tests/test_digimon_types_v39.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.13/importlib/__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_digimon_types_v39.py:3: in <module>
+    from PyQt6.QtCore import Qt
+E   ModuleNotFoundError: No module named 'PyQt6'
+_________________ ERROR collecting tests/test_large_png_v32.py _________________
+ImportError while importing test module '/mnt/data/dev/DW2_3D_Viewer_v4_0/tests/test_large_png_v32.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.13/importlib/__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_large_png_v32.py:7: in <module>
+    from PyQt6.QtWidgets import QDialog,QFileDialog,QDialogButtonBox,QInputDialog
+E   ModuleNotFoundError: No module named 'PyQt6'
+_____________ ERROR collecting tests/test_native_relocation_v37.py _____________
+ImportError while importing test module '/mnt/data/dev/DW2_3D_Viewer_v4_0/tests/test_native_relocation_v37.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.13/importlib/__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_native_relocation_v37.py:5: in <module>
+    from PyQt6.QtWidgets import QDialog,QFileDialog
+E   ModuleNotFoundError: No module named 'PyQt6'
+______________ ERROR collecting tests/test_native_restore_v35.py _______________
+ImportError while importing test module '/mnt/data/dev/DW2_3D_Viewer_v4_0/tests/test_native_restore_v35.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.13/importlib/__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_native_restore_v35.py:8: in <module>
+    from PyQt6.QtWidgets import QFileDialog, QDialog, QLabel
+E   ModuleNotFoundError: No module named 'PyQt6'
+__________________ ERROR collecting tests/test_rig_gui_v8.py ___________________
+ImportError while importing test module '/mnt/data/dev/DW2_3D_Viewer_v4_0/tests/test_rig_gui_v8.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.13/importlib/__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_rig_gui_v8.py:7: in <module>
+    from PyQt6.QtCore import Qt
+E   ModuleNotFoundError: No module named 'PyQt6'
+_______________ ERROR collecting tests/test_skill_values_v382.py _______________
+ImportError while importing test module '/mnt/data/dev/DW2_3D_Viewer_v4_0/tests/test_skill_values_v382.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.13/importlib/__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_skill_values_v382.py:3: in <module>
+    from PyQt6.QtCore import Qt
+E   ModuleNotFoundError: No module named 'PyQt6'
+____________ ERROR collecting tests/test_tim_export_hotfix_v361.py _____________
+ImportError while importing test module '/mnt/data/dev/DW2_3D_Viewer_v4_0/tests/test_tim_export_hotfix_v361.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.13/importlib/__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_tim_export_hotfix_v361.py:10: in <module>
+    from PyQt6.QtWidgets import QFileDialog,QDialog
+E   ModuleNotFoundError: No module named 'PyQt6'
+__________________ ERROR collecting tests/test_viewer_v30.py ___________________
+ImportError while importing test module '/mnt/data/dev/DW2_3D_Viewer_v4_0/tests/test_viewer_v30.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.13/importlib/__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_viewer_v30.py:9: in <module>
+    from PyQt6.QtCore import Qt
+E   ModuleNotFoundError: No module named 'PyQt6'
+_______________ ERROR collecting tests/test_wazadata_end_v381.py _______________
+ImportError while importing test module '/mnt/data/dev/DW2_3D_Viewer_v4_0/tests/test_wazadata_end_v381.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.13/importlib/__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_wazadata_end_v381.py:9: in <module>
+    from PyQt6.QtCore import Qt
+E   ModuleNotFoundError: No module named 'PyQt6'
+=========================== short test summary info ============================
+ERROR tests/test_battle_skills_v38.py
+ERROR tests/test_color_protection_v33.py
+ERROR tests/test_desktop_v40.py
+ERROR tests/test_digimon_names_v31.py
+ERROR tests/test_digimon_types_v39.py
+ERROR tests/test_large_png_v32.py
+ERROR tests/test_native_relocation_v37.py
+ERROR tests/test_native_restore_v35.py
+ERROR tests/test_rig_gui_v8.py
+ERROR tests/test_skill_values_v382.py
+ERROR tests/test_tim_export_hotfix_v361.py
+ERROR tests/test_viewer_v30.py
+ERROR tests/test_wazadata_end_v381.py
+!!!!!!!!!!!!!!!!!!! Interrupted: 13 errors during collection !!!!!!!!!!!!!!!!!!!
+13 errors in 0.82s

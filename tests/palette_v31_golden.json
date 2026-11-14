@@ -1,0 +1,34 @@
+{
+  "new_flat_color": {
+    "tim_sha256": "a5c1dce4474816e12f5ae5e4896bfc97c6281a1eba07b90b2d13d49eaa5dde75",
+    "preview_sha256": "cd3ea0365913ca18f4a2a1f5cfb7fae5795157978c57f672209864f3ee6d67b0",
+    "mean_rgb_error": 0.0,
+    "bad_pixel_fraction": 0.0,
+    "colors_rewritten": 5,
+    "palettes_rewritten": 1
+  },
+  "many_png_colors": {
+    "tim_sha256": "ffacec884d9b5f1427373c79a907b7dc768e00a76834ab8a79e389ca5cfe4963",
+    "preview_sha256": "97696a133131e575e269bfcced940c676b848cbfc89aedbc5181de644a39c0da",
+    "mean_rgb_error": 1.74,
+    "bad_pixel_fraction": 0.0,
+    "colors_rewritten": 16,
+    "palettes_rewritten": 1
+  },
+  "broad_recolor": {
+    "tim_sha256": "4cccb3f4223c799f997fb87dbe11c5fcbecf11aee4572fc1e3a5b077a0757fc9",
+    "preview_sha256": "22d46eed497bd0f1299b5a2053395f8b9e66a09cb1c29e3f90622a30e4bcdc46",
+    "mean_rgb_error": 5.52,
+    "bad_pixel_fraction": 0.017,
+    "colors_rewritten": 16,
+    "palettes_rewritten": 1
+  },
+  "five_eye_poses": {
+    "tim_sha256": "eea28ae152d4826598bb5cb5d51ff693456e11462e86cbc173d722487431226c",
+    "preview_sha256": "a2878529f4a538f4d4e76f941f87fa8f3065bd256a973e9abd6e2fc62e0eba7d",
+    "mean_rgb_error": 0.0,
+    "bad_pixel_fraction": 0.0,
+    "colors_rewritten": 16,
+    "palettes_rewritten": 1
+  }
+}

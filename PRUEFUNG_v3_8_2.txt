@@ -1,0 +1,39 @@
+DW2 3D Viewer v3.8.2 — Prüfstand 01.11.2026
+
+261 Tests bestanden (255 bisherige + 6 neue) in 25,44 Sekunden.
+Aufruf: python -m pytest tests -q
+Python 3.12, Linux, Qt offscreen, VTK EGL.
+ruff E9/F821/F822/F823 und Bytecode-Kompilierung bestanden.
+Fenstertitel, Windows-Versionsressource und EXE-Buildprüfung: 3.8.2.
+
+NEUE PRÜFUNGEN
+- Positive native Powerwerte werden für die normale AP-Anzeige halbiert;
+  ungerade Werte mit halben AP, inklusive Dezimalkomma.
+- Null- und negative Powerwerte erhalten eine eindeutige Effekt-/Heilwert-
+  Beschriftung statt eines erfundenen normalen Schadenswerts.
+- MP/AP stehen in Standardtechnik, Gegner-Slots, Begegnungstabelle und
+  Spender-Begegnung. Die Anzeige allein erzeugt keine Dateiänderungen.
+- Lokale MP-/Power-Änderungen aktualisieren die Auswahlbeschriftungen und
+  den Katalog sofort. Die gewählten Technik-IDs, Gegner-Zuordnungen,
+  Quellbegegnung und nicht abgeschlossene Sucheingaben bleiben erhalten.
+- Wiederherstellen zeigt die Quellwerte wieder an.
+- CSV besitzt getrennte MP-, native Power- und normale AP-Spalten.
+- Seitenleistenanzeige übernimmt geänderte Werte aus der EditSession.
+- Die Oberfläche wurde als Bild mit konstruierten Werten geprüft.
+
+Die bisherigen Tabellenende-, RAW/ISO-, Projekt-, Image-Export-, Paletten-,
+Modell-/Animations- und Dateiverlagerungstests bestehen weiter.
+Das native Speicherformat wird für die AP-Anzeige nicht geändert.
+
+QUELLEN / PRÜFGRENZEN
+MetalKid (GameFAQs Skill List und MetalKid-Digipedia), Abruf 01.11.2026;
+vorhandener Decomp-Quellstand: Skill_GetMpCost, Skill_GetPower sowie normale
+Schadensformel mit def*2. Direkter GameFAQs-Vollabruf war gesperrt, einzelne
+Angaben wurden als Suchindex-Auszüge gelesen. Einzelheiten, Links und
+Rechenweg: ATTACKENWERTE_v3_8_2.md.
+
+Alle Laufzeittests verwenden selbst erzeugte Spieldaten. Kein Emulator-
+oder Windowslauf mit dem persönlichen Nutzer-Image durchgeführt. Die Werte
+im Programm werden aus dessen geöffnetem Image gelesen, nicht von Webseiten
+überschrieben. AP ist kein garantierter Schaden; Heillogik/Sondereffekte
+können nicht allein aus einem normalen AP-Wert abgeleitet werden.

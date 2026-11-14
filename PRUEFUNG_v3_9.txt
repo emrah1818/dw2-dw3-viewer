@@ -1,0 +1,38 @@
+DW2 3D Viewer v3.9 — Prüfstand 01.11.2026
+
+274 Tests bestanden (261 bisherige + 13 neue) in 25,77 Sekunden.
+Aufruf: python -m pytest tests -q
+Python 3.12, Linux, Qt offscreen, VTK EGL.
+ruff E9/F821/F822/F823 und Bytecode-Kompilierung erfolgreich.
+Windows-Versionsressource und Buildprüfung auf 3.9.0.0 aktualisiert.
+
+NEUE PRÜFUNGEN
+- Data=0, Vaccine=1, Virus=2; alle drei Zielcodes bei sämtlichen 16 Werten
+  im oberen Nibble. Ausschließlich das Typbyte darf sich ändern; Rank,
+  Standardtechnik und alle übrigen Bytes/Dateigrößen bleiben erhalten.
+- Unzulässige Typcodes und fehlende Digimon-Einträge erzeugen keine Vormerkung.
+- Typen zweier Digimon und Standard-Attacken lassen sich in beliebiger Folge
+  ändern und getrennt wiederherstellen. Andere Vormerkungen bleiben erhalten.
+- Projekt speichern/laden und Image-Export/Wiederöffnen mit ISO und RAW-BIN,
+  jeweils direkten Dateien und privaten US-Dateiallokationen.
+- Gültige RAW-EDC/ECC, unveränderte Originalquelle und Image-Größe.
+- Tatsächlicher Qt-Button vor dem Modellladen: aktueller Typ, neue Auswahl,
+  Vormerkung, aktualisierte Seitenleiste und Originaltyp wiederherstellen.
+- Reine Typprojekte laden ohne WAZADATA/ENEMYSET-Zuordnung, auch wenn die
+  Basistabelle vorher nur über die private Ladetabelle auffindbar ist.
+- Unbekannte Ursprungscodes werden nicht geraten; Abbrechen schreibt nichts.
+- Das neue Fenster wurde mit erzeugten Testdaten visuell geprüft.
+
+FORMATGRUNDLAGE
+Digi_GetType und DigiBaseData im bereitgestellten Decomp-Quellstand:
+DIGIMNDT, 18-Byte-Eintrag, Typ im unteren Nibble bei +4. Die lokal vorhandene
+Referenzdatei enthält 194 Arten mit Codes 0/1/2. Namen/Typ-Zuordnung wurden
+mit MetalKids Digipedia/Typenliste abgeglichen (Abruf 01.11.2026).
+Details und Quellen: TYPEN_v3_9.md.
+
+GRENZEN
+Alle ausführbaren Laufzeittests verwenden konstruierte Daten. Kein Windows-
+oder Emulatorlauf mit dem persönlichen Nutzer-Image. Typabhängige Kampf-,
+Item- und DNA-Funktionen lesen dieses Typfeld, wurden aber nicht verändert.
+Keine Referenz-Binärdateien des Spiels im Paket. Die vorhandenen Funktionen
+für MP/AP, Attacken, Texturen und größere Modelle/Animationen bestehen weiter.

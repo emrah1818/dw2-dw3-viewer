@@ -1,0 +1,37 @@
+name: Windows EXE - DW2 3D Viewer
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt "pyinstaller>=6.12,<7" pytest
+      - name: Unit tests
+        run: python -m pytest -q tests
+      - name: JavaScript animation tests
+        run: node tests/test_native_anim.mjs
+      - name: Build Windows EXE
+        run: python -m PyInstaller --noconfirm --clean DW2_3D_Viewer_Studio.spec
+      - name: Verify output
+        shell: pwsh
+        run: |
+          if (-not (Test-Path 'dist/DW2_3D_Viewer_Studio/DW2_3D_Viewer_Studio.exe')) { throw 'Windows EXE fehlt' }
+          if (-not (Test-Path 'dist/DW2_3D_Viewer_Studio/_internal/tools/dw2_model_converter/dw2_model_converter.exe')) { throw 'DW2 Konverter fehlt' }
+          $info = (Get-Item 'dist/DW2_3D_Viewer_Studio/DW2_3D_Viewer_Studio.exe').VersionInfo
+          if ($info.FileVersion -ne '4.0.0.0') { throw ('Falsche EXE-Version: ' + $info.FileVersion) }
+          if ($info.ProductName -ne 'DW2 3D Viewer') { throw ('Produktname fehlt: ' + $info.ProductName) }
+          Write-Host ('EXE Windows-Metadaten OK: ' + $info.FileVersion)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DW2-3D-Viewer-Studio-Windows-EXE
+          path: dist/DW2_3D_Viewer_Studio/
+          if-no-files-found: error

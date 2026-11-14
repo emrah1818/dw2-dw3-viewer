@@ -1,0 +1,18 @@
+DW2 3D Viewer v3.7 — Prüfstand 01.11.2026
+
+218 automatisierte Tests erfolgreich (Python 3.12, Linux, Qt offscreen, VTK EGL).
+Darunter 14 neue Tests für größere native Dateien und aktualisierte Ladeverweise.
+ruff E9/F821/F822/F823 und Bytecode-Kompilierung erfolgreich.
+
+Geprüft: private US-Dateitabelle, ISO-Dateieinträge beider Byteordnungen,
+Volumegröße, neue Datenbereiche, RAW-BIN-EDC/ECC, Originaldaten unverändert,
+Mod-Projekte mit größeren Ersatzdaten, weitere Texturbearbeitung, Wiederöffnen,
+Sicherung beim Überschreiben und keine Veröffentlichung bei Schreibfehlern.
+Ein synthetischer Test entspricht den gemeldeten M-/A-Dateigrößen und 20/12
+Knochen. Er ersetzt kein Originaldaten-/Emulatortest des gemeldeten Digimon-Paars.
+
+Der Austauschdialog wurde visuell geprüft. Größere Dateien werden als
+neuer Dateibereich angezeigt und blockieren den bestätigten Austausch nicht.
+US-SLUS-Layout nötig; keine unbekannten Dateitabellen/Tracklayouts auf Verdacht.
+Windows-/Emulatorlauf mit dem Nutzer-Image nicht durchgeführt.
+Details: DATEIGROESSEN_v3_7.md, Bedienung: README.txt.

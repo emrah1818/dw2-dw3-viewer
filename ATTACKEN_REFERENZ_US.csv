@@ -1,0 +1,203 @@
+﻿ID;Hex;Name laut bereitgestellter MMC-Liste
+1;01;Poison Ivy
+2;02;Rain Of Pollen
+3;03;Boom Bubble
+4;04;Flame Bomber
+5;05;Scissor Magic
+6;06;Rock Fist
+7;07;S-Thunder Smack
+8;08;Blue Blaster
+9;09;Pummel Peck
+10;0A;Fireball
+11;0B;Fossil Bite
+12;0C;Hydro Blaster
+13;0D;Volcanic Strike
+14;0E;Blaze Blast
+15;0F;Stun Flame Shot
+16;10;Iron Drill Spin
+17;11;Solar Ray
+18;12;Flower Cannon
+19;13;Royal Smasher
+20;14;Ninja Flower
+21;15;Trick Or Treat
+22;16;Metal Fireball
+23;17;Lightning Spear
+24;18;Trihorn Attack
+25;19;Magical Tail
+26;1A;Tomahawk Crunch
+27;1B;Energy Blast
+28;1C;Howling Crusher
+29;1D;Legendary Blade
+30;1E;Freeze Breath
+31;1F;Pepper Breath
+32;20;Spiral Twister
+33;21;Super Shocker
+34;22;Waking Dream
+35;23;Marching Fishes
+36;24;Nova Blast
+37;25;V-Nova Blast
+38;26;Spinning Needle
+39;27;Meteor Wing
+40;28;Fist Of Fate
+41;29;Air Attack
+42;2A;Howling Blaster
+43;2B;Wolf Claw
+44;2C;Icicle Shot
+45;2D;Strong Carapace
+46;2E;Harpoon Torpedo
+47;2F;Pulse Blast
+48;30;Giga Blaster
+49;31;V-Wing Blade
+50;32;Lightning Blade
+51;33;Mega Bone Stick
+52;34;Tusk Crusher
+53;35;Vulcan's Hammer
+54;36;Tidal Wave
+55;37;Big Bang Boom
+56;38;Terra Force
+57;39;S-bone Crusher
+58;3A;Ocean Love
+59;3B;Electric Shock
+60;3C;Demi Dart
+61;3D;Black Pearl Shot
+62;3E;Stun Bubble
+63;3F;Electro Thread
+64;40;Party Time
+65;41;Evil Touch
+66;42;Evil Charm
+67;43;Coral Crusher
+68;44;Spurting Ink
+69;45;Sonic Crusher
+70;46;Scissor Claw
+71;47;Twig Tap
+72;48;Alien Ray
+73;49;Concert Crush
+74;4A;Dark Shot
+75;4B;Darkside Attack
+76;4C;Grisly Wing
+77;4D;Shadow Scythe(40MP)
+78;4E;Evil Wind
+80;50;Musical Fist
+81;51;Duo Scissor Claw
+82;52;Pit Pelter
+83;53;Junk Chunker
+84;54;Trump Sword
+85;55;Needle Squall
+86;56;X-Scissor Claw
+87;57;Puppet Pummel
+88;58;Toy Flame
+89;59;Super Slap
+90;5A;Hail Storm
+91;5B;Ice Blast
+92;5C;Hyper Cannon
+93;5D;Thunder Ray
+94;5E;Sad Water Blast
+95;5F;Rose Spear
+96;60;SubZero Ice Punch
+97;61;Lightning Paw
+98;62;Heaven's Arrow
+99;63;Fire Tornado
+100;64;Darkness Gear
+101;65;Bolt Strike
+102;66;Protect Grenade
+103;67;GigaByte Wing
+104;68;Giga Cannon
+105;69;E-Stun Blast
+106;6A;Spiral Saw
+107;6B;Brown Stinger
+108;6C;Hyper Heat
+109;6D;Triple Forces
+110;6E;Slamming Tusk
+111;6F;Fire Blast
+112;70;Crimson Claw
+113;71;Digital Bomb
+114;72;Fire Blast II
+115;73;Pretty Attack
+130;82;Needle Spray
+131;83;Meteor Stream
+132;84;Thunder Ball
+133;85;Tail Blade
+134;86;Smiley Bomb
+135;87;Energetic Bomb
+136;88;Smiley Warhead
+137;89;Pummel Whack
+138;8A;Ninja Knife Throw
+139;8B;Beast King Fist
+140;8C;Buffalo Breath
+160;A0;Electro Shocker
+161;A1;Wing Blade
+162;A2;Horn Buster
+163;A3;Giga Scissor Claw
+164;A4;Venom Infusion
+165;A5;Chrono Breaker
+166;A6;MP Magic
+167;A7;Life Shield
+168;A8;MP Destroyer
+180;B4;Hyper Flashing
+181;B5;HP Recovery
+182;B6;Virus Attack
+183;B7;Crimson Flame
+184;B8;Full HP Cure
+185;B9;Fungus Cruncher
+186;BA;Rotten Rainballs
+187;BB;Banana Slip
+188;BC;Small HP Cure
+189;BD;Defensive Ray
+190;BE;Parameter Patch
+191;BF;Zip Boom
+192;C0;Stun Ray
+193;C1;Armor Coating
+194;C2;Mech Ray
+195;C3;Blaze Blaster
+196;C4;Nature Hit Ray
+197;C5;Invincibility
+198;C6;Re-Format
+199;C7;Recovery Power
+200;C8;AntiDote
+201;C9;AntiFreeze
+202;CA;AntiConfusion
+203;CB;Mega Heal
+204;CC;Zen Recovery
+205;CD;Full Recovery
+206;CE;Hung On Death
+207;CF;Friendly Fire
+208;D0;Invisibility
+209;D1;Water Ray
+210;D2;Necro Magic
+211;D3;Darkness Ray
+212;D4;Re-Initialize
+213;D5;Panic Wave
+214;D6;Heart Break Hit
+215;D7;Poison Wave
+216;D8;Vee Head Butt
+217;D9;Flaming Rocket
+218;DA;Lightning Blast
+219;DB;Mega Fire
+220;DC;Chaos Cannon
+221;DD;Blind Attack
+222;DE;Kongou
+225;E1;HP Zapper
+226;E2;Critical Blow
+227;E3;Reset Status
+228;E4;Transcend Sword
+229;E5;Garuru Cannon
+231;E7;Safety Sphere
+232;E8;Karate Sweep
+233;E9;Energy Blast
+234;EA;Alias Fake
+235;EB;Inferno Missle
+237;ED;Stun Punch
+238;EE;Rail Cannon
+239;EF;Armor Aid
+240;F0;Titan Laser
+241;F1;Fantasmic Bomb
+242;F2;GAIA Gear
+243;F3;Light Gun
+244;F4;Fantasmic Ray
+245;F5;Tubular Attack
+246;F6;Left Hand
+247;F7;Reduction Ray
+248;F8;Right Hand
+249;F9;Destabilizer Ray
+251;FB;Shadow Scythe(0 MP)
+252;FC;Poison Wing

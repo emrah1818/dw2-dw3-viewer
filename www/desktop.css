@@ -1,0 +1,22 @@
+/* Desktop layout: persistent catalogue and stage, tools in a separate column. */
+:root{--blue:#218b68;--line:#315652;--btn:#193d3c}
+header#top{padding:12px 20px}#title b{font-size:19px}
+button{cursor:pointer}button:hover:not(:disabled){filter:brightness(1.16)}
+#modal{align-items:center;justify-content:center}#modal-box{max-width:1000px;width:90%;border-radius:14px;max-height:90vh}
+#toast{left:25%;right:25%}
+@media(min-width:1000px){
+ main{display:grid;grid-template-columns:260px minmax(380px,1fr) 340px;gap:10px;padding:10px;}
+ .page{position:relative;inset:auto;min-height:0;}
+ #page-list{display:block;grid-column:1;grid-row:1;padding:0;}
+ #page-view{display:block;grid-column:2;grid-row:1;overflow-y:auto;}
+ #page-tools.active,#page-edit.active,#page-changes.active,#page-more.active{grid-column:3;grid-row:1;padding:0;}
+ #start.active{grid-column:2/4;grid-row:1;z-index:3;background:var(--bg);}
+ #stage{height:calc(100vh - 300px);min-height:300px;}
+ #list .item{padding:9px 8px;cursor:pointer;}
+ #list .cd{display:none}#list .id{width:34px;}
+ nav#tabs{justify-content:center;padding:0 20%;}
+ .tab{flex-direction:row;justify-content:center;gap:8px;padding:12px;}
+ .tab span{font-size:14px;}
+ #page-view details.card{margin-top:10px;}
+}
+@media(min-width:1500px){main{grid-template-columns:290px minmax(420px,1fr) 410px;}}

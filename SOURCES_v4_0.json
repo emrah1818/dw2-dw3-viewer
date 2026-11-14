@@ -1,0 +1,10 @@
+{
+  "version": "4.0.0",
+  "date": "2026-11-11",
+  "pc_base": "DW2_3D_Viewer_v3_9_Typ_Aendern_Python.zip",
+  "pc_zip_sha256": "eaf3fe7e6f43f72fbc302af8209ceb2909ea368a1f83f18345bb30617c7bd9d1",
+  "android_repository": "https://github.com/emrah1818/dw2-viewer-android",
+  "android_tag": "v5.2.1",
+  "android_commit": "8125ccd894d552fb85ee59df51ff8a2b86745f37",
+  "android_commit_date": "2026-11-09T00:32:19+01:00"
+}

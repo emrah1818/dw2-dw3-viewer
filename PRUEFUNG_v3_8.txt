@@ -1,0 +1,58 @@
+DW2 3D Viewer v3.8 — Prüfstand 01.11.2026
+
+232 automatisierte Tests erfolgreich; 14 mehr als in v3.7.
+Python 3.12, PyQt6 6.12, VTK 9.7/EGL, Linux, Qt offscreen.
+Aufruf: python -m pytest tests -q
+ruff E9/F821/F822/F823 und Bytecode-Kompilierung erfolgreich.
+Windows-Versionsressource und EXE-Buildprüfung auf 3.8.0.0 aktualisiert.
+
+NEUE PRÜFUNGEN
+- WAZADATA mit allen vier Kategorien: IDs, Namen, Beschreibungen,
+  MP-/Power-Felder und Bitmasken unabhängig voneinander.
+- Nur erlaubte Bytes ändern sich; Texte, Ton-/FX-Verweise und unbekannte
+  Bytes bleiben erhalten. DIGIMNDT ändert genau ein Technik-Byte.
+- Zwei Frigimon-Begegnungen übernehmen eine Greymon-Kombination samt KI.
+  Andere Arten, Stats, Level und Gruppenheader bleiben erhalten.
+- Mehrere Digimon und globale Technikwerte in einer Sitzung bearbeiten.
+- Atomare Vormerkung mit Rücknahme bei simuliertem Schreibfehler.
+- Fremde Digimon-Zeilen, ungültige IDs und aktive KI-Verweise auf leere Slots
+  werden vor der ersten Vormerkung abgewiesen.
+- ISO und RAW-BIN speichern/wieder öffnen; gleiche Image-Größe bei reinen
+  Attackenänderungen; sämtliche RAW-Sektoren mit gültiger EDC/ECC.
+- .dw2mod speichern und laden, einschließlich zuvor versteckter Dateien
+  aus der geprüften privaten US-Ladetabelle.
+- Ein gemeinsamer Export mit größeren Modell-/Animationsdateien und allen
+  drei Attackentabellen; umgeleitete Modelldateien und Attacken wieder gelesen.
+- Vollständiger Katalog-CSV-Export; Entwurfsexport ändert keine Session.
+- Tatsächlicher Qt-Button, vorhandene Standardtechnik ohne Modellladen,
+  Spenderauswahl, Zusatzslot, KI-Prüfung, globale MP/AP-Änderung, Abbrechen.
+- Wiederherstellen eines Digimon bzw. einer globalen Technik erhält die
+  Änderungen anderer Arten/Techniken. Verwerfen gemeinsamer Dateien fragt nach.
+- Suchfilter wählt eine sichtbare Technik; keine Bearbeitung versteckter Zeile.
+- Standardtechnik in der Seitenleiste aus den Spieldaten; kein erneutes Lesen
+  der Tabellen bei jedem Wechsel per Pfeiltaste. Anzeige folgt Vormerkungen.
+- Das neue Fenster wurde als Bild geprüft: Zuordnung, KI und Technikkatalog.
+
+FORMATGRUNDLAGE
+Die mit den ursprünglichen Quellen lokal vorliegenden DIGIMNDT-/ENEMYSET-
+Referenzdateien wurden gelesen: 194 Basisdatensätze und 479 belegte Gegner-
+Slots; kein aktiver KI-Verweis auf einen leeren Slot im Referenzstand.
+Für WAZADATA wurden die Getter des bereitgestellten Decomp-Quellstands,
+das öffentliche DW2-TT-Tutorial und zwei Getter im vorhandenen SLUS-Maschinen-
+code abgeglichen. Die vollständige originale WAZADATA-Datei liegt hier nicht
+vor; Parser-/Writer-Rundlauf und Kataloganzeige sind dafür mit konstruierten
+Dateien des dokumentierten Layouts geprüft. Keine dieser Spiel-Binärdateien
+wird im Paket verteilt. 202 Namen aus der früher bereitgestellten MMC-Liste
+liegen als zusätzliche CSV-Referenz bei; der Dialog liest das aktuelle Image.
+
+GRENZEN DES PRÜFSTANDS
+Kein Windows-/Emulatorlauf mit dem persönlichen Nutzer-Image durchgeführt.
+Keine Änderung gespeicherter zwölf Lernplätze, kein Savegame-/Engine-Patch.
+Der Editor bearbeitet die tatsächlich vorhandene Standardtechnik, drei
+Initialtechniken je ENEMYSET-Gegner und vorhandene globale Technikdatensätze.
+Eigene Angriffs-Effekte und zusätzliche neue Technikdatensätze sind nicht
+implementiert. Rohcodes für Animation/Ziel/Element/Rang sind keine Zusage,
+dass jede denkbare Kombination zum jeweiligen Modell und Effekt passt.
+Die Quellcode- und Binärprüfungen ersetzen diesen konkreten Spieltest nicht.
+
+Bedienung: README.txt. Format/Quellen: ATTACKEN_v3_8.md.
