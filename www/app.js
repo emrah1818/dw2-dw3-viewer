@@ -600,6 +600,7 @@ async function renderName(id) {
 
 async function renderSize(id) {
   const box = $('#f-size');
+  if (!box.innerHTML.trim()) box.innerHTML = `<p class="hint">${t('Größentabelle wird berechnet … beim ersten Öffnen eines Images bis zu zwei Minuten, danach sofort.')}</p>`;
   try {
     const z = await native('size_info', id);
     if (state.id !== id) return;

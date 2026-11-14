@@ -1,5 +1,21 @@
 # Änderungsprotokoll
 
+## 1.0.0-rc4 – 14.11.2026 (Release-Kandidat)
+
+Behoben (gefunden beim Test auf einem Windows-PC mit GTX 1070 und der Original-BIN)
+- Port, GPU-Renderer: Bei mehreren 2048×4096-Importen lief der 128-MiB-Speicher für Ersatztexturen über. Er wurde
+  in jedem Kampf neu gefüllt, die Modelle zeigten zwischendurch die niedrige Textur. Jetzt wird eine kleinere Stufe
+  genommen (höchstens 16 MiB je Stufe). Auf dem PC wird der Speicher im ganzen Lauf nicht mehr neu gefüllt.
+- Port: Absturz (Speicherzugriff) beim Abfragen der Nahaufnahme-Kamera für ein leeres Kämpferfeld.
+- Studio: Umbenennen erschien erst nach Minuten. Die Bearbeiten-Seite fragte sofort die Größentabelle aller Digimon
+  ab, jede Aktion wartete dahinter. Die Größenkarte lädt jetzt beim Aufklappen, die Tabelle wird pro Image gespeichert.
+- Studio: Name unter dem 3D-Bild wird nach dem Umbenennen aktualisiert. Kopf und Startseite zeigen die richtige
+  Version statt „0.17b“.
+
+Neu
+- Port: `--press-file DATEI` für lange Testeingaben (Windows-Kommandozeilen sind begrenzt).
+- Windows-Spieltest `integration/windows/` (Battle Mode mit drei HD-Importen über die Grafikkarte).
+
 ## 1.0.0-rc3 – 14.11.2026 (Release-Kandidat)
 
 Behoben

@@ -1,0 +1,491 @@
+600:Start:4
+700:Start:4
+760:Down:4
+800:Cross:4
+920:Cross:4
+1000:Cross:4
+1080:Cross:4
+1160:Cross:4
+1320:Cross:4
+1420:Cross:4
+2 1700:Cross:4
+2 1750:Right:4
+2 1800:Cross:4
+2 2100:Cross:4
+2 2200:Cross:4
+2400:Cross:4
+2600:Cross:4
+2 2620:Cross:4
+2640:Cross:4
+2 2660:Cross:4
+2680:Cross:4
+2 2700:Cross:4
+2720:Cross:4
+2 2740:Cross:4
+2760:Cross:4
+2 2780:Cross:4
+2800:Cross:4
+2 2820:Cross:4
+2840:Cross:4
+2 2860:Cross:4
+2880:Cross:4
+2 2900:Cross:4
+2920:Cross:4
+2 2940:Cross:4
+2960:Cross:4
+2 2980:Cross:4
+3000:Cross:4
+2 3020:Cross:4
+3040:Cross:4
+2 3060:Cross:4
+3080:Cross:4
+2 3100:Cross:4
+3120:Cross:4
+2 3140:Cross:4
+3160:Cross:4
+2 3180:Cross:4
+3200:Cross:4
+2 3220:Cross:4
+3240:Cross:4
+2 3260:Cross:4
+3280:Cross:4
+2 3300:Cross:4
+3320:Cross:4
+2 3340:Cross:4
+3360:Cross:4
+2 3380:Cross:4
+3400:Cross:4
+2 3420:Cross:4
+3440:Cross:4
+2 3460:Cross:4
+3480:Cross:4
+2 3500:Cross:4
+3520:Cross:4
+2 3540:Cross:4
+3560:Cross:4
+2 3580:Cross:4
+3600:Cross:4
+2 3620:Cross:4
+3640:Cross:4
+2 3660:Cross:4
+3680:Cross:4
+2 3700:Cross:4
+3720:Cross:4
+2 3740:Cross:4
+3760:Cross:4
+2 3780:Cross:4
+3800:Cross:4
+2 3820:Cross:4
+3840:Cross:4
+2 3860:Cross:4
+3880:Cross:4
+2 3900:Cross:4
+3920:Cross:4
+2 3940:Cross:4
+3960:Cross:4
+2 3980:Cross:4
+4000:Cross:4
+2 4020:Cross:4
+4040:Cross:4
+2 4060:Cross:4
+4080:Cross:4
+2 4100:Cross:4
+4120:Cross:4
+2 4140:Cross:4
+4160:Cross:4
+2 4180:Cross:4
+4200:Cross:4
+2 4220:Cross:4
+4240:Cross:4
+2 4260:Cross:4
+4280:Cross:4
+2 4300:Cross:4
+4320:Cross:4
+2 4340:Cross:4
+4360:Cross:4
+2 4380:Cross:4
+4400:Cross:4
+2 4420:Cross:4
+4440:Cross:4
+2 4460:Cross:4
+4480:Cross:4
+2 4500:Cross:4
+4520:Cross:4
+2 4540:Cross:4
+4560:Cross:4
+2 4580:Cross:4
+4600:Cross:4
+2 4620:Cross:4
+4640:Cross:4
+2 4660:Cross:4
+4680:Cross:4
+2 4700:Cross:4
+4720:Cross:4
+2 4740:Cross:4
+4760:Cross:4
+2 4780:Cross:4
+4800:Cross:4
+2 4820:Cross:4
+4840:Cross:4
+2 4860:Cross:4
+4880:Cross:4
+2 4900:Cross:4
+4920:Cross:4
+2 4940:Cross:4
+4960:Cross:4
+2 4980:Cross:4
+5000:Cross:4
+2 5020:Cross:4
+5040:Cross:4
+2 5060:Cross:4
+5080:Cross:4
+2 5100:Cross:4
+5120:Cross:4
+2 5140:Cross:4
+5160:Cross:4
+2 5180:Cross:4
+5200:Cross:4
+2 5220:Cross:4
+5240:Cross:4
+2 5260:Cross:4
+5280:Cross:4
+2 5300:Cross:4
+5320:Cross:4
+2 5340:Cross:4
+5360:Cross:4
+2 5380:Cross:4
+5400:Cross:4
+2 5420:Cross:4
+5440:Cross:4
+2 5460:Cross:4
+5480:Cross:4
+2 5500:Cross:4
+5520:Cross:4
+2 5540:Cross:4
+5560:Cross:4
+2 5580:Cross:4
+5600:Cross:4
+2 5620:Cross:4
+5640:Cross:4
+2 5660:Cross:4
+5680:Cross:4
+2 5700:Cross:4
+5720:Cross:4
+2 5740:Cross:4
+5760:Cross:4
+2 5780:Cross:4
+5800:Cross:4
+2 5820:Cross:4
+5840:Cross:4
+2 5860:Cross:4
+5880:Cross:4
+2 5900:Cross:4
+5920:Cross:4
+2 5940:Cross:4
+5960:Cross:4
+2 5980:Cross:4
+6000:Cross:4
+2 6020:Cross:4
+6040:Cross:4
+2 6060:Cross:4
+6080:Cross:4
+2 6100:Cross:4
+6120:Cross:4
+2 6140:Cross:4
+6160:Cross:4
+2 6180:Cross:4
+6200:Cross:4
+2 6220:Cross:4
+6240:Cross:4
+2 6260:Cross:4
+6280:Cross:4
+2 6300:Cross:4
+6320:Cross:4
+2 6340:Cross:4
+6360:Cross:4
+2 6380:Cross:4
+6400:Cross:4
+2 6420:Cross:4
+6440:Cross:4
+2 6460:Cross:4
+6480:Cross:4
+2 6500:Cross:4
+6520:Cross:4
+2 6540:Cross:4
+6560:Cross:4
+2 6580:Cross:4
+6600:Cross:4
+2 6620:Cross:4
+6640:Cross:4
+2 6660:Cross:4
+6680:Cross:4
+2 6700:Cross:4
+6720:Cross:4
+2 6740:Cross:4
+6760:Cross:4
+2 6780:Cross:4
+6800:Cross:4
+2 6820:Cross:4
+6840:Cross:4
+2 6860:Cross:4
+6880:Cross:4
+2 6900:Cross:4
+6920:Cross:4
+2 6940:Cross:4
+6960:Cross:4
+2 6980:Cross:4
+7000:Cross:4
+2 7020:Cross:4
+7040:Cross:4
+2 7060:Cross:4
+7080:Cross:4
+2 7100:Cross:4
+7120:Cross:4
+2 7140:Cross:4
+7160:Cross:4
+2 7180:Cross:4
+7200:Cross:4
+2 7220:Cross:4
+7240:Cross:4
+2 7260:Cross:4
+7280:Cross:4
+2 7300:Cross:4
+7320:Cross:4
+2 7340:Cross:4
+7360:Cross:4
+2 7380:Cross:4
+7400:Cross:4
+2 7420:Cross:4
+7440:Cross:4
+2 7460:Cross:4
+7480:Cross:4
+2 7500:Cross:4
+7520:Cross:4
+2 7540:Cross:4
+7560:Cross:4
+2 7580:Cross:4
+7600:Cross:4
+2 7620:Cross:4
+7640:Cross:4
+2 7660:Cross:4
+7680:Cross:4
+2 7700:Cross:4
+7720:Cross:4
+2 7740:Cross:4
+7760:Cross:4
+2 7780:Cross:4
+7800:Cross:4
+2 7820:Cross:4
+7840:Cross:4
+2 7860:Cross:4
+7880:Cross:4
+2 7900:Cross:4
+7920:Cross:4
+2 7940:Cross:4
+7960:Cross:4
+2 7980:Cross:4
+8000:Cross:4
+2 8020:Cross:4
+8040:Cross:4
+2 8060:Cross:4
+8080:Cross:4
+2 8100:Cross:4
+8120:Cross:4
+2 8140:Cross:4
+8160:Cross:4
+2 8180:Cross:4
+8200:Cross:4
+2 8220:Cross:4
+8240:Cross:4
+2 8260:Cross:4
+8280:Cross:4
+2 8300:Cross:4
+8320:Cross:4
+2 8340:Cross:4
+8360:Cross:4
+2 8380:Cross:4
+8400:Cross:4
+2 8420:Cross:4
+8440:Cross:4
+2 8460:Cross:4
+8480:Cross:4
+2 8500:Cross:4
+8520:Cross:4
+2 8540:Cross:4
+8560:Cross:4
+2 8580:Cross:4
+8600:Cross:4
+2 8620:Cross:4
+8640:Cross:4
+2 8660:Cross:4
+8680:Cross:4
+2 8700:Cross:4
+8720:Cross:4
+2 8740:Cross:4
+8760:Cross:4
+2 8780:Cross:4
+8800:Cross:4
+2 8820:Cross:4
+8840:Cross:4
+2 8860:Cross:4
+8880:Cross:4
+2 8900:Cross:4
+8920:Cross:4
+2 8940:Cross:4
+8960:Cross:4
+2 8980:Cross:4
+9000:Cross:4
+2 9020:Cross:4
+9040:Cross:4
+2 9060:Cross:4
+9080:Cross:4
+2 9100:Cross:4
+9120:Cross:4
+2 9140:Cross:4
+9160:Cross:4
+2 9180:Cross:4
+9200:Cross:4
+2 9220:Cross:4
+9240:Cross:4
+2 9260:Cross:4
+9280:Cross:4
+2 9300:Cross:4
+9320:Cross:4
+2 9340:Cross:4
+9360:Cross:4
+2 9380:Cross:4
+9400:Cross:4
+2 9420:Cross:4
+9440:Cross:4
+2 9460:Cross:4
+9480:Cross:4
+2 9500:Cross:4
+9520:Cross:4
+2 9540:Cross:4
+9560:Cross:4
+2 9580:Cross:4
+9600:Cross:4
+2 9620:Cross:4
+9640:Cross:4
+2 9660:Cross:4
+9680:Cross:4
+2 9700:Cross:4
+9720:Cross:4
+2 9740:Cross:4
+9760:Cross:4
+2 9780:Cross:4
+9800:Cross:4
+2 9820:Cross:4
+9840:Cross:4
+2 9860:Cross:4
+9880:Cross:4
+2 9900:Cross:4
+9920:Cross:4
+2 9940:Cross:4
+9960:Cross:4
+2 9980:Cross:4
+10000:Cross:4
+2 10020:Cross:4
+10040:Cross:4
+2 10060:Cross:4
+10080:Cross:4
+2 10100:Cross:4
+10120:Cross:4
+2 10140:Cross:4
+10160:Cross:4
+2 10180:Cross:4
+10200:Cross:4
+2 10220:Cross:4
+10240:Cross:4
+2 10260:Cross:4
+10280:Cross:4
+2 10300:Cross:4
+10320:Cross:4
+2 10340:Cross:4
+10360:Cross:4
+2 10380:Cross:4
+10400:Cross:4
+2 10420:Cross:4
+10440:Cross:4
+2 10460:Cross:4
+10480:Cross:4
+2 10500:Cross:4
+10520:Cross:4
+2 10540:Cross:4
+10560:Cross:4
+2 10580:Cross:4
+10600:Cross:4
+2 10620:Cross:4
+10640:Cross:4
+2 10660:Cross:4
+10680:Cross:4
+2 10700:Cross:4
+10720:Cross:4
+2 10740:Cross:4
+10760:Cross:4
+2 10780:Cross:4
+10800:Cross:4
+2 10820:Cross:4
+10840:Cross:4
+2 10860:Cross:4
+10880:Cross:4
+2 10900:Cross:4
+10920:Cross:4
+2 10940:Cross:4
+10960:Cross:4
+2 10980:Cross:4
+11000:Cross:4
+2 11020:Cross:4
+11040:Cross:4
+2 11060:Cross:4
+11080:Cross:4
+2 11100:Cross:4
+11120:Cross:4
+2 11140:Cross:4
+11160:Cross:4
+2 11180:Cross:4
+11200:Cross:4
+2 11220:Cross:4
+11240:Cross:4
+2 11260:Cross:4
+11280:Cross:4
+2 11300:Cross:4
+11320:Cross:4
+2 11340:Cross:4
+11360:Cross:4
+2 11380:Cross:4
+11400:Cross:4
+2 11420:Cross:4
+11440:Cross:4
+2 11460:Cross:4
+11480:Cross:4
+2 11500:Cross:4
+11520:Cross:4
+2 11540:Cross:4
+11560:Cross:4
+2 11580:Cross:4
+11600:Cross:4
+2 11620:Cross:4
+11640:Cross:4
+2 11660:Cross:4
+11680:Cross:4
+2 11700:Cross:4
+11720:Cross:4
+2 11740:Cross:4
+11760:Cross:4
+2 11780:Cross:4
+11800:Cross:4
+2 11820:Cross:4
+11840:Cross:4
+2 11860:Cross:4
+11880:Cross:4
+2 11900:Cross:4
+11920:Cross:4
+2 11940:Cross:4
+11960:Cross:4
+2 11980:Cross:4
+12000:Cross:4
+2 12020:Cross:4
+12040:Cross:4
+2 12060:Cross:4
+12080:Cross:4

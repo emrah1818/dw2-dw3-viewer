@@ -3,14 +3,21 @@
 Diese Version ist ein **Release-Kandidat**, kein 1.0.0 FINAL.
 
 ## Warum noch nicht FINAL
-1. **Nicht auf einem echten Windows-PC im Spiel geprüft.** Studio und Port werden unter Windows gebaut und
-   automatisch geprüft (Startprüfung, Port-Tests). Die Spieltests liefen unter Linux mit dem Software-Renderer.
-   Grafikkarten-Renderer und HD bis 2048×4096 im laufenden Spiel sind ungeprüft.
-2. **PS1-Modus nicht mit deiner Original-BIN geprüft.** Getestet wurde ein aus der `dw2.pak` neu gebautes Abbild im
-   Emulator (Mednafen mit freiem BIOS), nicht auf echter Hardware. Andere Abbilder können abweichen. Das Studio lehnt
-   nicht unterstützte Aufbauten ab (mehrere Spuren in der CUE, Mode 2 Form 2 im Dateisystem, unbekannte Sektorgröße).
-3. Im PS1-Test wurde der Weg ins Digi-Labor und zur Stadtkarte über einen geänderten Emulator-Zustand abgekürzt
-   (nur der nächste Spielmodus, wie `warp=` im Port). Labor, DNA und Speichern liefen über die Menüs des Spiels.
+1. **Nicht auf echter PS1-Hardware geprüft.** Das PS1-Image (aus deiner Original-BIN) lief in Mednafen mit freiem
+   BIOS. Andere Emulatoren, darunter DuckStation auf deinem PC, sind ungetestet.
+2. **Nicht alle Inhalte im laufenden Spiel geprüft.** Gegner auf 4 von 35 Domains im PC-Port. DW3-Modelle im Spiel:
+   Guilmon, Growlmon, MegaloGrowmon, Renamon. Die übrigen Domains und Modelle sind nur strukturell oder automatisch
+   geprüft.
+3. **Abkürzungen in den Spieltests:** Sprünge in Domains, Etagen, Digi-Labor und Stadtkarte über die
+   Entwickler-Bearbeitung bzw. einen geänderten Emulator-Zustand. Die geprüften Abläufe selbst liefen über die Menüs
+   des Spiels.
+4. **Windows:** geprüft auf einem PC (GTX 1070, Vulkan, Fenstermodus). Andere Grafikkarten und der exklusive
+   Vollbildmodus sind ungetestet.
+
+## GPU-Renderer und HD-Texturen
+Ersatztexturen werden auf der Grafikkarte mit höchstens 1024×2048 Pixeln je 128×256-Seite gezeichnet (8×). Eine
+2048×4096-Textur (16×) bleibt im Paket und erscheint im Software-Renderer bei hoher Skalierung voll. Auf der
+Grafikkarte nimmt der Port die halbe Stufe, damit mehrere große Modelle zugleich in den Speicher passen.
 
 ## DW3-Effekte, -Töne, -Kamerafahrten (Teil C)
 Nicht übertragen. DW3 speichert sie in eigenen Formaten, abgespielt von DW3-eigenem Code. Der DW2-Port bräuchte dafür
