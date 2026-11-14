@@ -71,7 +71,7 @@ def test_doubleclick_and_keyboard_navigation(window,qapp,monkeypatch):
     monkeypatch.setattr(window,'request_for',lambda c:SimpleNamespace(key=str(c.id),converter='fake',folder=Path('/nonexistent')))
     monkeypatch.setattr(window.loader,'submit',lambda request,*args,**kwargs:seen.append(request.key))
     window.session=SimpleNamespace(_check_source=lambda:None);window.image='dummy';window.index_key='test';window.revisions={}
-    monkeypatch.setattr('main.active_replacement',lambda *args:None);monkeypatch.setattr('main.cache_key',lambda *args:'test')
+    monkeypatch.setattr('studio.active_replacement',lambda *args:None);monkeypatch.setattr('studio.cache_key',lambda *args:'test')
     window.show();qapp.processEvents();assert not seen
     item=window.digimon.visualItemRect(window.digimon.item(0)).center()
     QTest.mouseClick(window.digimon.viewport(),Qt.MouseButton.LeftButton,pos=item)
