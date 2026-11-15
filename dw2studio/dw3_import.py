@@ -58,7 +58,9 @@ def prepare(api, source_id, target_id):
     if not animations:
         raise ValueError('Kein verifiziertes A–K-Ziel für diesen Slot.')
     first = next(iter(animations.values()))[0]
-    slot_scale = fit_scale(source, session.current(model), session.current(first))
+    # heights always from the ORIGINAL DW2 files: an import already in the slot (resize, second
+    # import) must not become the reference, or the size factor would multiply up
+    slot_scale = fit_scale(source, session.original(model), session.original(first))
     # Size (1.0): the Digimon keeps its own size class instead of the replaced Digimon's height.
     # Same species in DW2 (same model code, e.g. AGUM): exactly that height; otherwise the DW2 size
     # curve (dw3_native.natural_scale). A Rookie stays small, a Mega stays large.
@@ -72,7 +74,7 @@ def prepare(api, source_id, target_id):
             tfam, _, tmeta = api._model_family(twin)
             tmodel = next(e for e in tfam if Path(e.path).name.startswith('M'))
             tanim = next(e for e in tfam if Path(e.path).name[0] == 'A')
-            dw2_height = model_height(session.current(tmodel), session.current(tanim))
+            dw2_height = model_height(session.original(tmodel), session.original(tanim))
             size_source = f'Höhe von {twin.name} (#{twin.id:03}) in DW2'
         except (StopIteration, ValueError, KeyError, IndexError):
             dw2_height = None
