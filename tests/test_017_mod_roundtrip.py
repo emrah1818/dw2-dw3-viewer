@@ -125,3 +125,23 @@ def test_read_mod_without_files_folder(tmp_path, port):
     session, _, _ = open_session(tmp_path)
     with pytest.raises(ValueError, match='Mods'):
         read_mod(port, session.pak)
+
+
+def test_mod_from_windows_with_backslash_texture_paths_reads_back(tmp_path, port):
+    """A mod exported on Windows lists HD textures as Textures\\Pack\\x.png; it must read everywhere."""
+    session, entries, pak = open_session(tmp_path)
+    edit_everything(session, entries)
+    export_checked(session, session.pak, port)
+    mods = port / 'Mods'
+    pack = mods / 'Textures' / 'DW2Studio_015'
+    pack.mkdir(parents=True, exist_ok=True)
+    (pack / 'a_32x256_m0.png').write_bytes(b'\x89PNG\r\n\x1a\nfake')
+    manifest = json.loads((mods / 'dw2studio_mod.json').read_text(encoding='utf-8'))
+    manifest['textures'] = ['Textures\\DW2Studio_015\\a_32x256_m0.png']
+    (mods / 'dw2studio_mod.json').write_text(json.dumps(manifest), encoding='utf-8')
+    found = read_mod(port, session.pak)
+    assert not [p for p in found['problems'] if 'HD-Textur' in p]
+    assert list(found['textures']) == ['Textures/DW2Studio_015/a_32x256_m0.png']
+    manifest['textures'] = ['..\\..\\evil.png']
+    (mods / 'dw2studio_mod.json').write_text(json.dumps(manifest), encoding='utf-8')
+    assert any('außerhalb' in p for p in read_mod(port, session.pak)['problems'])

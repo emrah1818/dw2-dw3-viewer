@@ -29,3 +29,21 @@ Basis: Studio `6e2aff4` (0.98.3) und Port `84d4379` (Pin). Nichts davon ist ein 
   ungültiges Zeichenkommando schickt, ist nicht geprüft.
 - Kein Keil in diesem Lauf. Der Guilmon aus dem Video ist mit diesem Spielstand und Mod nicht mehr in der Gruppe;
   der Fehler im Video stammt also aus einem früheren Mod-Stand.
+
+## Guilmon als KADIR (Platz #59, statt Phoenixmon), Spielstand und Einstellungen des Nutzers
+- DW3-Guilmon (`M366GIRU`) mit dem 0.98.3-Studio auf #59 gesetzt, zusammen mit dem Mod des Nutzers (#4, #133)
+  exportiert: 34 Dateien, 3 HD-Texturen.
+- Beim Einlesen des unter Windows exportierten Mods schlug der Import unter Linux fehl, weil die Texturpfade
+  Backslashes enthalten. Behoben in `mod_io.read_mod`; Test in `tests/test_017_mod_roundtrip.py`.
+- **Software-Renderer:** zwei Domain-Kämpfe mit KADIR = Guilmon, beide gewonnen.
+  - Hauptmenü über 40 Bilder: Guilmon steht im Standby, von hinten wie im Video, ohne Keil.
+  - Nahaufnahme bei „ZIEL“ in Ordnung.
+  - Bilder: `docs/fortsetzung_0983/guilmon_kadir_*.jpg`.
+- **GPU-Renderer mit Smooth Frames (Linux, lavapipe):** Hauptmenü und Nahaufnahme mit allen Zwischenbildern
+  automatisch abgesucht.
+  - Im ruhigen Menü keine zusätzlichen rosa Pixel.
+  - Beim Kameraschwenk liegen die Zwischenbilder sauber zwischen den beiden echten Bildern.
+  - Danach stürzte wie zuvor der Software-Vulkan-Treiber beim ersten Angriff ab (auch ohne Guilmon).
+- **Nicht geprüft:** Guilmons eigene Attacke im Bild. Der Testablauf drückt nur Kreuz, und in beiden Kämpfen hat
+  RASHO angegriffen.
+- **Ergebnis:** Der Keil aus dem Video tritt mit einem 0.98.3-Guilmon nicht auf.

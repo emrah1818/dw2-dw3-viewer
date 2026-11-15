@@ -140,11 +140,13 @@ def read_mod(port_dir, pak):
             files[fid] = data
     textures = {}
     for rel in manifest.get('textures', []) or []:
-        p = (mods / rel)
-        if '..' in Path(rel).parts or not p.is_file():
+        # a mod exported on Windows lists its textures with backslashes: same file on every system
+        norm = str(rel).replace('\\', '/')
+        p = (mods / norm)
+        if '..' in Path(norm).parts or Path(norm).is_absolute() or not p.is_file():
             problems.append(f'HD-Textur {rel} fehlt oder liegt außerhalb von Mods.')
             continue
-        textures[str(Path(rel).as_posix())] = p.read_bytes()
+        textures[norm] = p.read_bytes()
     return {'files': files, 'textures': textures, 'problems': problems, 'manifest': manifest}
 
 
