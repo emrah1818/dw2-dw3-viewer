@@ -1,5 +1,20 @@
 # Änderungsprotokoll
 
+## 0.98.1 – 15.11.2026 (Korrektur, Vorabversion)
+
+- Manuelle Motion-Auswahl im DW3-Importdialog überschreibt nun die alte automatische
+  Aktionskette. Das gilt auch für die Auswahl derselben Motion wie am Kettenanfang.
+- F/G/H lassen sich unabhängig ändern, erneut ändern und mit dem Projekt weiterverwenden.
+- Bei neuer Auswahl werden der DW3-Loop-Beginn bzw. die anschließende Standby-Schleife
+  übernommen. Schleife aus hält am Ende; Schleife an bei einer Halte-Motion wiederholt
+  die gewählte Motion. Eigene Loop-Bereiche bleiben beim Aus-/Einschalten erhalten.
+- Automatische Aktionsketten sind im Dialog ausdrücklich als Vorgabe gekennzeichnet;
+  die Motion-Liste zeigt Schleife, Halten oder Standby-Übergang.
+- Backend normalisiert veraltete Kombinationen aus Motion-Feld und alter Aktion.
+  Unveränderte Vorgaben und der 0.95-Exportweg bleiben erhalten.
+- Regressionstests für den echten Importdialog (synthetische Brücke) sowie tatsächliche
+  F/G/H-Dateien und erneutes Anwenden. Prüfstand: TESTERGEBNISSE_0.98.1.md.
+
 ## 0.98 – 15.11.2026 (Vorabversion)
 
 - Animationseditor aus `development/animation`: mehrteilige DW3-Aktionen, Abschnitte,

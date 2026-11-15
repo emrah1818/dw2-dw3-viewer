@@ -27,6 +27,7 @@ An ACTION (one DW2 clip) is a dict:
 Frames are the 30-per-second samples of native_source.json (frame i = DW3 keyframe 1 + 2 i).
 """
 import math
+from copy import deepcopy
 import numpy as np
 
 STATUS = {'data': 'Durch Daten bestätigt', 'auto': 'Automatisch erkannt', 'manual': 'Manuell zugeordnet',
@@ -285,6 +286,51 @@ def legacy(table, motion, loop):
     n = table[motion]['frames']
     return {'segments': [{'motion': motion, 'start': 0, 'end': n - 1, 'repeat': 1}], 'end': 'loop' if loop else 'hold',
             'loop_segment': 0, 'loop_frame': 0, 'status': 'manual', 'reason': 'aus 0.95'}
+
+
+def resolve_assignment(row, table):
+    """Resolve simple motion/loop controls before a saved action can mask them.
+
+    The explicit selector also covers choosing the *same* motion as the first
+    part of an automatic multi-part action. Old clients have no selector; their
+    changed motion/loop fields still take precedence over stale action data.
+    Legacy rows without actions keep the byte-identical 0.95 encoding path.
+    """
+    row = deepcopy(row)
+    action = row.get('action')
+    explicit = row.pop('selection', None) == 'motion'
+    changed_motion = (isinstance(action, dict) and action.get('segments') and
+                      'motion' in row and row['motion'] != action['segments'][0].get('motion'))
+    if explicit or changed_motion:
+        mid = row.get('motion')
+        if type(mid) is not int or mid not in table:
+            raise ValueError('Unbekannte DW3-Motion.')
+        loop = row.get('loop')
+        if type(loop) is not bool:
+            raise ValueError('Schleife muss ein-/ausgeschaltet sein.')
+        reason = f'Manuell gewählt: DW3-Motion {mid}'
+        chosen = single(table, mid, 'manual', reason)
+        if not loop:
+            chosen = single(table, mid, 'manual', reason, end='hold')
+        elif chosen['end'] != 'loop':
+            chosen = single(table, mid, 'manual', reason, end='loop')
+        if isinstance(action, dict) and action.get('enter') is not None:
+            chosen['enter'] = action['enter']
+        action = chosen
+    elif isinstance(action, dict) and 'loop' in row:
+        if type(row['loop']) is not bool:
+            raise ValueError('Schleife muss ein-/ausgeschaltet sein.')
+        if row['loop'] != (action.get('end') == 'loop'):
+            action['end'] = 'loop' if row['loop'] else 'hold'
+            # Keep a previously configured loop range when toggling it back on.
+            action.setdefault('loop_segment', 0)
+            action.setdefault('loop_frame', action['segments'][action['loop_segment']]['start'])
+            action['status'] = 'manual'
+            action['reason'] = 'Schleife manuell geändert'
+    if isinstance(action, dict):
+        validate(action, table)
+        row.update(action=action, motion=action['segments'][0]['motion'], loop=action['end'] == 'loop')
+    return row
 
 
 def validate(action, table):

@@ -141,6 +141,7 @@ def apply(api, source_id, target_id, assignments, scale_factor=1., hd_scale=0, c
     motion_index={m['id']:i for i,m in enumerate(source['motions'])}
     from . import dw3_actions
     table=dw3_actions.motion_table(source)
+    assignments=[dw3_actions.resolve_assignment(row,table) for row in assignments]
     for row in assignments:
         key=(row.get('slot'),row.get('clip'))
         if key not in expected or key in seen:
