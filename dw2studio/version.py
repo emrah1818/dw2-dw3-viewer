@@ -1,2 +1,2 @@
 """One version string for window title, mod manifest, about box and the Windows package."""
-VERSION = '0.95'
+VERSION = '0.98'

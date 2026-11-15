@@ -333,7 +333,9 @@ def frames_of(action, table=None):
         info = (table or {}).get(s['motion']) or {}
         lead, keys = info.get('lead', 0), info.get('lead_keys', 0)
         if bl and rows:
-            prev = rows[-1][:2]
+            # The preceding row may itself be blended. Use its displayed matrix,
+            # not the unblended source pose recorded in its first two fields.
+            prev = ('row', len(rows) - 1)
             for k in range(bl):
                 rows.append((s['motion'], s['start'], prev, (k + 1) / (bl + 1)))
         for rep in range(s.get('repeat', 1)):

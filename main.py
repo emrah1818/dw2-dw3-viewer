@@ -17,6 +17,14 @@ def main():
     window = Desktop()
     window.show()
     if '--smoke-test' in sys.argv:
+        # Exercise the optional native extensions in the frozen distribution too:
+        # WebGL startup alone would miss a missing SciPy/Slerp dependency.
+        import numpy as np
+        from dw2studio.core.dw3_native import _blend_matrix
+        a, b = np.eye(4), np.eye(4)
+        b[0, 3] = 10
+        if not np.allclose(_blend_matrix(a, b, .5)[:3, 3], [5, 0, 0]):
+            raise RuntimeError('Animation matrix blend smoke test failed')
         from PyQt6.QtCore import QTimer
         from pathlib import Path
         import json
@@ -28,7 +36,7 @@ def main():
                 return
             finished = True
             ok = bool(value)
-            Path(report).write_text(json.dumps({'ok': ok, 'version': VERSION, 'check': 'frozen Qt / WebEngine / WebGL / Python bridge / nine areas'}), encoding='utf-8')
+            Path(report).write_text(json.dumps({'ok': ok, 'version': VERSION, 'check': 'frozen Qt / WebEngine / WebGL / Python bridge / nine areas / SciPy matrix blend'}), encoding='utf-8')
             window.close()
             app.exit(0 if ok else 1)
         def check(ok):

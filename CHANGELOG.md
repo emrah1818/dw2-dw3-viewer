@@ -1,5 +1,19 @@
 # Änderungsprotokoll
 
+## 0.98 – 15.11.2026 (Vorabversion)
+
+- Animationseditor aus `development/animation`: mehrteilige DW3-Aktionen, Abschnitte,
+  Bildbereiche, Wiederholungen, Übergänge, Loop-Beginn und Kampfsimulation.
+- DW3-Namen aus DIGNAM, alternative Suchnamen, Varianten, Vorschaubilder und Name im Editor.
+- Namens-/ID-Suche in Oberfläche und Python abgeglichen. Reine Zahlen suchen exakt nach
+  Katalog-ID, interner Dateinummer oder Kämpfer-ID, ohne Teiltreffer in Dateinamen.
+- Übergänge nach abgeschnittenen Anfangsüberblendungen verwenden die tatsächlich gezeigte
+  Pose statt der unverblendeten Quellpose. Export inklusive Loop-Rücksprung binär getestet.
+- SciPy für die Matrixüberblendung als direkte Abhängigkeit ergänzt.
+- Version in Anwendung, Windows-Dateiressource und lokalem Build-Skript auf 0.98 abgeglichen.
+- Windows-Pakete werden erst nach Tests, Build und Startprüfung veröffentlicht;
+  vorhandene Releases werden nicht überschrieben. Prüfgrenzen: TESTERGEBNISSE_0.98.md.
+
 ## 0.95 – 15.11.2026
 
 DW3-Import

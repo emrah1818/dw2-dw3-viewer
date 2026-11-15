@@ -1,6 +1,7 @@
 import { Viewer } from './viewer.js';
 import { EN } from './i18n.js';
 import { initAnimEditor } from './animeditor.js';
+import { dw3Matches, dw3Rank } from './dw3_search.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -1348,21 +1349,6 @@ async function renderDw3Page() {
     $('#dw3-sub').textContent = dw3Cache.open ? `· ${dw3Cache.name}, ${dw3Cache.models.length} Modelle · Ziel: ${state.id != null ? `#${pad3(state.id)} ${digiName(state.id)}` : 'im Reiter Digimon wählen'}` : '· noch kein DW3-Abbild geöffnet';
     drawDw3();
   } catch (e) { await fail(e); }
-}
-/** Suche wie dw3_names.matches: Name, Teilname, alternative Schreibweise, Dateikürzel, Datei, IDs. */
-const normName = x => String(x ?? '').normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
-function dw3Matches(m, query) {
-  const q = String(query || '').trim();
-  if (!q) return true;
-  const nq = normName(q);
-  if (nq && [m.digimon, m.code, m.file, m.name, ...(m.aliases || [])].some(h => normName(h).includes(nq))) return true;
-  const num = q.replace(/^#/, '');
-  if (/^\d+$/.test(num)) return (m.fighter_ids || []).includes(Number(num));   // Modell-ID
-  return false;
-}
-function dw3Rank(m, q) {
-  const nq = normName(q), names = [m.digimon, ...(m.aliases || [])].map(normName);
-  return !nq ? 0 : names.includes(nq) ? 0 : names.some(n => n.startsWith(nq)) ? 1 : 2;
 }
 const dw3Label = m => `${m.digimon || m.name} · ${m.code || m.name} · ID ${(m.fighter_ids || [])[0] ?? '–'}`;
 async function viewDw3(m) {

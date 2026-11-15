@@ -59,7 +59,7 @@ def test_frames_of_loop_row_and_repeat():
            'end': 'loop', 'loop_segment': 1, 'loop_frame': 9}
     rows, loop = A.frames_of(act)
     assert len(rows) == 4 + 2 + 6
-    assert rows[4][2] == (15, 3) and 0 < rows[4][3] < 1      # Übergangsbilder blenden aus dem letzten Bild
+    assert rows[4][2] == ('row', 3) and 0 < rows[4][3] < 1  # aus der tatsächlich gezeigten Pose
     assert loop == 4 + 2 + 1 and rows[loop][:2] == (16, 9)
     hold = dict(act, end='hold')
     assert A.frames_of(hold)[1] is None

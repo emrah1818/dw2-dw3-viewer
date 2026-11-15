@@ -160,13 +160,13 @@ def matches(row, query):
     q = str(query or '').strip()
     if not q:
         return True
+    num = q.removeprefix('#')
+    if num.isascii() and num.isdigit():
+        return int(num) in [row['id'], row.get('file_number'), *row.get('fighter_ids', [])]
     nq = _norm(q)
     hay = [row['name'], row.get('raw_name', ''), row['code'], row['file'], *row['aliases']]
     if any(nq and nq in _norm(h) for h in hay):
         return True
-    num = q.lstrip('#')
-    if num.isdigit():           # a number is the model id (DW3 fighter id = the number in the file name)
-        return int(num) == row['id'] or int(num) == row.get('file_number') or int(num) in row['fighter_ids']
     return False
 
 

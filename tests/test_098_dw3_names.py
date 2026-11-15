@@ -43,9 +43,9 @@ def test_read_dignam_index_is_fighter_kind():
 def test_search_name_part_alias_code_and_ids():
     row = {'name': 'Imperialdramon-F', 'code': 'IPDF', 'file': 'M359IPDF.BIN', 'aliases': N.ALIASES['Imperialdramon-F'],
            'id': 143, 'file_number': 834, 'name_index': 44, 'fighter_ids': [359]}
-    for q in ('imperialdramon', 'IMPERIALDRAMON-F', 'Fighter Mode', 'imperialdramon fm', 'ipdf', 'm359', '359', '#359', 'dramon f'):
+    for q in ('imperialdramon', 'IMPERIALDRAMON-F', 'Fighter Mode', 'imperialdramon fm', 'ipdf', 'm359', '359', '#359', '143', '834', 'dramon f'):
         assert N.matches(row, q), q
-    for q in ('paladin', 'WarGreymon', '360', '834', '44'):
+    for q in ('paladin', 'WarGreymon', '360', '44', '35', '#35'):
         assert not N.matches(row, q), q
     assert N.matches(row, '')
 

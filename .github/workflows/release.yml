@@ -1,13 +1,13 @@
-name: Test, build and (on request) publish DW2 Mod Studio 0.95
-# Pushes to development branches only test and build. A release is made only when the workflow is
-# started by hand with publish=true (Actions -> Run workflow); main is never required or changed.
+name: Test, build and (on request) publish DW2 Mod Studio 0.98
+# The dedicated release branch publishes v0.98 after every required check succeeds.
+# Other development branches only test/build; manual publishing remains available.
 on:
   push:
     branches: ['development/**']
   workflow_dispatch:
     inputs:
       publish:
-        description: 'Als Version v0.95 veröffentlichen'
+        description: 'Als Version v0.98 veröffentlichen'
         type: boolean
         default: false
 permissions:
@@ -30,11 +30,11 @@ jobs:
       - run: python tools/build_dw3_converter.py
       - run: python -m pytest -q -rs --junitxml=test-results.xml | tee test-summary.txt
         shell: bash
-      - run: node --check www/app.js && node tests/test_native_anim.mjs
+      - run: node --check www/app.js && node --check www/animeditor.js && node tests/test_native_anim.mjs && node tests/test_dw3_search.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: test-results-095
+          name: test-results-098
           path: |
             test-results.xml
             test-summary.txt
@@ -53,19 +53,24 @@ jobs:
           CXX: cl
       - run: python -m PyInstaller --noconfirm --clean DW2_3D_Viewer_Studio.spec
       - run: python tools/smoke_windows.py dist/DW2_3D_Viewer_Studio/DW2_3D_Viewer_Studio.exe
+      - name: Verify Windows version resource
+        shell: pwsh
+        run: |
+          $v = (Get-Item 'dist/DW2_3D_Viewer_Studio/DW2_3D_Viewer_Studio.exe').VersionInfo
+          if ($v.FileVersion -ne '0.98.0.0' -or $v.ProductVersion -ne '0.98') { throw 'Wrong Windows version resource' }
       - name: Package viewer
         shell: pwsh
         run: |
-          $pkg = 'dist/DW2_Mod_Studio_0.95'
+          $pkg = 'dist/DW2_Mod_Studio_0.98'
           Move-Item dist/DW2_3D_Viewer_Studio $pkg
-          Copy-Item README.md, CHANGELOG.md, ANLEITUNG.md, RELEASE_NOTES_0.95.md, TESTERGEBNISSE_0.95.md, EINSCHRAENKUNGEN_0.95.md, GRENZEN_ANALYSE_0.95.md, DIGITATIONSLEVEL_SCHNITTSTELLE.md, DW3_EFFEKTE_ANALYSE.md $pkg/
+          Copy-Item README.md, CHANGELOG.md, ANLEITUNG.md, RELEASE_NOTES_0.98.md, TESTERGEBNISSE_0.98.md, ANIMATIONSSYSTEM_0.96.md, EINSCHRAENKUNGEN_0.95.md, GRENZEN_ANALYSE_0.95.md, DIGITATIONSLEVEL_SCHNITTSTELLE.md, DW3_EFFEKTE_ANALYSE.md $pkg/
           Remove-Item "$pkg/_internal/tools/dw3_converter/*.obj" -ErrorAction SilentlyContinue
-          Compress-Archive -Path $pkg -DestinationPath DW2_Mod_Studio_0.95_Windows_x64.zip
+          Compress-Archive -Path $pkg -DestinationPath DW2_Mod_Studio_0.98_Windows_x64.zip
       - uses: actions/upload-artifact@v4
         with:
-          name: viewer-095
+          name: viewer-098
           path: |
-            DW2_Mod_Studio_0.95_Windows_x64.zip
+            DW2_Mod_Studio_0.98_Windows_x64.zip
             windows-smoke.json
   port:
     needs: tests
@@ -119,7 +124,7 @@ jobs:
       - name: Package PC port
         shell: pwsh
         run: |
-          $pkg = 'DW2_PC_Port_API2_0.95'
+          $pkg = 'DW2_PC_Port_API2_0.98'
           New-Item -ItemType Directory -Force $pkg | Out-Null
           Copy-Item pc-port/build/native64_rel_nodisc/dw2.exe, pc-port/build/native64_rel_nodisc/SDL3.dll, dw2_mod_api.json $pkg/
           Copy-Item pc-port/LICENSE "$pkg/LICENSE.txt"
@@ -127,47 +132,46 @@ jobs:
           Copy-Item pc-port/doc/MOD_API2.md "$pkg/MOD_API2.md"
           Copy-Item -Recurse pc-port/Languages $pkg/
           Copy-Item -Recurse pc-port/misc/fonts "$pkg/FontLicenses"
-          Compress-Archive -Path $pkg -DestinationPath DW2_PC_Port_API2_0.95_Windows_x64.zip
+          Compress-Archive -Path $pkg -DestinationPath DW2_PC_Port_API2_0.98_Windows_x64.zip
       - uses: actions/upload-artifact@v4
         with:
-          name: pc-port-095
-          path: DW2_PC_Port_API2_0.95_Windows_x64.zip
+          name: pc-port-098
+          path: DW2_PC_Port_API2_0.98_Windows_x64.zip
       - uses: actions/upload-artifact@v4
         with:
-          name: port-tests-095
+          name: port-tests-098
           path: |
             pc-port/build/native64_rel_nodisc/hd_test.exe
             pc-port/build/native64_rel_nodisc/modconf_test.exe
             pc-port/build/native64_rel_nodisc/SDL3.dll
   publish:
     needs: [viewer, port]
-    if: github.event_name == 'workflow_dispatch' && inputs.publish
+    if: (github.event_name == 'workflow_dispatch' && inputs.publish) || (github.event_name == 'push' && github.ref == 'refs/heads/development/release-0.98')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
-          name: viewer-095
+          name: viewer-098
           path: release-assets
       - uses: actions/download-artifact@v4
         with:
-          name: pc-port-095
+          name: pc-port-098
           path: release-assets
       - uses: actions/download-artifact@v4
         with:
-          name: test-results-095
+          name: test-results-098
           path: release-assets
-      - name: Publish verified beta
+      - name: Publish 0.98 preview after build checks
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           cd release-assets
           sha256sum *.zip windows-smoke.json test-results.xml test-summary.txt > SHA256SUMS.txt
           files="*.zip windows-smoke.json test-results.xml test-summary.txt SHA256SUMS.txt"
-          if gh release view v0.95 --repo '${{ github.repository }}' >/dev/null 2>&1; then
-            gh api repos/${{ github.repository }}/git/refs/tags/v0.95 --method PATCH -f sha=${{ github.sha }} -F force=true
-            gh release edit v0.95 --repo '${{ github.repository }}' --title 'DW2 Mod Studio 0.95' --notes-file ../RELEASE_NOTES_0.95.md
-            gh release upload v0.95 $files --repo '${{ github.repository }}' --clobber
-          else
-            gh release create v0.95 $files --target '${{ github.sha }}' --repo '${{ github.repository }}' --title 'DW2 Mod Studio 0.95' --notes-file ../RELEASE_NOTES_0.95.md
+          # Never retag or replace an existing published build.
+          if gh release view v0.98 --repo '${{ github.repository }}' >/dev/null 2>&1; then
+            echo 'v0.98 already exists; refusing to overwrite it.' >&2
+            exit 1
           fi
+          gh release create v0.98 $files --target '${{ github.sha }}' --repo '${{ github.repository }}' --title 'DW2 Mod Studio 0.98' --prerelease --notes-file ../RELEASE_NOTES_0.98.md
