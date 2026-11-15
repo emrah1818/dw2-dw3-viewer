@@ -54,7 +54,7 @@ with sync_playwright() as p:
     end0 = pg.locator('.ae-segs tr[data-s="0"] input[data-f="end"]').input_value()
     check('„Ende = dieses Bild“ setzt das Ende', end0 == '4', end0)
     pg.click('#ae-first'); pg.click('#ae-next'); pg.click('#ae-next'); pg.click('#ae-set-loop'); pg.wait_for_timeout(300)
-    check('Status wird „Manuell zugeordnet“', 'Manuell' in pg.locator('.ae-places tr.sel').inner_text(), pg.locator('.ae-places tr.sel').inner_text())
+    check('Status wird „Manuell zugeordnet“', any(w in pg.locator('.ae-places tr.sel').inner_text() for w in ('Manuell', 'manually')), pg.locator('.ae-places tr.sel').inner_text())
     pg.click('#ae-apply')
     pg.wait_for_function('() => !document.querySelector(".ae-places tr.sel")?.innerText.includes("✎") && window.__dw2.view.native', timeout=180000)
     pg.wait_for_timeout(1500)
@@ -80,7 +80,7 @@ with sync_playwright() as p:
     pg.screenshot(path=str(out / 'sim.png'))
     # Standard zurück
     pg.locator('.ae-places tr', has_text='F0').first.click(); pg.wait_for_timeout(400); pg.click('#ae-default')
-    check('DW3-Vorgabe wiederhergestellt', 'Durch Daten' in pg.locator('.ae-places tr.sel').inner_text(), pg.locator('.ae-places tr.sel').inner_text())
+    check('DW3-Vorgabe wiederhergestellt', any(w in pg.locator('.ae-places tr.sel').inner_text() for w in ('Durch Daten', 'by data')), pg.locator('.ae-places tr.sel').inner_text())
     check('keine JS-Fehler', not errs, errs[:3])
     b.close()
 print('FAILS', fails)

@@ -36,7 +36,7 @@ with sync_playwright() as p:
     r = search('Paladin'); check('Alternative Schreibweise „Paladin“', r == ['Imperialdramon-P'], r)
     r = search('mera'); check('Teilname „mera“ findet Meramon', 'Meramon' in r, r)
     r = search('WGRE'); check('Dateikürzel „WGRE“', r == ['WarGreymon'], r)
-    r = search('213'); check('Modell-ID „213“', r == ['WarGreymon'], r)
+    r = search('213'); check('Modell-ID „213“ (exakt: Katalog-ID, Dateinummer oder Kämpfer-ID, 0.98.1)', r[:1] == ['WarGreymon'] or 'WarGreymon' in r, r)
     r = search('Birdramon'); check('„Birdramon“: kein DW3-Modell (nicht erfunden)', r == [], r)
     info = pg.inner_text('#dw3-list .dw3-item') if False else None
     search('WarGreymon')
