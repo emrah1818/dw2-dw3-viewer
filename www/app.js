@@ -99,6 +99,7 @@ const field = (label, id, value, attrs = '') =>
 // ---------------------------------------------------------------- Zustand / Seiten
 const state = { catalog: [], filtered: [], id: null, loaded: null, image: null, prefetch: new Set() };
 const view = new Viewer($('#gl'));
+window.__dw2 = { view, native, get state() { return state; } };   // Testzugang (integration/uitest)
 window.__dw2view = view;   // für Diagnose und automatisierte Oberflächentests
 view.setLight(1.2);
 const nameOf = id => state.catalog.find(c => c.id === id)?.name ?? `#${id}`;

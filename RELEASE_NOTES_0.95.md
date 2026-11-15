@@ -1,4 +1,4 @@
-# DW2 Mod Studio 1.0.0-rc5 (Release-Kandidat: volle DW3-Qualität, keine künstlichen Größengrenzen)
+# DW2 Mod Studio 0.95 (Release-Kandidat: volle DW3-Qualität, keine künstlichen Größengrenzen)
 
 ## Keine automatische Verkleinerung mehr
 - **PS1-Image:** Ist eine Modell- oder Bewegungsdatei größer als das Original, wird sie ans Ende des Images
@@ -19,4 +19,4 @@
   PSNR, UV-Rundung, Augen) und das DW3-Original im Viewer.
 - Modus A zeigt automatisch die HD-Textur. Pixel-Look ist nur noch ein Filter.
 
-Messwerte: `TESTERGEBNISSE_1.0.0-rc5.md`. Grenzen: `GRENZEN_ANALYSE_1.0.0-rc5.md`, `EINSCHRAENKUNGEN_1.0.0-rc5.md`.
+Messwerte: `TESTERGEBNISSE_0.95.md`. Grenzen: `GRENZEN_ANALYSE_0.95.md`, `EINSCHRAENKUNGEN_0.95.md`.

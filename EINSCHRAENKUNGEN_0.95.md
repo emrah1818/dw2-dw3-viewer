@@ -1,9 +1,9 @@
-# Bekannte Einschränkungen 1.0.0-rc5
+# Bekannte Einschränkungen 0.95
 
 Release-Kandidat, kein FINAL. Grund: Der Windows-Test auf der GTX 1070 steht aus (PC nicht erreichbar), und die
 Studio-HD-Vorschau mit Blinzeln ist nicht in der Oberfläche geprüft.
 
-Alle Größen- und Qualitätsgrenzen mit Ursache und Messung: `GRENZEN_ANALYSE_1.0.0-rc5.md`. Kurz:
+Alle Größen- und Qualitätsgrenzen mit Ursache und Messung: `GRENZEN_ANALYSE_0.95.md`. Kurz:
 
 - **PC-Port (Modus A):** keine Polygon- oder Bewegungsreduktion. Die HD-Textur liest an 98–99,9 % der Stellen den
   exakten Originaltexel. Farbtiefe 15 Bit wie die PS1 (DW3-Texturen haben selbst 15 Bit).

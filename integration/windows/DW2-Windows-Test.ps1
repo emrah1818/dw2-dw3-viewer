@@ -1,4 +1,4 @@
-# DW2 Mod Studio 1.0.0-rc5 (P0 Qualitaet): Windows-Test. Aendert keine vorhandene Datei ausserhalb dieses Ordners.
+# DW2 Mod Studio 0.95 (P0 Qualitaet): Windows-Test. Aendert keine vorhandene Datei ausserhalb dieses Ordners.
 # Liest ..\dw2.pak (nur lesen). Ergebnisse in results\ .
 $ErrorActionPreference = 'Continue'
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path

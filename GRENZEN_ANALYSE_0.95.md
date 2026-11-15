@@ -1,4 +1,4 @@
-# Größen- und Qualitätsgrenzen beim DW3-Import (Analyse 1.0.0-rc5)
+# Größen- und Qualitätsgrenzen beim DW3-Import (Analyse 0.95)
 
 Jede Grenze ist geprüft und einer Ursache zugeordnet: **Hardware** (echte PS1), **Spiel-Engine** (Code von DW2),
 **Format** (DW2-Dateiformat) oder **Editor** (nur Studio/Port, aufhebbar).

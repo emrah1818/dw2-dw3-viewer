@@ -1,4 +1,4 @@
-# Testergebnisse 1.0.0-rc5
+# Testergebnisse 0.95
 
 ## DW3 → DW2: gemessen gegen die DW3-Originaltexel an den Stellen, die das Spiel liest
 (jedes Polygon-Texel über die gerundeten Spiel-UVs; `dw3_native.quality_report`, Karte im Studio)

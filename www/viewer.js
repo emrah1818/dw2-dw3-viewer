@@ -406,6 +406,29 @@ export class Viewer {
     this.camera.updateProjectionMatrix(); this.controls.update(); this.resize();
   }
 
+  /** Kamera auf die aktuelle Pose einstellen (Skelettverformung eingerechnet), z. B. für den
+   *  Vergleich DW3-Original / Import mit gleichem Bildausschnitt. */
+  framePose() {
+    if (!this.model) return;
+    this.model.updateMatrixWorld(true);
+    const box = new THREE.Box3(), tmp = new THREE.Box3(), p = new THREE.Vector3();
+    this.model.traverse(o => {
+      if (!o.isMesh || !o.geometry?.attributes?.position) return;
+      const pos = o.geometry.attributes.position;
+      for (let i = 0; i < pos.count; i++) {
+        if (o.isSkinnedMesh) o.getVertexPosition(i, p); else p.fromBufferAttribute(pos, i);
+        p.applyMatrix4(o.matrixWorld); tmp.expandByPoint(p);
+      }
+    });
+    if (tmp.isEmpty()) return;
+    box.copy(tmp);
+    const size = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());
+    const r = Math.max(size.x, size.y, size.z) || 1;
+    this.home.pos.set(c.x, box.min.y + size.y * 0.6, c.z + r * 2.1);
+    this.home.target.set(c.x, box.min.y + size.y * 0.45, c.z);
+    this.resetCamera();
+  }
+
   resetCamera() {
     this.camera.position.copy(this.home.pos);
     this.controls.target.copy(this.home.target);
