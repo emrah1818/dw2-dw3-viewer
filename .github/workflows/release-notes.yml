@@ -31,4 +31,4 @@ jobs:
           else
             gh release edit '${{ inputs.tag }}' --repo '${{ github.repository }}' --notes-file '${{ inputs.notes }}'
           fi
-          gh release view '${{ inputs.tag }}' --repo '${{ github.repository }}' --json tagName,isPrerelease,isLatest
+          gh release view '${{ inputs.tag }}' --repo '${{ github.repository }}' --json tagName,isPrerelease,name
