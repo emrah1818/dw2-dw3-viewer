@@ -42,6 +42,10 @@ def test_manual_choice_replaces_chain_and_uses_selected_loop(tmp_path, mid, loop
     data = encode_animation(s, {0: resolved['action']})
     assert parse_anim_file(data, 1).clips[0].loop_row == expected
     assert A.resolve_assignment(resolved, table) == resolved  # reapply/resize keeps choice
+    if mid == 16 and not loop:
+        enabled = A.resolve_assignment(dict(resolved, loop=True), table)
+        assert enabled['action']['loop_frame'] == 1
+        assert parse_anim_file(encode_animation(s, {0: enabled['action']}), 1).clips[0].loop_row == 1
 
 
 def test_old_client_motion_and_checkbox_override_stale_action(tmp_path):

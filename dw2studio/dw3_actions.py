@@ -312,6 +312,9 @@ def resolve_assignment(row, table):
         chosen = single(table, mid, 'manual', reason)
         if not loop:
             chosen = single(table, mid, 'manual', reason, end='hold')
+            # Keep the selected motion's real loop point for a later re-enable.
+            # A hold action's default last-frame marker is not a DW3 loop point.
+            chosen['loop_frame'] = table[mid]['loop_frame'] if table[mid]['end'] == 'loop' else 0
         elif chosen['end'] != 'loop':
             chosen = single(table, mid, 'manual', reason, end='loop')
         if isinstance(action, dict) and action.get('enter') is not None:
