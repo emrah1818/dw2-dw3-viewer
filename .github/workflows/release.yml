@@ -58,7 +58,7 @@ jobs:
         run: |
           $pkg = 'dist/DW2_Mod_Studio_1.0.0-rc5'
           Move-Item dist/DW2_3D_Viewer_Studio $pkg
-          Copy-Item README.md, CHANGELOG.md, ANLEITUNG.md, RELEASE_NOTES_1.0.0-rc5.md, TESTERGEBNISSE_1.0.0-rc5.md, EINSCHRAENKUNGEN_1.0.0-rc5.md, DIGITATIONSLEVEL_SCHNITTSTELLE.md, DW3_EFFEKTE_ANALYSE.md $pkg/
+          Copy-Item README.md, CHANGELOG.md, ANLEITUNG.md, RELEASE_NOTES_1.0.0-rc5.md, TESTERGEBNISSE_1.0.0-rc5.md, EINSCHRAENKUNGEN_1.0.0-rc5.md, GRENZEN_ANALYSE_1.0.0-rc5.md, DIGITATIONSLEVEL_SCHNITTSTELLE.md, DW3_EFFEKTE_ANALYSE.md $pkg/
           Remove-Item "$pkg/_internal/tools/dw3_converter/*.obj" -ErrorAction SilentlyContinue
           Compress-Archive -Path $pkg -DestinationPath DW2_Mod_Studio_1.0.0-rc5_Windows_x64.zip
       - uses: actions/upload-artifact@v4
@@ -75,7 +75,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: emrah1818/dw2-pc-port
-          ref: 94a39dde4cf014ed6f427dd4cc23ee21c622a3fd
+          ref: 1a816c85e2570c1b755b0b1804de5d93ffa2c231
           path: pc-port
       - uses: msys2/setup-msys2@v2
         id: msys2

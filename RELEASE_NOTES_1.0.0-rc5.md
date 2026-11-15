@@ -1,19 +1,22 @@
-# DW2 Mod Studio 1.0.0-rc5 (Release-Kandidat, Schwerpunkt DW3-Importqualität)
+# DW2 Mod Studio 1.0.0-rc5 (Release-Kandidat: volle DW3-Qualität, keine künstlichen Größengrenzen)
 
-## Ursache des Qualitätsverlusts (gemessen an DW3 Greymon M005GREY)
-- Die Geometrie war vollständig (952/952 Dreiecke).
-- Die Texturen wurden verkleinert: Jede 256×256-Seite kam ganz in eine feste 64×112-Kachel (4× bzw. 2,3× kleiner),
-  obwohl das Modell nur einen Teil davon nutzt. Dazu UV-Rundung (Ø 1,4 Quelltexel). Greymons Auge wurde nicht übernommen.
+## Keine automatische Verkleinerung mehr
+- **PS1-Image:** Ist eine Modell- oder Bewegungsdatei größer als das Original, wird sie ans Ende des Images
+  verlagert. Dateitabelle des Spiels, ISO-Einträge und Volumengröße werden angepasst. Dreiecke und Bewegungsbilder
+  bleiben vollständig. Verkleinert wird nur mit ausdrücklicher Zustimmung und nur, wenn Verlagern unmöglich ist.
+  Der Bericht nennt jede verlagerte Datei mit alter und neuer Größe.
+- **PC-Port:** volle Geometrie. HD-Texturen bis 2048×4096 werden auf der Grafikkarte in voller Größe gezeichnet
+  (bis 512 MiB Texturspeicher, bei Bedarf angelegt, protokolliert).
 
-## Änderungen
-- **Neuer Texturatlas:** nur die genutzten UV-Bereiche, dicht gepackt (Skyline), ein gemeinsamer Maßstab, ggf. gedreht.
-- **HD-Textur:** jeder Originaltexel exakt (Faktor so, dass ≥ 2 Pixel je Texel). Kleiner als bisher (512×1024 statt 2048×4096).
-- **1x-Palette** aus den Originalfarben der Seite. Behebt z. B. Growlmons gelbe Brust.
-- **Augen:** Gesichtsrechtecke werden über Polygon-Überlappung erkannt. Greymons Auge blinzelt.
-- **Port:** Blinzeln behält die HD-Textur (VRAM-Kopien werden ins HD-Bild übernommen). Log-Zeile „HD summary“ beim
-  Beenden. Die 16-MiB-GPU-Grenze wird protokolliert.
-- **Studio:** Karte „DW3-Import: Qualität (gemessen)“ zeigt Quelle gegen konvertiert (Dreiecke, Vertices, Seiten,
-  PSNR 1x/HD, UV-Abweichung, Augen) und das DW3-Original im Viewer. Modus A zeigt automatisch die HD-Textur.
-  Pixel-Look ist nur noch ein Filter.
+## Texturqualität
+- Atlas aus den genutzten UV-Bereichen, ein gemeinsamer Maßstab (rc4: feste 64×112-Kacheln).
+- HD-Textur über die gerundeten Spiel-UVs auf die Originaltexel abgebildet: keine hellen Kantenlinien, UV-Rundung
+  ausgeglichen. Die 1x-Palette kommt aus den Originalfarben.
+- Augen werden erkannt (Greymon). Blinzeln behält die HD-Textur, im Port und in der Studio-HD-Vorschau.
 
-Details: `TESTERGEBNISSE_1.0.0-rc5.md`, `EINSCHRAENKUNGEN_1.0.0-rc5.md`.
+## Studio
+- Karte „DW3-Import: Qualität (gemessen)“: Quelle gegen Ergebnis (Dreiecke, Vertices, Seiten, exakte Texel,
+  PSNR, UV-Rundung, Augen) und das DW3-Original im Viewer.
+- Modus A zeigt automatisch die HD-Textur. Pixel-Look ist nur noch ein Filter.
+
+Messwerte: `TESTERGEBNISSE_1.0.0-rc5.md`. Grenzen: `GRENZEN_ANALYSE_1.0.0-rc5.md`, `EINSCHRAENKUNGEN_1.0.0-rc5.md`.
