@@ -28,6 +28,27 @@
     des Bildes und keinen verworfenen Teil.
 - **Gemeinsame Animationsdateien:** Kein Digimon-Platz unter #300 teilt eine Datei mit einem anderen.
 
+## Nachtrag 15.11.2026, 18 Uhr: mit dem Mod und den Einstellungen aus dem Video
+Der Mod lag wieder in `Documents\DW2-PC\Mods`, nachdem du ihn wiederhergestellt hattest.
+- Er enthält zwei DW3-Importe mit 24 Knochen: #4 (Platz von Betamon, im Video „KADIR“, Guilmon) und #133 (`DTRN`).
+- Alle 22 Clips gemessen: keine Skalierung außer 1,5 in I0 von #133, kein Einzelbild-Ausreißer.
+
+Deine Einstellungen (`%APPDATA%\DW2-Online\settings.ini`): GPU, Scale 5, 16:9 (wide 2), PGXP, Smooth Frames,
+fps_limit 120, Sharpen 25, FXAA, bilinear.
+
+Linux-Port, gleicher Port-Stand, dein Mod, deine Einstellungen (Scale 3 statt 5):
+- Domain-Kampf mit #4, #133 und #5, Hauptmenü wie im Video, 90 Bilder.
+- Je Bild auch die Smooth-Zwischenbilder bei 0, 33, 50 und 100 %.
+- Automatisch gesucht: rosa Pixel, die nur im Zwischenbild und in keinem der beiden echten Bilder vorkommen.
+  - Treffer gibt es nur in der Kameradrehung zu Kampfbeginn (dort sind die Zwischenbilder echte Bewegung).
+  - Im ruhigen Menü gibt es höchstens 43 Pixel.
+- **Kein Keil nachgestellt.**
+
+Übrige Unterschiede zum Video:
+- Windows mit NVIDIA-Treiber.
+- Echte Bildausgabe mit Fenster-Thread bei 120 Hz; die Testbilder werden ohne diesen Thread berechnet.
+- Anderer Spielstand und andere Domain.
+
 ## Offen
 - Der Test benutzt einen Guilmon-Import, den ich selbst erzeugt habe, nicht den Mod aus dem Video. Ziel-Slot, Größe,
   manuell gewählte Motions (0.98–0.98.2), Einstellungen, Renderer und Port-Version des Videos sind unbekannt.
