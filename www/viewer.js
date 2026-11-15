@@ -276,28 +276,49 @@ export class Viewer {
   async setHdPreview(url) {
     const n = this.native;
     if (!n || !n.textures.length) throw new Error('Kein natives Modell geladen.');
-    const tex = await new THREE.TextureLoader().loadAsync(url);
+    const img = await new THREE.ImageLoader().loadAsync(url);
     const max = this.renderer.capabilities.maxTextureSize;
-    if (tex.image.width > max || tex.image.height > max) { tex.dispose(); throw new Error(`Grafikkarte erlaubt höchstens ${max} Pixel Kantenlänge.`); }
+    if (img.width > max || img.height > max) throw new Error(`Grafikkarte erlaubt höchstens ${max} Pixel Kantenlänge.`);
+    // eine Leinwand statt eines festen Bildes: Blinzeln und Texturzyklen kopieren dieselben Rechtecke
+    // wie im Spiel (DR_MOVE) auch im HD-Bild, wie der PC-Port (TexRep_OnMove)
+    const canvas = document.createElement('canvas');
+    canvas.width = img.width; canvas.height = img.height;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(img, 0, 0);
+    const tex = new THREE.CanvasTexture(canvas);
+    n.hdCanvas = { ctx, base: ctx.getImageData(0, 0, img.width, img.height), k: img.width / 128 };
     tex.colorSpace = THREE.SRGBColorSpace; tex.flipY = false;
     this.filter(tex);   // Pixel-Look gilt auch für HD: Auflösung und Filter sind getrennt
     tex.anisotropy = this.renderer.capabilities.getMaxAnisotropy();
     this.clearHdPreview();
     n.hd = tex;
     for (const t of n.textures) { t.mat.map = tex; t.mat.needsUpdate = true; }
-    return { width: tex.image.width, height: tex.image.height, max };
+    if (n.tex) { n.tex.reset(); this.refreshTextures([[0, 0, 128, 256]]); }
+    return { width: img.width, height: img.height, max };
   }
 
   clearHdPreview() {
     const n = this.native;
     if (!n?.hd) return;
     for (const t of n.textures) { t.mat.map = t.tex; t.mat.needsUpdate = true; }
-    n.hd.dispose(); n.hd = null;
+    n.hd.dispose(); n.hd = null; n.hdCanvas = null;
   }
 
   refreshTextures(rects) {
     const n = this.native;
-    if (n.hd) return;   // HD-Vorschau aktiv: VRAM-Animationen (Blinzeln) zeigen die native Seite
+    if (n.hd) {   // HD-Vorschau: dieselben Kopien im HD-Bild, immer aus dem unveränderten HD-Original
+      const h = n.hdCanvas, k = h?.k;
+      if (!h) return;
+      if (rects.length === 1 && rects[0][2] - rects[0][0] >= 128 && rects[0][3] - rects[0][1] >= 256) {
+        h.ctx.putImageData(h.base, 0, 0);   // zurückgesetzt
+      } else {
+        for (const [sx, sy, w, hh, dx, dy] of n.tex.lastMoves || []) {
+          h.ctx.putImageData(h.base, (dx - sx) * 4 * k, (dy - sy) * k, sx * 4 * k, sy * k, w * 4 * k, hh * k);
+        }
+      }
+      n.hd.needsUpdate = true;
+      return;
+    }
     const palette = rects.some(r => r[3] > 224);
     for (const t of n.textures) {
       if (palette) decodeRect(n.tex.vram, t.clut, t.stp, t.rgba);
