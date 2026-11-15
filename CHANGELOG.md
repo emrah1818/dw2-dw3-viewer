@@ -1,5 +1,12 @@
 # Änderungsprotokoll
 
+## 0.98.2 – 15.11.2026 (Korrektur, Vorabversion)
+
+- Enthält die manuelle Animationsauswahl aus 0.98.1.
+- Ursprünglichen DW3-Loop-Beginn auch dann erhalten, wenn die Motion zunächst ohne
+  Schleife übernommen und die Schleife erst später eingeschaltet wird.
+- Zusätzliche binäre Regression für diesen Aus-/Ein-Fall.
+
 ## 0.98.1 – 15.11.2026 (Korrektur, Vorabversion)
 
 - Manuelle Motion-Auswahl im DW3-Importdialog überschreibt nun die alte automatische
