@@ -1,5 +1,15 @@
 # DW2 Mod Studio 0.95
 
+# DW2 Mod Studio 0.95
+
+## Download
+Unten unter **Assets**:
+- `DW2_Mod_Studio_0.95_Windows_x64.zip`: das Mod Studio
+- `DW2_PC_Port_API2_0.95_Windows_x64.zip`: der passende DW2-PC-Port
+
+Beide ZIPs entpacken. Zum Port die eigenen `dw2.pak` und `dw2.pak.slus` legen. Spieldaten sind nicht enthalten.
+
+
 Zwischenrelease (kein 1.0 FINAL). Schwerpunkt: Digimon aus Digimon World 3 in voller Qualität in den DW2-PC-Port bringen.
 
 ## Neu gegenüber 1.0.0-rc4
@@ -24,3 +34,11 @@ Ordner entpacken, eigene `dw2.pak` und `dw2.pak.slus` dazulegen. Spieldaten sind
 
 ## Einschränkungen
 `EINSCHRAENKUNGEN_0.95.md`, `GRENZEN_ANALYSE_0.95.md`.
+
+## Bilder
+Vorher (1.0.0-rc4, oben) und nachher (0.95, unten) im selben Kampfbild:
+![rc4 gegen 0.95](https://raw.githubusercontent.com/emrah1818/dw2-dw3-viewer/main/docs/screenshots/rc4_vs_095.jpg)
+
+DW3-Original (links) und Import (rechts) im Studio:
+![Studio](https://raw.githubusercontent.com/emrah1818/dw2-dw3-viewer/main/docs/screenshots/studio_original_vs_import.jpg)
+
