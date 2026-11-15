@@ -140,7 +140,7 @@ def build(disc, entries):
             groups.setdefault(r['name'].lower(), []).append(r)
     for g in groups.values():
         if len(g) > 1:
-            for k, r in enumerate(sorted(g, key=lambda r: r['name_index']), 1):
+            for k, r in enumerate(sorted(g, key=lambda r: (r['name_index'] is None, r['name_index'] if r['name_index'] is not None else -1, r['code'], r['id'])), 1):
                 r['status'] = 'shared'
                 r['variant'] = f"{'Gegner' if r['enemy'] else 'Partner'}, Variante {k} von {len(g)} ({r['code']})"
     for r in out:
