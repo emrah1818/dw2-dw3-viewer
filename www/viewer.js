@@ -450,6 +450,46 @@ export class Viewer {
     this.actions[index]?.reset().play();
   }
 
+  /** Animationseditor: Zeilen eines nativen Clips (wie Anim_StepModelAnim) und die Loop-Zeile. */
+  nativeClipInfo(index) {
+    const n = this.native, a = n?.payload.anims[index], f = a && n.files[a.file];
+    if (!f) return null;
+    const nb = n.player.bones;
+    let pos = 0, rows = 0, loop = null;
+    for (;;) {
+      if (a.offset + pos + nb > f.bytes.length || rows > 5000) break;
+      pos += nb; rows++;
+      const q = f.bytes[a.offset + pos];
+      if (q === 0xFF) break;
+      if (q === 0xFE) { loop = Math.floor((f.bytes[a.offset + pos + 1] | (f.bytes[a.offset + pos + 2] << 8)) / nb); break; }
+    }
+    return { rows, loop, id: a.id, name: a.name };
+  }
+
+  /** Animationseditor: Clip INDEX anhalten und Zeile ROW zeigen (Schleifen wie im Spiel). */
+  nativeSeek(index, row) {
+    const n = this.native, a = n?.payload.anims[index], f = a && n.files[a.file];
+    if (!f) return 0;
+    this.playing = false;
+    n.anim = a; n.animId = a.id; n.acc = 0; n.hold = 0;
+    n.player.set(f, a.offset);
+    if (row > 0) n.player.tick(2 * row);
+    this.applyPose(true);
+    return n.player.frame;
+  }
+
+  /** Aktuelle Zeile des laufenden nativen Clips. */
+  nativeRow() { return this.native ? this.native.player.frame : 0; }
+
+  /** glTF-Animation (DW3-Original) an Bild FRAME (30 Bilder/s) anhalten. */
+  gltfSeek(index, frame) {
+    if (!this.mixer || !this.actions[index]) return;
+    this.actions.forEach(x => x.stop());
+    const act = this.actions[index];
+    act.reset().play(); act.paused = true;
+    this.mixer.setTime(frame / 30);
+  }
+
   /** Abgelaufene Einmal-Animation neu starten (Play-Taste). */
   restartIfFinished() {
     const n = this.native;

@@ -21,7 +21,7 @@ import traceback
 CACHE = None          # Arbeitsordner der App (filesDir/viewer)
 NATIVE_DIR = None     # nativeLibraryDir (enthält libdw2conv.so)
 _lock = threading.RLock()
-CONVERTER_VERSION = 'v7'   # erhöhen, wenn sich die Konvertierung ändert (alter Cache wird ignoriert)
+CONVERTER_VERSION = 'v8'   # erhöhen, wenn sich die Konvertierung ändert (alter Cache wird ignoriert)
 
 
 class State:
@@ -1140,6 +1140,80 @@ def dw3_resize(target, factor, size_mode=None):
                         job.get('hd', 0), None, size_mode or job.get('size_mode', 'dw2'))
 
 
+def _dw3_job(target):
+    ident = int(target)
+    job = (getattr(S, 'dw3_imports', {}) or {}).get(ident)
+    if not job:
+        raise ValueError('Dieses Digimon wurde in diesem Projekt nicht aus DW3 importiert.')
+    listing = dw3_models()
+    if not listing['open']:
+        raise ValueError('Zuerst das DW3-Abbild öffnen, aus dem importiert wurde.')
+    models = {m['name']: m['id'] for m in listing['models']}
+    if job['source_name'] not in models:
+        raise ValueError(f'DW3-Modell {job["source_name"]} ist im geöffneten Abbild nicht vorhanden.')
+    return ident, job, models[job['source_name']]
+
+
+def anim_editor(target):
+    """Everything the animation editor shows for a DW3 import: the DW2 places with their actions
+    (as imported, or the DW3 defaults where the import predates 0.96), the DW3 motions (frames, how
+    each ends, which scripts use it) and the defaults for 'reset'."""
+    from dw2studio.dw3_import import prepare
+    from dw2studio import dw3_actions
+    ident, job, source_id = _dw3_job(target)
+    prepared = prepare(sys.modules[__name__], source_id, ident)
+    info = prepared['info']
+    table = dw3_actions.motion_table(prepared['source'])
+    defaults = {(d['slot'], d['clip']): d['action'] for d in info['assignments']}
+    current = {(r['slot'], r['clip']): r for r in job['assignments']}
+    used = {}
+    for sc in info.get('scripts') or []:
+        for m in sc.get('motions', []):
+            used.setdefault(m, []).append(sc['index'])
+    places = []
+    for d in info['assignments']:
+        key = (d['slot'], d['clip'])
+        row = current.get(key)
+        if row and isinstance(row.get('action'), dict):
+            act = row['action']
+        elif row and row.get('motion') in table:
+            act = dw3_actions.legacy(table, row['motion'], bool(row.get('loop')))
+        else:
+            act = defaults[key]
+        places.append({'slot': d['slot'], 'clip': d['clip'], 'id': 10 * 'ABCDEFGHIJK'.index(d['slot']) + d['clip'],
+                       'role': dw3_actions.ROLES.get(key, 'Feld-Animation (nicht im Kampf)'), 'action': act,
+                       'default': defaults[key], 'transitions': dw3_actions.transitions(prepared['source'], act)})
+    motions = [dict(m, scripts=used.get(m['id'], [])) for m in info['motions']]
+    return {'target': ident, 'source': job['source_name'], 'places': places, 'motions': motions,
+            'status': dw3_actions.STATUS, 'scripts': info.get('scripts') or []}
+
+
+def anim_check(target, action):
+    """Validate one action and report its pose jumps, without changing anything."""
+    from dw2studio.dw3_import import prepare
+    from dw2studio import dw3_actions
+    ident, job, source_id = _dw3_job(target)
+    prepared = prepare(sys.modules[__name__], source_id, ident)
+    dw3_actions.validate(action, dw3_actions.motion_table(prepared['source']))
+    rows, loop_row = dw3_actions.frames_of(action)
+    return {'frames': len(rows), 'loop_row': loop_row, 'transitions': dw3_actions.transitions(prepared['source'], action)}
+
+
+def anim_apply(target, places):
+    """Import the DW3 Digimon again with the edited actions (PLACES: [{'slot', 'clip', 'action'}]),
+    keeping its size, HD and size mode. A changed action is marked 'manual'."""
+    from dw2studio.dw3_import import apply as native_apply
+    ident, job, source_id = _dw3_job(target)
+    rows = []
+    for pl in places:
+        act = dict(pl['action'])
+        rows.append({'slot': pl['slot'], 'clip': int(pl['clip']), 'action': act,
+                     'motion': act['segments'][0]['motion'], 'loop': act.get('end') == 'loop'})
+    report = native_apply(sys.modules[__name__], source_id, ident, rows, job.get('scale', 1.), job.get('hd', 0), None,
+                          job.get('size_mode', 'dw2'))
+    return {'target': ident, 'files': report.get('files'), 'triangles': report.get('triangles')}
+
+
 def evolution_validate():
     from dw2studio.core.evolution import EvolutionRepository, validate
     return validate(EvolutionRepository(_need_session(), S.entries))
@@ -1263,7 +1337,7 @@ def hd_active(identifier):
 
 # --------------------------------------------------------------------------- Verlauf (Rückgängig / Wiederherstellen)
 UNDO, REDO = [], []
-MUTATING = {'digivolve_level_set', 'battle_camera_set', 'dw3_resize', 'dw3_native_apply', 'dw3_batch_apply', 'mod_import', 'mod_import_force', 'technique_copy_parts', 'technique_assign', 'domain_set_floor', 'group_set', 'group_clone',
+MUTATING = {'anim_apply', 'digivolve_level_set', 'battle_camera_set', 'dw3_resize', 'dw3_native_apply', 'dw3_batch_apply', 'mod_import', 'mod_import_force', 'technique_copy_parts', 'technique_assign', 'domain_set_floor', 'group_set', 'group_clone',
             'technique_create', 'technique_edit', 'camera_set', 'evolution_line', 'set_evolution', 'rename', 'set_type', 'set_specialty', 'set_enemy_values', 'apply_attacks', 'roster_change',
             'roster_restore', 'discard', 'load_project', 'png_apply', 'transfer_apply', 'bin_apply',
             'rig_apply', 'restore_original'}
@@ -1338,6 +1412,7 @@ def translate(texts, language):
 # --------------------------------------------------------------------------- Einstieg
 _METHODS = {
     'export_hd_pack': export_hd_pack,
+    'anim_editor': anim_editor, 'anim_check': anim_check, 'anim_apply': anim_apply,
     'dw3_native_plan': dw3_native_plan, 'dw3_native_apply': dw3_native_apply,
     'evolution_info': evolution_info, 'set_evolution': set_evolution, 'evolution_line': evolution_line,
     'mod_check': mod_check, 'mod_export': mod_export, 'mod_export_replace': mod_export_replace, 'mod_import': mod_import,

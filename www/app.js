@@ -1,5 +1,6 @@
 import { Viewer } from './viewer.js';
 import { EN } from './i18n.js';
+import { initAnimEditor } from './animeditor.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -159,6 +160,7 @@ function renderList() {
 $('#search').oninput = renderList;
 
 function selectDigimon(id, openView) {
+  if (state.id !== id && typeof animEditor !== 'undefined' && animEditor.isOpen()) animEditor.close();
   state.id = id;
   $$('#list .item').forEach(el => el.classList.toggle('sel', Number(el.dataset.id) === id));
   $('#v-name').textContent = nameOf(id);
@@ -280,7 +282,9 @@ function renderDw3Quality(info) {
     try { await view.load(BASE + q.source_url); toast(t('DW3-Original (Quelle, unverändert)')); } catch (e) { await fail(e); }
   };
   $('#b-dw3-back').onclick = () => loadModel(state.id);
+  $('#b-anim-editor').onclick = () => animEditor.open(state.id);
 }
+const animEditor = initAnimEditor({ $, $$, native, view, t, toast, log, busy, fail, BASE, state, loadModel, esc });
 $('#b-native-zip').onclick = async () => {
   if (!needDigimon()) return;
   try { await exportFile(busy('Rohdaten werden gepackt …', () => native('native_files_export', state.id))); } catch (e) { await fail(e); }

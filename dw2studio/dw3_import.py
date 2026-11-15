@@ -90,6 +90,19 @@ def prepare(api, source_id, target_id):
     except (OSError, ValueError):
         scripts = None
     apply_defaults(descriptors, scripts['scripts'] if scripts else [], {m['id'] for m in source['motions']})
+    # 0.96: each place is an ACTION (dw3_actions): the DW3 motions of the action in order, their
+    # timing from the DW3 script, and where it loops, with how sure each default is
+    from . import dw3_actions
+    table = dw3_actions.motion_table(source)
+    actions = dw3_actions.defaults(source, scripts['scripts'] if scripts else [],
+                                   [(d['slot'], d['clip']) for d in descriptors])
+    for d in descriptors:
+        act = actions[(d['slot'], d['clip'])]
+        d['action'] = act
+        d['role'] = dw3_actions.ROLES.get((d['slot'], d['clip']), 'Feld-Animation')
+        d['motion'] = act['segments'][0]['motion']
+        d['loop'] = act['end'] == 'loop'
+        d['reason'] = act['reason']
     from .dw3_fighters import face_for
     try:
         face = face_for(api.DW3.path, api.DW3.entries[source_id])
@@ -101,7 +114,10 @@ def prepare(api, source_id, target_id):
             'info':{'name':info['name'],'target':candidate.name,'scale':scale,'slot_scale':slot_scale,
                     'size_source':size_source,'scale_dw3':scale_dw3,
                     'heights':{'dw2':round(h3*scale),'dw3':round(h3*scale_dw3),'slot':round(h3*slot_scale)},
-                    'motions':[{'id':m['id'],'frames':len(m['frames'])} for m in source['motions']],
+                    'motions':[{'id':m['id'],'frames':len(m['frames']),'end':table[m['id']]['end'],
+                                'loop_frame':table[m['id']]['loop_frame']} for m in source['motions']],
+                    'scripts':[{'index':sc['index'],'steps':sc.get('steps',[]),'motions':sc.get('motions',[])}
+                               for sc in (scripts['scripts'] if scripts else [])],
                     'assignments':descriptors,'source_bones':len(source['bones'])-1,'target_bones':n,
                     'limits':limits_report(source),
                     'face':{'parts':len(face_parts),'eyes':sum(f['slot'] < 2 for f in face_parts),'notes':face_notes}}}
@@ -123,11 +139,23 @@ def apply(api, source_id, target_id, assignments, scale_factor=1., hd_scale=0, c
         raise ValueError('Alle DW2-Animationsplätze müssen genau einmal zugeordnet werden.')
     seen=set();groups={};loops={}
     motion_index={m['id']:i for i,m in enumerate(source['motions'])}
+    from . import dw3_actions
+    table=dw3_actions.motion_table(source)
     for row in assignments:
         key=(row.get('slot'),row.get('clip'))
-        if key not in expected or key in seen or type(row['motion'])is not int or row['motion'] not in motion_index or type(row['loop'])is not bool:
+        if key not in expected or key in seen:
             raise ValueError('Ungültige oder doppelte Animationszuordnung.')
-        seen.add(key);groups.setdefault(key[0],{})[key[1]]=motion_index[row['motion']]
+        seen.add(key)
+        if isinstance(row.get('action'),dict):       # 0.96: an action (several motions, loop range)
+            try:
+                dw3_actions.validate(row['action'],table)
+            except ValueError as exc:
+                raise ValueError(f'{key[0]}{key[1]}: {exc}') from None
+            groups.setdefault(key[0],{})[key[1]]=row['action']
+            continue
+        if type(row.get('motion'))is not int or row['motion'] not in motion_index or type(row.get('loop'))is not bool:
+            raise ValueError('Ungültige oder doppelte Animationszuordnung.')
+        groups.setdefault(key[0],{})[key[1]]=motion_index[row['motion']]
         if row['loop']:loops.setdefault(key[0],[]).append(key[1])
     ps1 = not isinstance(session, PakSession)
     optimized={}

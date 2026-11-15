@@ -65,8 +65,8 @@ class Dw3Disc:
         target = self.cache / f'model_{identifier:04d}'
         result = target / 'model.glb'
         source_json = target / 'native_source.json'
-        if result.is_file() and source_json.is_file() and b'"pages"' not in source_json.read_bytes():
-            # converted before 1.0: no page data for the face transfer, convert again
+        if result.is_file() and source_json.is_file() and b'"loop_key"' not in source_json.read_bytes():
+            # converted before 0.96: no page data (1.0) or no motion end / loop point, convert again
             shutil.rmtree(target, ignore_errors=True)
         if not result.is_file():
             with tempfile.TemporaryDirectory(prefix='dw3-', dir=self.cache) as tmp:

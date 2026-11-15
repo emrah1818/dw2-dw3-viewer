@@ -824,8 +824,30 @@ def encode_model(source, folder, scale=1., hd_scale=4, face=None):
                           'face_parts':len(records),'eyes':sum(r['slot'] < 2 for r in records),'face_notes':face_notes}
 
 
+def _blend_matrix(a, b, w):
+    """A pose between bone matrices A and B (4x4, W in 0..1): rotation by slerp, scale and position
+    linear (like DW3's FIGHTSTG_blendBone, which interpolates angle, scale and position)."""
+    from scipy.spatial.transform import Rotation, Slerp
+    out = np.eye(4)
+    def polar(m):
+        u, sv, vt = np.linalg.svd(m[:3, :3])
+        r = u @ vt
+        if np.linalg.det(r) < 0:
+            u[:, -1] *= -1
+            r = u @ vt
+        return r, r.T @ m[:3, :3]
+    ra, sa = polar(a)
+    rb, sb = polar(b)
+    rot = Slerp([0, 1], Rotation.from_matrix([ra, rb]))(w).as_matrix()
+    out[:3, :3] = rot @ ((1 - w) * sa + w * sb)
+    out[:3, 3] = (1 - w) * a[:3, 3] + w * b[:3, 3]
+    return out
+
+
 def encode_animation(source, mapping, scale=1., loops=(), step=1):
-    """mapping: native clip index -> DW3 motion index; no semantic labels inferred.
+    """mapping: native clip index -> DW3 motion index (0.95: one whole motion; LOOPS: the clips that
+    loop from their start), or -> an ACTION dict (dw3_actions: segments of motions with frame ranges,
+    repeats, blends, and a hold or a loop back to any frame). No semantic labels inferred.
     STEP > 1 (PS1 image, smaller files): only every STEP-th DW3 frame becomes a pose and is held
     for STEP game frames, so the motion keeps its length with fewer distinct poses."""
     step=int(step)
@@ -835,28 +857,59 @@ def encode_animation(source, mapping, scale=1., loops=(), step=1):
     if not mapping or any(type(i)is not int or not 0<=i<10 for i in mapping):
         raise ValueError('DW2-Datei benötigt Clip-Indizes 0–9.')
     keys=[[] for _ in order];lookup=[{} for _ in order];clips={}
+    index_of={m['id']:i for i,m in enumerate(source['motions'])}
+    cache={}
+    def matrices(motion):
+        if motion not in cache:
+            cache[motion]=source_matrices(source,motion)
+        return cache[motion]
+    def node_matrix(frame,b):
+        matrix=frame[nodes[b]['chain'][0]]
+        for c in nodes[b]['chain'][1:]:
+            matrix=matrix@frame[c]
+        return matrix
+    def row_of(mats):
+        row=[]
+        for b,src in enumerate(order):
+            matrix=mats[b]
+            values=np.rint(np.r_[matrix[:3,:3].ravel()*4096,matrix[:3,3]*scale]).astype(np.int64)
+            if np.any(values < -32768) or np.any(values > 32767):
+                raise ValueError('Animationsmatrix außerhalb des 16-Bit-Bereichs.')
+            raw=struct.pack('<12h',*values)
+            if raw not in lookup[b]:
+                if len(keys[b])>=254:
+                    raise ValueError(f'Knochen {src}: mehr als 254 unterschiedliche Posen in einer DW2-Datei. '
+                                     'Weniger oder kürzere Abschnitte bzw. Übergänge verwenden.')
+                lookup[b][raw]=len(keys[b]);keys[b].append(raw)
+            row.append(lookup[b][raw])
+        return bytes(row)
     for index,motion in sorted(mapping.items()):
+        if isinstance(motion,dict):
+            from ..dw3_actions import frames_of, validate, motion_table
+            validate(motion,motion_table(source))
+            seq,loop_row=frames_of(motion)
+            rows=[]
+            for k,(mid,f,prev,w) in enumerate(seq):
+                if step>1 and k%step:      # PS1 reduction: hold every STEP-th pose
+                    rows.append(rows[-1]);continue
+                frame=matrices(index_of[mid])[f]
+                mats=[node_matrix(frame,b) for b in range(n)]
+                if prev is not None:
+                    pf=matrices(index_of[prev[0]])[prev[1]]
+                    mats=[_blend_matrix(node_matrix(pf,b),mats[b],w) for b in range(n)]
+                rows.append(row_of(mats))
+            if loop_row is not None:
+                if loop_row*n>0xFFFF:
+                    raise ValueError('Loop-Beginn zu weit hinten (DW2: 16-Bit-Zeilenversatz).')
+                clips[index]=b''.join(rows)+b'\xfe'+struct.pack('<H',loop_row*n)
+            else:
+                clips[index]=b''.join(rows)+b'\xff\0\0'
+            continue
         if type(motion)is not int or not 0<=motion<len(source['motions']):
             raise ValueError('Unbekannte DW3-Motion.')
-        all_frames=source_matrices(source,motion)
+        all_frames=matrices(motion)
         frames=[all_frames[min(len(all_frames)-1,(i//step)*step)] for i in range(len(all_frames))]
-        rows=[]
-        for frame in frames:
-            row=[]
-            for b,src in enumerate(order):
-                matrix=frame[nodes[b]['chain'][0]]
-                for c in nodes[b]['chain'][1:]:
-                    matrix=matrix@frame[c]
-                values=np.rint(np.r_[matrix[:3,:3].ravel()*4096,matrix[:3,3]*scale]).astype(np.int64)
-                if np.any(values < -32768) or np.any(values > 32767):
-                    raise ValueError('Animationsmatrix außerhalb des 16-Bit-Bereichs.')
-                raw=struct.pack('<12h',*values)
-                if raw not in lookup[b]:
-                    if len(keys[b])>=254:
-                        raise ValueError(f'Knochen {src}: mehr als 254 unterschiedliche Posen in einer DW2-Datei. Weniger Motions zuweisen.')
-                    lookup[b][raw]=len(keys[b]);keys[b].append(raw)
-                row.append(lookup[b][raw])
-            rows.append(bytes(row))
+        rows=[row_of([node_matrix(frame,b) for b in range(n)]) for frame in frames]
         clips[index]=b''.join(rows)+(b'\xfe\0\0' if index in loops else b'\xff\0\0')
     slots=max(mapping)+1
     out=bytearray(4+4*n+4*(slots+1))

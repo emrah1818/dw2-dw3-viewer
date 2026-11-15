@@ -51,7 +51,20 @@ static bool export_native_source(Model &m, const std::string &dir) {
     out << "],\"tex_origin\":[" << TEX_X << ',' << TEX_Y << "],\"motions\":[";
     for (size_t motion = 0; motion < m.motions.size(); motion++) {
         m.setMotion(int(motion)+1);
-        out << (motion ? "," : "") << "{\"id\":" << motion+1 << ",\"frames\":[";
+        /* how the motion ends in DW3 (FIGHTSTG_setMotion / FIGHTSTG_stepMotion): its last step is
+           0xFFFF (done: holds, or blends into idle first when the step before blends to -1) or
+           0x8000 (loops back to keyframe endFrame). Frame i of "frames" below is keyframe 1 + 2 i. */
+        {
+            const std::vector<MotionStep> &st = m.motions[motion];
+            int term = 0, target = 0; bool toIdle = false;
+            for (size_t s = 0; s < st.size() && st[s].index != 0x7FFF; s++) {
+                if (st[s].count == 0) { term = (uint16_t)st[s].frame; target = (uint16_t)st[s].endFrame;
+                    if (s > 0 && st[s-1].endFrame == 0 && term == 0xFFFF) toIdle = true; break; }
+            }
+            out << (motion ? "," : "") << "{\"id\":" << motion+1 << ",\"end\":\""
+                << (term == 0x8000 ? "loop" : toIdle ? "idle" : "hold") << "\",\"loop_key\":" << (term == 0x8000 ? target : -1)
+                << ",\"keys\":" << m.keyframeCount << ",\"frames\":[";
+        }
         bool comma = false;
         for (int tick = 0; tick < 1700; tick++) {
             bool last = m.motionDone || m.keyframe >= m.keyframeCount-1;
@@ -149,7 +162,22 @@ static int dump_scripts(const char *path, int entry) {
             if (l.text.rfind("hit:", 0) == 0 && !hits) hits = true, strike = current;
         }
         std::cout << "],\"moves\":" << (moves ? "true" : "false") << ",\"hits\":" << (hits ? "true" : "false")
-                  << ",\"strike\":" << strike << "}";
+                  << ",\"strike\":" << strike << ",\"steps\":[";
+        /* the script's timeline for its own model: ["m", motion] starts a motion, ["w", ticks] waits
+           (ticks = motion keyframes), ["wm"] waits for the motion to end, ["j", kind] starts a jump
+           (FIGHTSTG_jumps: about 4096 / speed ticks), ["wj"] waits for it, ["hit"] a hit lands */
+        comma = false;
+        for (const ScriptLine &l : scripts[i]) {
+            std::string item;
+            if (l.motion > 0) item = "[\"m\"," + std::to_string(l.motion) + "]";
+            else if (l.waitTicks >= 0) item = "[\"w\"," + std::to_string(l.waitTicks) + "]";
+            else if (l.waitMotion) item = "[\"wm\"]";
+            else if (l.jump == 0 && l.text.find("wait for its jump") != std::string::npos && l.text.find("own") != std::string::npos) item = "[\"wj\"]";
+            else if (l.jump > 0) item = "[\"j\"," + std::to_string(l.jump) + "]";
+            else if (l.text.rfind("hit:", 0) == 0) item = "[\"hit\"]";
+            if (!item.empty()) std::cout << (comma ? "," : "") << item, comma = true;
+        }
+        std::cout << "]}";
     }
     std::cout << "]}\n";
     return 0;
