@@ -129,7 +129,7 @@ function showMode(info) {
   $('#grp-ps1').hidden = pak;
   $('#mode-banner').textContent = pak
     ? t('Modus A: PC-Port. Änderungen gehen als Mod in den Mods-Ordner des Ports (HD-Texturen, Digitationslevel, Kampfkameras, größere Dateien).')
-    : t('Modus B: PS1-Image. „Neues Image exportieren“ schreibt ein neues, geprüftes Image (mit CUE) für PS1-Emulatoren; das Original bleibt unverändert. Ersatzdateien müssen in die Originalgröße passen. HD-Texturen, Digitationslevel und Kampfkameras gibt es nur im PC-Port (Modus A, braucht deine dw2.pak).');
+    : t('Modus B: PS1-Image. „Neues Image exportieren“ schreibt ein neues, geprüftes Image (mit CUE) für PS1-Emulatoren; das Original bleibt unverändert. Größere DW3-Importdateien werden im Image verlagert, andere Ersatzdateien müssen in die Originalgröße passen. HD-Texturen, Digitationslevel und Kampfkameras gibt es nur im PC-Port (Modus A, braucht deine dw2.pak).');
   $('#subtitle').dataset.mode = pak ? 'A' : 'B';
 }
 async function openImage() {

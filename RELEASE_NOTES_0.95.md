@@ -1,22 +1,26 @@
-# DW2 Mod Studio 0.95 (Release-Kandidat: volle DW3-Qualität, keine künstlichen Größengrenzen)
+# DW2 Mod Studio 0.95
 
-## Keine automatische Verkleinerung mehr
-- **PS1-Image:** Ist eine Modell- oder Bewegungsdatei größer als das Original, wird sie ans Ende des Images
-  verlagert. Dateitabelle des Spiels, ISO-Einträge und Volumengröße werden angepasst. Dreiecke und Bewegungsbilder
-  bleiben vollständig. Verkleinert wird nur mit ausdrücklicher Zustimmung und nur, wenn Verlagern unmöglich ist.
-  Der Bericht nennt jede verlagerte Datei mit alter und neuer Größe.
-- **PC-Port:** volle Geometrie. HD-Texturen bis 2048×4096 werden auf der Grafikkarte in voller Größe gezeichnet
-  (bis 512 MiB Texturspeicher, bei Bedarf angelegt, protokolliert).
+Zwischenrelease (kein 1.0 FINAL). Schwerpunkt: Digimon aus Digimon World 3 in voller Qualität in den DW2-PC-Port bringen.
 
-## Texturqualität
-- Atlas aus den genutzten UV-Bereichen, ein gemeinsamer Maßstab (rc4: feste 64×112-Kacheln).
-- HD-Textur über die gerundeten Spiel-UVs auf die Originaltexel abgebildet: keine hellen Kantenlinien, UV-Rundung
-  ausgeglichen. Die 1x-Palette kommt aus den Originalfarben.
-- Augen werden erkannt (Greymon). Blinzeln behält die HD-Textur, im Port und in der Studio-HD-Vorschau.
+## Neu gegenüber 1.0.0-rc4
+- **Texturen:** neuer Atlas aus den genutzten UV-Bereichen, HD-Textur mit den Originaltexeln an den Stellen, die das
+  Spiel liest. Behebt die falschen Farben bei WarGreymon, Imperialdramon Fighter Mode und Paladin Mode und die hellen
+  Kantenlinien.
+- **Keine automatische Verkleinerung:** volle Geometrie und alle Bewegungsbilder, auch im PS1-Image (größere Dateien
+  werden im Image verlagert). Verkleinern nur mit ausdrücklicher Zustimmung, sonst Fehlermeldung mit Grund.
+- **PC-Port:** HD-Texturen in 24 Bit (GPU-Renderer), bis 2048×4096 in voller Größe, Texturspeicher bis 7 × 128 MiB
+  nach Bedarf, Blinzeln mit HD, alles im Log nachvollziehbar.
+- **Studio:** Qualitätskarte (Original gegen Import, gemessen), DW3-Original im Viewer, HD-Vorschau automatisch und
+  mit Blinzeln, Pixel-Look nur als Filter, Größenfaktor korrigiert.
+- Alle 248 DW3-Modelle lassen sich ohne Dreiecksverlust umrechnen.
 
-## Studio
-- Karte „DW3-Import: Qualität (gemessen)“: Quelle gegen Ergebnis (Dreiecke, Vertices, Seiten, exakte Texel,
-  PSNR, UV-Rundung, Augen) und das DW3-Original im Viewer.
-- Modus A zeigt automatisch die HD-Textur. Pixel-Look ist nur noch ein Filter.
+## Getestet
+Sieben Digimon im Kampf auf Windows (GTX 1070, Vulkan): Greymon, Guilmon, Growlmon, MegaloGrowmon, WarGreymon,
+Imperialdramon Fighter Mode, Imperialdramon Paladin Mode. Details und Messwerte: `TESTERGEBNISSE_0.95.md`.
 
-Messwerte: `TESTERGEBNISSE_0.95.md`. Grenzen: `GRENZEN_ANALYSE_0.95.md`, `EINSCHRAENKUNGEN_0.95.md`.
+## Installation
+Siehe `ANLEITUNG.md`. Kurz: Studio-ZIP entpacken und `DW2_3D_Viewer_Studio.exe` starten. Port-ZIP in einen eigenen
+Ordner entpacken, eigene `dw2.pak` und `dw2.pak.slus` dazulegen. Spieldaten sind nicht enthalten.
+
+## Einschränkungen
+`EINSCHRAENKUNGEN_0.95.md`, `GRENZEN_ANALYSE_0.95.md`.

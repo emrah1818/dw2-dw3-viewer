@@ -1,19 +1,19 @@
-# DW2 Mod Studio 1.0.0-rc4 – Installation und Bedienung
+# DW2 Mod Studio 0.95 – Installation und Bedienung
 
 ## Zwei Modi
 - **Modus A – PC-Port:** du öffnest deine `dw2.pak`. Änderungen gehen als Mod in den `Mods`-Ordner des mitgelieferten
   Ports. Nur hier: HD-Texturen, Digitationslevel je Digimon, Kampfkamera je Digimon, Dateien größer als das Original.
 - **Modus B – PS1-Image:** du öffnest dein DW2-Abbild (`.cue`/`.bin`, `.ccd`/`.img` oder `.iso`). „Neues Image exportieren“
   schreibt ein neues Abbild mit CUE-Datei für PS1-Emulatoren. Namen, Werte, Techniken, Texturen, Modelle, Digitationen,
-  Gegner/Domains und DW3-Importe sind möglich, solange jede Datei in ihre Originalgröße passt. Dein Original bleibt
+  Gegner/Domains und DW3-Importe sind möglich. Größere DW3-Modell- und Bewegungsdateien werden im Image verlagert (nichts wird verkleinert); andere Ersatzdateien müssen in ihre Originalgröße passen. Dein Original bleibt
   unverändert; „Image überschreiben …“ fragt nach und legt vorher eine Sicherung an.
 Der Reiter **Mod-Export** zeigt oben, in welchem Modus du bist.
 
 ## Installation
 Voraussetzungen: Windows 10/11 x64, deine eigene `dw2.pak` (+ `dw2.pak.slus`) aus deinem PC-Port (Modus A) oder dein
 eigenes DW2-Abbild (Modus B), für den DW3-Import dein eigenes DW3-Abbild (USA, `.bin`).
-1. `DW2_Mod_Studio_1.0.0-rc4_Windows_x64.zip` vollständig entpacken (nicht aus dem ZIP heraus starten), `DW2_3D_Viewer_Studio.exe` starten. Prüfsummen: `SHA256SUMS.txt` (PowerShell: `Get-FileHash <Datei>`).
-2. `DW2_PC_Port_API2_1.0.0-rc4_Windows_x64.zip` in einen eigenen Ordner entpacken und deine eigenen `dw2.pak` und `dw2.pak.slus` dazulegen. Diesen Ordner wählst du später beim Export.
+1. `DW2_Mod_Studio_0.95_Windows_x64.zip` vollständig entpacken (nicht aus dem ZIP heraus starten), `DW2_3D_Viewer_Studio.exe` starten. Prüfsummen: `SHA256SUMS.txt` (PowerShell: `Get-FileHash <Datei>`).
+2. `DW2_PC_Port_API2_0.95_Windows_x64.zip` in einen eigenen Ordner entpacken und deine eigenen `dw2.pak` und `dw2.pak.slus` dazulegen. Diesen Ordner wählst du später beim Export.
 3. Im Studio oben **„Open BIN / ISO“** bzw. im Bereich **Dateien** „dw2.pak / Image öffnen“ und deine `dw2.pak` wählen. Die Datei wird nur gelesen.
 
 Alle Änderungen werden zuerst nur **vorgemerkt** (Zähler am Reiter Mod-Export). Rückgängig/Wiederherstellen gilt für jeden Bereich.

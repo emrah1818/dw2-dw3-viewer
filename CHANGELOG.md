@@ -1,5 +1,23 @@
 # Änderungsprotokoll
 
+## 0.95 – 15.11.2026
+
+DW3-Import
+- Texturatlas aus den genutzten UV-Bereichen (Skyline-Packung, gemeinsamer Maßstab) statt fester Kacheln je Seite.
+- HD-Textur über die gerundeten Spiel-UVs auf die DW3-Originaltexel abgebildet; Lücken aufgefüllt (keine hellen Kanten).
+- 1x-Palette aus den Originalfarben der Seite. Augen über Polygon-Überlappung erkannt.
+- Keine automatische Verkleinerung: PS1-Image verlagert größere Dateien; Verkleinern nur mit Zustimmung.
+- Größenfaktor bezieht sich immer auf die Original-DW2-Höhen (multiplizierte sich vorher auf).
+
+PC-Port
+- HD-Texturen in 24 Bit im GPU-Renderer (`DW2_HD_15BIT=1` schaltet auf 15 Bit).
+- Texturspeicher bis 7 × 128 MiB nach Bedarf (`DW2_TEXTURE_MEMORY_MB`), 2048×4096 in voller Größe.
+- Blinzeln und andere VRAM-Kopien behalten die HD-Textur. Log: „HD summary“, Speicherbereiche, Grenzen.
+
+Studio
+- Qualitätskarte, DW3-Original im Viewer, HD-Vorschau automatisch und mit Blinzeln, Pixel-Look nur als Filter.
+- Testwerkzeuge: `integration/uitest/` (Oberfläche in Headless-Chrome), `integration/windows/` (Kampftest).
+
 ## 1.0.0-rc4 – 14.11.2026 (Release-Kandidat)
 
 Behoben (gefunden beim Test auf einem Windows-PC mit GTX 1070 und der Original-BIN)
