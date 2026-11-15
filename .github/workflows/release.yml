@@ -1,5 +1,5 @@
-name: Test, build and (on request) publish DW2 Mod Studio 0.98.2
-# The dedicated release branch publishes v0.98.2 after every required check succeeds.
+name: Test, build and (on request) publish DW2 Mod Studio 0.98.3
+# The dedicated release branch publishes v0.98.3 after every required check succeeds.
 # Other development branches only test/build; manual publishing remains available.
 on:
   push:
@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       publish:
-        description: 'Als Version v0.98.2 veröffentlichen'
+        description: 'Als Version v0.98.3 veröffentlichen'
         type: boolean
         default: false
 permissions:
@@ -37,7 +37,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: test-results-0982
+          name: test-results-0983
           path: |
             test-results.xml
             test-summary.txt
@@ -61,20 +61,20 @@ jobs:
         shell: pwsh
         run: |
           $v = (Get-Item 'dist/DW2_3D_Viewer_Studio/DW2_3D_Viewer_Studio.exe').VersionInfo
-          if ($v.FileVersion -ne '0.98.2.0' -or $v.ProductVersion -ne '0.98.2') { throw 'Wrong Windows version resource' }
+          if ($v.FileVersion -ne '0.98.3.0' -or $v.ProductVersion -ne '0.98.3') { throw 'Wrong Windows version resource' }
       - name: Package viewer
         shell: pwsh
         run: |
-          $pkg = 'dist/DW2_Mod_Studio_0.98.2'
+          $pkg = 'dist/DW2_Mod_Studio_0.98.3'
           Move-Item dist/DW2_3D_Viewer_Studio $pkg
-          Copy-Item README.md, CHANGELOG.md, ANLEITUNG.md, RELEASE_NOTES_0.98.2.md, TESTERGEBNISSE_0.98.2.md, ANIMATIONSSYSTEM_0.96.md, EINSCHRAENKUNGEN_0.95.md, GRENZEN_ANALYSE_0.95.md, DIGITATIONSLEVEL_SCHNITTSTELLE.md, DW3_EFFEKTE_ANALYSE.md $pkg/
+          Copy-Item README.md, CHANGELOG.md, ANLEITUNG.md, RELEASE_NOTES_0.98.3.md, TESTERGEBNISSE_0.98.3.md, ANIMATIONSSYSTEM_0.96.md, EINSCHRAENKUNGEN_0.95.md, GRENZEN_ANALYSE_0.95.md, DIGITATIONSLEVEL_SCHNITTSTELLE.md, DW3_EFFEKTE_ANALYSE.md $pkg/
           Remove-Item "$pkg/_internal/tools/dw3_converter/*.obj" -ErrorAction SilentlyContinue
-          Compress-Archive -Path $pkg -DestinationPath DW2_Mod_Studio_0.98.2_Windows_x64.zip
+          Compress-Archive -Path $pkg -DestinationPath DW2_Mod_Studio_0.98.3_Windows_x64.zip
       - uses: actions/upload-artifact@v4
         with:
-          name: viewer-0982
+          name: viewer-0983
           path: |
-            DW2_Mod_Studio_0.98.2_Windows_x64.zip
+            DW2_Mod_Studio_0.98.3_Windows_x64.zip
             windows-smoke.json
   port:
     needs: tests
@@ -128,7 +128,7 @@ jobs:
       - name: Package PC port
         shell: pwsh
         run: |
-          $pkg = 'DW2_PC_Port_API2_0.98.2'
+          $pkg = 'DW2_PC_Port_API2_0.98.3'
           New-Item -ItemType Directory -Force $pkg | Out-Null
           Copy-Item pc-port/build/native64_rel_nodisc/dw2.exe, pc-port/build/native64_rel_nodisc/SDL3.dll, dw2_mod_api.json $pkg/
           Copy-Item pc-port/LICENSE "$pkg/LICENSE.txt"
@@ -136,37 +136,37 @@ jobs:
           Copy-Item pc-port/doc/MOD_API2.md "$pkg/MOD_API2.md"
           Copy-Item -Recurse pc-port/Languages $pkg/
           Copy-Item -Recurse pc-port/misc/fonts "$pkg/FontLicenses"
-          Compress-Archive -Path $pkg -DestinationPath DW2_PC_Port_API2_0.98.2_Windows_x64.zip
+          Compress-Archive -Path $pkg -DestinationPath DW2_PC_Port_API2_0.98.3_Windows_x64.zip
       - uses: actions/upload-artifact@v4
         with:
-          name: pc-port-0982
-          path: DW2_PC_Port_API2_0.98.2_Windows_x64.zip
+          name: pc-port-0983
+          path: DW2_PC_Port_API2_0.98.3_Windows_x64.zip
       - uses: actions/upload-artifact@v4
         with:
-          name: port-tests-0982
+          name: port-tests-0983
           path: |
             pc-port/build/native64_rel_nodisc/hd_test.exe
             pc-port/build/native64_rel_nodisc/modconf_test.exe
             pc-port/build/native64_rel_nodisc/SDL3.dll
   publish:
     needs: [viewer, port]
-    if: (github.event_name == 'workflow_dispatch' && inputs.publish) || (github.event_name == 'push' && github.ref == 'refs/heads/development/release-0.98.2')
+    if: (github.event_name == 'workflow_dispatch' && inputs.publish) || (github.event_name == 'push' && github.ref == 'refs/heads/development/release-0.98.3')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
-          name: viewer-0982
+          name: viewer-0983
           path: release-assets
       - uses: actions/download-artifact@v4
         with:
-          name: pc-port-0982
+          name: pc-port-0983
           path: release-assets
       - uses: actions/download-artifact@v4
         with:
-          name: test-results-0982
+          name: test-results-0983
           path: release-assets
-      - name: Publish 0.98.2 preview after build checks
+      - name: Publish 0.98.3 preview after build checks
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -174,8 +174,8 @@ jobs:
           sha256sum *.zip windows-smoke.json test-results.xml test-summary.txt ui-manual-selection.txt > SHA256SUMS.txt
           files="*.zip windows-smoke.json test-results.xml test-summary.txt ui-manual-selection.txt SHA256SUMS.txt"
           # Never retag or replace an existing published build.
-          if gh release view v0.98.2 --repo '${{ github.repository }}' >/dev/null 2>&1; then
-            echo 'v0.98.2 already exists; refusing to overwrite it.' >&2
+          if gh release view v0.98.3 --repo '${{ github.repository }}' >/dev/null 2>&1; then
+            echo 'v0.98.3 already exists; refusing to overwrite it.' >&2
             exit 1
           fi
-          gh release create v0.98.2 $files --target '${{ github.sha }}' --repo '${{ github.repository }}' --title 'DW2 Mod Studio 0.98.2' --prerelease --notes-file ../RELEASE_NOTES_0.98.2.md
+          gh release create v0.98.3 $files --target '${{ github.sha }}' --repo '${{ github.repository }}' --title 'DW2 Mod Studio 0.98.3' --prerelease --notes-file ../RELEASE_NOTES_0.98.3.md

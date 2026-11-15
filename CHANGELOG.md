@@ -1,5 +1,19 @@
 # Änderungsprotokoll
 
+## 0.98.3 – 15.11.2026 (Domain-/Feldmodelle, Vorabversion)
+
+- Öffnen ab #300: physische Animationsdateien werden nur einmal gelesen und für alle
+  zugeordneten MODELDT-Slots bereitgestellt. Behebt Errno 17 bei mehrfach genutzten E-/D-Dateien.
+- Direkte Konvertierung und Desktop-Warteschlange verwenden dieselbe geprüfte Extraktion;
+  widersprüchliche Dateinamen werden abgewiesen. Neuer Konvertierungs-Cache v10.
+- DW3-Import für Feld-/NPC-Modelle bearbeitet jeden physischen Clip einmal. Geteilte
+  Slot-Verweise bleiben erhalten, Standby wird vorbelegt, Bewegung bleibt manuell wählbar.
+- Feldmodelle behalten bei Größenfaktor 1 ihre Originalhöhe. Keine Kampfkamera-Änderung
+  für Feld-/NPC-Importe. Feldaktionen im Animationseditor mit Standby-/Gehen-Simulation.
+- Nach einem Ladefehler wird das vorherige Modell entfernt statt unter falscher ID angezeigt.
+- Geprüft mit Originaldaten: 192/192 Vorschauen ab #300, fünf DW3-Ersetzungen mit
+  Projekt-Rundlauf und Mod-Export, Texturbearbeitung an #304. Details: TESTERGEBNISSE_0.98.3.md.
+
 ## 0.98.2 – 15.11.2026 (Korrektur, Vorabversion)
 
 - Enthält die manuelle Animationsauswahl aus 0.98.1.

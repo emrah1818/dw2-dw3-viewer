@@ -21,7 +21,7 @@ import traceback
 CACHE = None          # Arbeitsordner der App (filesDir/viewer)
 NATIVE_DIR = None     # nativeLibraryDir (enthält libdw2conv.so)
 _lock = threading.RLock()
-CONVERTER_VERSION = 'v9'   # erhöhen, wenn sich die Konvertierung ändert (alter Cache wird ignoriert)
+CONVERTER_VERSION = 'v10'  # preserve every MODELDT slot when a file is reused
 
 
 class State:
@@ -580,6 +580,8 @@ def _model_family(c, original=False, repo=None):
     for entry in model_entries(S.entries):
         by_name.setdefault(_basename(entry), entry)
     files, aliases = [model], {}
+    seen = {(model.path, model.lba)}
+    targets = {}
     for slot in SLOTS:
         chosen, origin = None, None
         name = slots.get(slot)
@@ -600,11 +602,17 @@ def _model_family(c, original=False, repo=None):
                 info['notes'].append(f'{slot}: {_basename(chosen)} ist laut Spieltabelle keinem Slot zugeordnet (trotzdem angezeigt)')
         if chosen is None:
             continue
-        files.append(chosen)
+        entry_key = (chosen.path, chosen.lba)
+        if entry_key not in seen:
+            files.append(chosen)
+            seen.add(entry_key)
         info['slots'][slot] = {'file': _basename(chosen), 'origin': origin, 'shared': _basename(chosen)[1:] != f'{stem}.BIN'}
         target = f'{slot}{stem}.BIN'
-        if _basename(chosen) != target:
-            aliases[(chosen.path, chosen.lba)] = target
+        targets.setdefault(entry_key, []).append(target)
+    for entry in files[1:]:
+        names = targets[(entry.path, entry.lba)]
+        if len(names) > 1 or names[0] != _basename(entry):
+            aliases[(entry.path, entry.lba)] = names if len(names) > 1 else names[0]
     if slots:
         info['source'] = 'MODELDT'
     return files, aliases, info
@@ -747,10 +755,9 @@ def _audit_one(c, repo=None):
     row['abr'] = {str(k): v for k, v in sorted(abr.items())}
     anims, flags = {}, {'keys': 0, 'scaled_keys': 0, 'sheared_keys': 0, 'mirrored_keys': 0}
     clips = loops = holds = gaps = 0
-    for e in files:
-        slot = (aliases.get((e.path, e.lba)) or _basename(e))[0]
-        if slot == 'M':
-            continue
+    by_name = {_basename(e): e for e in files}
+    for slot, binding in family['slots'].items():
+        e = by_name[binding['file']]
         data = s.current(e)
         try:
             a = parse_anim_file(data, m.bone_count, strict=False)
@@ -1074,9 +1081,10 @@ _HEIGHTS = {}
 def _height_of(candidate, original=False, repo=None):
     from dw2studio.core.dw3_native import model_height
     s = _need_session()
-    family, _, _ = _model_family(candidate, original=original, repo=repo)
+    family, _, meta = _model_family(candidate, original=original, repo=repo)
     model = next(e for e in family if Path(e.path).name.startswith('M'))
-    anim = next(e for e in family if Path(e.path).name[0] == 'A')
+    name = meta['slots'].get('A', {}).get('file')
+    anim = next(e for e in family if _basename(e) == name) if name else next(e for e in family if not _basename(e).startswith('M'))
     get = s.original if original else s.current
     return model_height(get(model), get(anim))
 
@@ -1182,10 +1190,10 @@ def anim_editor(target):
         else:
             act = defaults[key]
         places.append({'slot': d['slot'], 'clip': d['clip'], 'id': 10 * 'ABCDEFGHIJK'.index(d['slot']) + d['clip'],
-                       'role': dw3_actions.ROLES.get(key, 'Feld-Animation (nicht im Kampf)'), 'action': act,
+                       'role': d.get('role', dw3_actions.ROLES.get(key, 'Feld-Animation (nicht im Kampf)')), 'action': act,
                        'default': defaults[key], 'transitions': dw3_actions.transitions(prepared['source'], act)})
     motions = [dict(m, scripts=used.get(m['id'], [])) for m in info['motions']]
-    return {'target': ident, 'source': job['source_name'], 'places': places, 'motions': motions,
+    return {'target': ident, 'source': job['source_name'], 'field': ident >= 300, 'places': places, 'motions': motions,
             'status': dw3_actions.STATUS, 'scripts': info.get('scripts') or [],
             'digimon': model.get('digimon', job['source_name']), 'model_id': (model.get('fighter_ids') or [None])[0],
             'code': model.get('code'), 'file_number': model.get('file_number'), 'variant': model.get('variant', ''),

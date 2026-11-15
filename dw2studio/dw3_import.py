@@ -49,7 +49,8 @@ def prepare(api, source_id, target_id):
         slot = Path(entry.path).name[0]
         if slot not in 'ABCDEFGHIJK':
             continue
-        if meta['slots'].get(slot,{}).get('origin')!='MODELDT':
+        if not any(s['origin'] == 'MODELDT' and s['file'] == Path(entry.path).name
+                   for s in meta['slots'].values()):
             continue
         parsed = parse_anim_file(session.current(entry), n)
         animations[slot] = (entry, parsed)
@@ -79,6 +80,9 @@ def prepare(api, source_id, target_id):
         except (StopIteration, ValueError, KeyError, IndexError):
             dw2_height = None
     scale = natural_scale(source, dw2_height)
+    if target_id >= 300:
+        scale = slot_scale
+        size_source = 'Originalhöhe des Domain-/Feld-Modells'
     scale_dw3 = natural_scale(source, None, 'dw3')
     from .core.dw3_native import source_height
     h3 = source_height(source)
@@ -94,12 +98,13 @@ def prepare(api, source_id, target_id):
     # timing from the DW3 script, and where it loops, with how sure each default is
     from . import dw3_actions
     table = dw3_actions.motion_table(source)
-    actions = dw3_actions.defaults(source, scripts['scripts'] if scripts else [],
-                                   [(d['slot'], d['clip']) for d in descriptors])
+    places = [(d['slot'], d['clip']) for d in descriptors]
+    actions = (dw3_actions.field_defaults(source, places) if target_id >= 300 else
+               dw3_actions.defaults(source, scripts['scripts'] if scripts else [], places))
     for d in descriptors:
         act = actions[(d['slot'], d['clip'])]
         d['action'] = act
-        d['role'] = dw3_actions.ROLES.get((d['slot'], d['clip']), 'Feld-Animation')
+        d['role'] = dw3_actions.field_role(d['clip']) if target_id >= 300 else dw3_actions.ROLES.get((d['slot'], d['clip']), 'Feld-Animation')
         d['motion'] = act['segments'][0]['motion']
         d['loop'] = act['end'] == 'loop'
         d['reason'] = act['reason']
@@ -111,7 +116,7 @@ def prepare(api, source_id, target_id):
     from .core.dw3_native import face_plan
     face_parts, face_notes = face_plan(source, face)
     return {'source': source,'folder':folder,'model':model,'animations':animations,'face':face,
-            'info':{'name':info['name'],'target':candidate.name,'scale':scale,'slot_scale':slot_scale,
+            'info':{'name':info['name'],'target':candidate.name,'field':target_id >= 300,'scale':scale,'slot_scale':slot_scale,
                     'size_source':size_source,'scale_dw3':scale_dw3,
                     'heights':{'dw2':round(h3*scale),'dw3':round(h3*scale_dw3),'slot':round(h3*slot_scale)},
                     'motions':[{'id':m['id'],'frames':len(m['frames']),'end':table[m['id']]['end'],
@@ -232,7 +237,7 @@ def apply(api, source_id, target_id, assignments, scale_factor=1., hd_scale=0, c
     if not ps1:
         hd.save(buffer,format='PNG')
     sha=hashlib.sha256(native).hexdigest()
-    cam=_camera_plan(api,prepared,target_id,native,changes,camera)
+    cam=_camera_plan(api,prepared,target_id,native,changes,camera) if target_id < 300 else None
     before=session.edits.copy()
     try:
         for entry,payload,label in changes:
@@ -243,12 +248,12 @@ def apply(api, source_id, target_id, assignments, scale_factor=1., hd_scale=0, c
             if ps1:   # same size as the original file on the disc (the rest of its sectors stays zero)
                 payload=payload+bytes(_ps1_limit(session,entry)-len(payload))
             session.stage(entry,payload,label)
-        if cam['repo'].set(target_id,cam['field_1E'],cam['hit_fx_y'],f'Kamera / Treffereffekt #{target_id:03} (DW3-Import)'):
+        if cam and cam['repo'].set(target_id,cam['field_1E'],cam['hit_fx_y'],f'Kamera / Treffereffekt #{target_id:03} (DW3-Import)'):
             report['camera_changed']=True
     except Exception:
         session.edits=before
         raise
-    report['camera']={k:v for k,v in cam.items() if k!='repo'}
+    report['camera']={k:v for k,v in cam.items() if k!='repo'} if cam else None
     # Attack / target / close-up shots (Mods/battle_camera.json, PC port 1.0): the smallest change
     # that keeps the new Digimon whole on screen in every battle position (battle_shots.auto)
     from .core import battle_shots

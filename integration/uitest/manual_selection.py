@@ -28,6 +28,9 @@ window.Android={invoke(id, method, raw) {
       assignments:['F','G','H'].map(slot=>({slot,clip:0,motion:1,loop:false,action:structuredClone(auto),reason:'Automatisch'}))}
   };
   if(method==='dw3_native_apply'){window.__submitted=JSON.parse(raw);return;}
+  if(method==='prepare_model'){
+    queueMicrotask(()=>window.__resolve(id,JSON.stringify({ok:false,error:'Synthetic model load failure'})));return;
+  }
   queueMicrotask(()=>window.__resolve(id,JSON.stringify({ok:true,data:data[method]||{}})));
 }};
 """
@@ -67,8 +70,24 @@ try:
         assert rows[0]['selection']=='motion' and rows[0]['motion']==1 and not rows[0]['loop']
         assert 'selection' not in rows[1] and len(rows[1]['action']['segments'])==2
         assert 'selection' not in rows[2] and rows[2]['action']['status']=='data'
+        # Loading a failing field model must clear the previous displayed model,
+        # rather than showing it under the newly selected #304 label.
+        page.reload()
+        page.wait_for_function('!!window.__desktop && !!window.__dw2')
+        page.evaluate("""async () => {
+            const THREE=await import('/lib/three.module.js');
+            const v=window.__dw2.view, s=window.__dw2.state;
+            v.model=new THREE.Group(); v.scene.add(v.model);
+            s.catalog=s.filtered=[{id:3,name:'Previous'},{id:304,name:'Field model'}];
+            s.id=3; s.loaded={id:3}; window.__desktop.show('page-view');
+        }""")
+        page.click('#v-next')
+        page.wait_for_function('window.__dw2.state.id===304 && window.__dw2.state.loaded===null')
+        assert page.evaluate('window.__dw2.view.model===null')
+        assert page.locator('#anim option').count()==0
+        assert 'nicht geladen' in page.locator('#stage-msg').inner_text()
         assert not errors, errors
-        print('PASS: actual import dialog, independent F/G/H, native loop defaults, explicit same-motion choice, loop override, reset and untouched chains; no JS errors')
+        print('PASS: import dialog, independent F/G/H, loop defaults/override, same-motion choice, reset, untouched chains; failed field load clears stale model; no JS errors')
         browser.close()
 finally:
     srv.shutdown()

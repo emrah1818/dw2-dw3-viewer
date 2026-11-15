@@ -40,6 +40,23 @@ JUMP_SPEED = {1: 136, 2: 102, 3: 81, 4: 64, 5: 64, 6: 42}   # FIGHTSTG_jumps (mo
 VICTORY_MOTION = 13
 
 
+def field_role(clip):
+    # STAG4000 enemy.c: E0 (0x28) when standing, E1 (0x29) when moving.
+    return {0: 'Domain / Feld: Standby', 1: 'Domain / Feld: Gehen'}.get(clip, f'Feld-Animation {clip}')
+
+
+def field_defaults(source, places):
+    """Field files are shared by logical A/D/E slots. Edit each physical clip once.
+    DW3 locomotion is not guessed from a battle attack or motion number.
+    """
+    table = motion_table(source)
+    idle = 1 if 1 in table else min(table)
+    return {place: single(table, idle, 'data' if place[1] == 0 else 'open',
+                          'Standby aus DW3' if place[1] == 0 else
+                          'Feldbewegung noch nicht zugeordnet: Motion manuell wählen; vorläufig Standby')
+            for place in places}
+
+
 def jump_ticks(kind):
     """Ticks a DW3 jump takes (FIGHTSTG_updateJump: t from 2 * speed in steps of 2 * speed to 4096)."""
     s = 2 * JUMP_SPEED.get(kind, 64)

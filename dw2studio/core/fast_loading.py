@@ -63,7 +63,49 @@ class ModelRequest:
     candidate:object
     converter:str
     overrides:dict
-    aliases:dict=None   # Eintragsschlüssel (path,lba) -> Zieldateiname (Spielzuordnung A–K aus MODELDT)
+    aliases:dict=None   # (path,lba) -> one destination name or several MODELDT slot names
+
+
+def extract_request(job, source, cancel=lambda:False):
+    """Read a physical file once, then materialize all of its logical slots.
+
+    Conflicting destination names are rejected instead of silently overwriting
+    another file. This is shared by the direct and queued conversion paths.
+    """
+    disc = Disc(job.image)
+    written = {}
+    try:
+        for entry in job.entries:
+            if cancel():
+                raise RuntimeError('Konvertierung abgebrochen')
+            name = Path(entry.path.replace('\\', '/')).name
+            destinations = (job.aliases or {}).get((entry.path, entry.lba), name)
+            if isinstance(destinations, str):
+                destinations = [destinations]
+            origin = (entry.path, entry.lba, entry.size)
+            pending = []
+            for target in destinations:
+                if not isinstance(target, str) or Path(target).name != target or '\\' in target or target in ('.', '..'):
+                    raise ValueError('Ungültiger Konvertierungs-Dateiname.')
+                key = target.upper()
+                if key in written:
+                    if written[key] != origin:
+                        raise ValueError(f'Widersprüchliche Modell-Dateizuordnung: {target}.')
+                    continue
+                written[key] = origin
+                pending.append(target)
+            if not pending:
+                continue
+            data = job.overrides.get(name)
+            first = source / pending[0]
+            if data is None:
+                disc.extract(entry, first)
+            else:
+                first.write_bytes(data)
+            for target in pending[1:]:
+                shutil.copyfile(first, source / target)
+    finally:
+        disc.close()
 
 
 def build_model(job,convert,cancel=lambda:False):
@@ -76,16 +118,8 @@ def build_model(job,convert,cancel=lambda:False):
         except ValueError:pass
     job.folder.mkdir(parents=True,exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='conversion-',dir=job.folder) as temp:
-        source=Path(temp)/'native';output=Path(temp)/'converted';source.mkdir();output.mkdir();disc=Disc(job.image)
-        try:
-            for entry in job.entries:
-                if cancel():raise RuntimeError('Konvertierung abgebrochen')
-                name=Path(entry.path.replace('\\','/')).name
-                data=job.overrides.get(name)
-                target=(job.aliases or {}).get((entry.path,entry.lba),name)
-                if data is None:disc.extract(entry,source/target)
-                else:(source/target).write_bytes(data)
-        finally:disc.close()
+        source=Path(temp)/'native';output=Path(temp)/'converted';source.mkdir();output.mkdir()
+        extract_request(job, source, cancel)
         if not any(source.iterdir()):raise ValueError('Keine extrahierten Modell-Dateien gefunden')
         convert(source,output)
         models=candidate_models(output,job.candidate)
@@ -153,15 +187,8 @@ class ConversionQueue(QThread):
         job.folder.mkdir(parents=True,exist_ok=True)
         # A cancelled conversion never publishes a half-written glTF cache entry.
         with tempfile.TemporaryDirectory(prefix='conversion-',dir=job.folder) as temp:
-            source=Path(temp)/'native';output=Path(temp)/'converted';source.mkdir();disc=Disc(job.image)
-            try:
-                for entry in job.entries:
-                    if self.cancelled():raise RuntimeError('Konvertierung abgebrochen')
-                    name=Path(entry.path.replace('\\','/')).name
-                    data=job.overrides.get(name)
-                    if data is None:disc.extract(entry,source/name)
-                    else:(source/name).write_bytes(data)
-            finally:disc.close()
+            source=Path(temp)/'native';output=Path(temp)/'converted';source.mkdir()
+            extract_request(job, source, self.cancelled)
             convert_models(job.converter,source,output,cancel=self.cancelled)
             if self.cancelled():raise RuntimeError('Konvertierung abgebrochen')
             models=candidate_models(output,job.candidate)

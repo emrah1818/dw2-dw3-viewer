@@ -207,7 +207,11 @@ async function loadModel(id) {
     prefetchNeighbours(id);
   } catch (e) {
     if (seq !== loadSeq) return;
-    $('#stage-msg').textContent = '';
+    view.clear();
+    state.loaded = null;
+    $('#anim').replaceChildren();
+    $('#v-name').textContent = nameOf(id);
+    $('#stage-msg').textContent = t('Modell konnte nicht geladen werden.');
     await fail(e);
   }
 }
@@ -519,7 +523,8 @@ async function nativeDw3Flow(sourceId) {
   const choice=await modal((box,close)=>{
     const assignments = p.assignments.map(a => structuredClone(a));
     box.innerHTML=`<h3>${esc(p.name)} → ${esc(p.target)}</h3><p>${p.source_bones} DW3-Knochen ersetzen ${p.target_bones} DW2-Knochen. ${state.image?.source_kind === 'pak' ? 'Benötigt den beiliegenden PC-Port mit Overlay-API 2.' : 'PS1-Image (Modus B): Größere Dateien als das Original werden ans Ende des Images verlagert (Dateitabelle des Spiels angepasst). Nichts wird verkleinert, außer du erlaubst es unten ausdrücklich.'}</p>${p.limits ? `<p class="hint">DW2-Formatgrenzen: ${p.limits.parts} von ${p.limits.max_parts} Modellteilen, ${p.limits.max_depth} von 8 Ebenen${p.limits.split_bones.length ? `; ${p.limits.split_bones.length} große Knochen werden in Teile mit höchstens 256 Vertices geteilt` : ''}${p.limits.flattened_bones.length ? `; ${p.limits.flattened_bones.length} Knochen unter Ebene 8 hängen exakt an Ebene 8` : ''}.</p>` : ''}${p.face ? `<p class="hint">Gesicht: ${p.face.eyes ? 'Augen blinzeln wie in DW3 (Augenrahmen aus DW3 übernommen)' : 'keine DW3-Augenrahmen'}${p.face.parts - p.face.eyes > 0 ? `, ${p.face.parts - p.face.eyes} weitere Gesichtsteile im Zyklus` : ''}${p.face.notes.length ? ' · ' + esc(p.face.notes.join(' ')) : ''}.</p>` : ''}<p class="hint">Vorbelegt aus den DW3-Kampfskripten des Modells (Standby, Treffer, K.o., Angriff) und den Kampfplätzen von DW2. Die Quelle steht neben jedem Platz. Jede Motion lässt sich ändern.</p>`+
-    p.assignments.map((a,i)=>`<label>${a.slot}${a.clip}<select data-motion="${i}">${a.action ? '<option value="" selected>DW3-Vorgabe (Aktionskette)</option>' : ''}${p.motions.map(m=>`<option value="${m.id}" ${!a.action && m.id===a.motion?'selected':''}>Motion ${m.id} · ${m.frames} Bilder · ${esc(motionEndText(m))}</option>`).join('')}</select><input data-loop="${i}" type="checkbox" ${a.loop?'checked':''}> Schleife <small class="hint" data-motion-hint="${i}">${esc(a.reason||'')}</small></label>`).join('')+
+    (p.field ? '<p class="hint">Domain-/Feldmodell: Vorhandene Clips statt Kampfplätze. Standby ist vorbelegt; weitere Bewegungen bitte selbst auswählen.</p>' : '')+
+    p.assignments.map((a,i)=>`<label>${a.slot}${a.clip}${a.role ? ' · '+esc(a.role) : ''}<select data-motion="${i}">${a.action ? '<option value="" selected>DW3-Vorgabe (Aktionskette)</option>' : ''}${p.motions.map(m=>`<option value="${m.id}" ${!a.action && m.id===a.motion?'selected':''}>Motion ${m.id} · ${m.frames} Bilder · ${esc(motionEndText(m))}</option>`).join('')}</select><input data-loop="${i}" type="checkbox" ${a.loop?'checked':''}> Schleife <small class="hint" data-motion-hint="${i}">${esc(a.reason||'')}</small></label>`).join('')+
     `<label>Größenmaßstab <select id="d-mode"><option value="dw2" selected>DW2-Verhältnisse (${p.heights ? p.heights.dw2 : '–'} hoch)</option><option value="dw3">DW3-Verhältnisse (${p.heights ? p.heights.dw3 : '–'} hoch)</option></select></label>` +
     `<label>Größenfaktor <input id="d-scale" type="number" min="0.1" max="10" step="0.05" value="1"></label><p class="hint" id="d-size">${p.heights ? `Ersetzter Platz: ${p.heights.slot} hoch. ${esc(p.size_source || '')}.` : ''} Später unter Bearbeiten › Größe im Spiel änderbar.</p>`+
     `<label>HD-Textur <select id="d-hd"><option value="0" selected>Automatisch (volle DW3-Auflösung)</option><option value="2">256×512</option><option value="4">512×1024</option><option value="8">1024×2048</option><option value="16">2048×4096</option></select></label>${state.image?.source_kind === 'pak' ? '' : `<label class="row"><input type="checkbox" id="d-reduce"> ${t('Nur falls Verlagern nicht möglich: Verkleinerung für das PS1-Image erlauben')}</label>`}<div class="btns"><button id="d-cancel">Abbrechen</button><button id="d-apply" class="primary">Prüfen und vormerken</button></div>`;

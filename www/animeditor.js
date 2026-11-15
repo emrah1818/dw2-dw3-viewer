@@ -28,6 +28,13 @@ export function initAnimEditor(env) {
   const clone = o => JSON.parse(JSON.stringify(o));
   const motionInfo = id => ed.data.motions.find(m => m.id === id) || { frames: 1, end: 'hold', loop_frame: 0, scripts: [] };
   const endText = m => m.end === 'loop' ? t('wiederholt ab Bild {f}', { f: m.loop_frame }) : m.end === 'idle' ? t('geht in Standby über') : t('hält das letzte Bild');
+  function simulations() {
+    if (!ed.data.field) return SIMS;
+    const idle = ed.places.find(p => p.clip === 0) || ed.places[0];
+    const move = ed.places.find(p => p.clip === 1);
+    return { 'Standby (Domain)': [[key(idle), 90]],
+      ...(move ? { 'Gehen (Domain)': [[key(idle), 30], [key(move), 90], [key(idle), 30]] } : {}) };
+  }
 
   /** Zeilen einer Aktion wie dw3_actions.frames_of: [{seg, rep, motion, frame, blend}] und Loop-Zeile. */
   function layout(act) {
@@ -111,7 +118,7 @@ export function initAnimEditor(env) {
       <div class="btns">
         <button id="ae-apply" class="primary">${esc(t('Übernehmen und Vorschau'))}</button>
         <button id="ae-default">${esc(t('DW3-Vorgabe'))}</button>
-        <select id="ae-sim">${Object.keys(SIMS).map(k => `<option>${esc(t(k))}</option>`).join('')}</select>
+        <select id="ae-sim">${Object.keys(simulations()).map(k => `<option>${esc(t(k))}</option>`).join('')}</select>
         <button id="ae-simgo">${esc(t('Kampfaktion simulieren'))}</button>
         <button id="ae-close">${esc(t('Schließen'))}</button>
       </div>
@@ -163,7 +170,7 @@ export function initAnimEditor(env) {
     $('#ae-default', body).onclick = () => { p.action = clone(p.default); ed.dirty.add(ed.sel); render(); };
     $('#ae-apply', body).onclick = applyAll;
     $('#ae-close', body).onclick = close;
-    $('#ae-simgo', body).onclick = () => simulate(Object.keys(SIMS)[$('#ae-sim', body).selectedIndex]);
+    $('#ae-simgo', body).onclick = () => simulate(Object.keys(simulations())[$('#ae-sim', body).selectedIndex]);
     $('#ae-first', body).onclick = () => seek(0);
     $('#ae-last', body).onclick = () => seek(total() - 1);
     $('#ae-prev', body).onclick = () => seek(ed.row - 1);
@@ -344,7 +351,7 @@ export function initAnimEditor(env) {
   /** Spielt einen Kampfablauf wie im Spiel: Clip für Clip, „done“ = bis der Clip einmal durch ist. */
   async function simulate(name) {
     if (ed.mode === 'motion') { ed.mode = 'action'; await loadModel(state.id); }
-    const seq = SIMS[name];
+    const seq = simulations()[name];
     const missing = seq.map(s => s[0]).filter(k => clipIndex(k) < 0);
     if (missing.length) return toast(t('Fehlt in diesem Platz: {k}', { k: missing.join(', ') }));
     const token = {}; ed.sim = token;
