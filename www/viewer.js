@@ -481,6 +481,16 @@ export class Viewer {
   /** Aktuelle Zeile des laufenden nativen Clips. */
   nativeRow() { return this.native ? this.native.player.frame : 0; }
 
+  /** Kleines Vorschaubild der aktuellen Ansicht (PNG-Data-URL), z. B. für die DW3-Liste. */
+  snapshot(size = 160) {
+    this.renderer.render(this.scene, this.camera);
+    const src = this.renderer.domElement, s = Math.min(src.width, src.height);
+    if (!s) return null;
+    const c = document.createElement('canvas'); c.width = c.height = size;
+    c.getContext('2d').drawImage(src, (src.width - s) / 2, (src.height - s) / 2, s, s, 0, 0, size, size);
+    return c.toDataURL('image/png');
+  }
+
   /** glTF-Animation (DW3-Original) an Bild FRAME (30 Bilder/s) anhalten. */
   gltfSeek(index, frame) {
     if (!this.mixer || !this.actions[index]) return;

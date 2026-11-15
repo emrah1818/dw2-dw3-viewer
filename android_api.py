@@ -1170,6 +1170,7 @@ def anim_editor(target):
     for sc in info.get('scripts') or []:
         for m in sc.get('motions', []):
             used.setdefault(m, []).append(sc['index'])
+    model = next((m for m in DW3.catalog() if m['name'] == job['source_name']), {})
     places = []
     for d in info['assignments']:
         key = (d['slot'], d['clip'])
@@ -1185,7 +1186,10 @@ def anim_editor(target):
                        'default': defaults[key], 'transitions': dw3_actions.transitions(prepared['source'], act)})
     motions = [dict(m, scripts=used.get(m['id'], [])) for m in info['motions']]
     return {'target': ident, 'source': job['source_name'], 'places': places, 'motions': motions,
-            'status': dw3_actions.STATUS, 'scripts': info.get('scripts') or []}
+            'status': dw3_actions.STATUS, 'scripts': info.get('scripts') or [],
+            'digimon': model.get('digimon', job['source_name']), 'model_id': (model.get('fighter_ids') or [None])[0],
+            'code': model.get('code'), 'file_number': model.get('file_number'), 'variant': model.get('variant', ''),
+            'name_status': model.get('status_text', '')}
 
 
 def anim_check(target, action):
@@ -1298,7 +1302,35 @@ def file_export(lba, original=False):
 def dw3_models():
     if DW3 is None:
         return {'open': False, 'models': []}
-    return {'open': True, 'name': DW3.path.name, 'models': DW3.catalog()}
+    names = getattr(DW3, 'names', None) or {}
+    return {'open': True, 'name': DW3.path.name, 'models': DW3.catalog(), 'names_source': names.get('source'),
+            'names_note': names.get('note')}
+
+
+def dw3_thumb_save(identifier, data_url):
+    """Store the viewer's preview of DW3 model IDENTIFIER (data:image/png;base64,...)."""
+    import base64
+    if DW3 is None:
+        raise ValueError('Bitte zuerst ein DW3-Image öffnen.')
+    prefix = 'data:image/png;base64,'
+    if not isinstance(data_url, str) or not data_url.startswith(prefix) or len(data_url) > 400000:
+        raise ValueError('Vorschaubild ungültig.')
+    return DW3.save_thumb(int(identifier), base64.b64decode(data_url[len(prefix):], validate=True))
+
+
+def dw3_find(query):
+    """DW3 models whose name, alternative name, file code, file name or id matches QUERY."""
+    from dw2studio.dw3_names import matches, rank
+    if DW3 is None:
+        return []
+    out = []
+    for m in DW3.catalog():
+        row = {'name': m.get('digimon', m['name']), 'code': m.get('code', ''), 'file': m.get('file', m['name']),
+               'aliases': m.get('aliases', []), 'id': m['id'], 'file_number': m.get('file_number'),
+               'name_index': m.get('name_index'), 'fighter_ids': m.get('fighter_ids', [])}
+        if matches(row, query):
+            out.append((rank(row, query), m))
+    return [m for _, m in sorted(out, key=lambda x: x[0])]
 
 
 # --------------------------------------------------------------------------- 0.17b: HD-Vorschau
@@ -1428,7 +1460,7 @@ _METHODS = {
     'dw3_resize': dw3_resize, 'size_info': size_info, 'mod_import_force': mod_import_force,
     'hd_preview': hd_preview, 'hd_active': hd_active, 'files_list': files_list, 'file_export': file_export, 'dw3_models': dw3_models,
     'camera_info': camera_info, 'camera_set': camera_set, 'dw3_batch_apply': dw3_batch_apply,
-    'open_dw3': open_dw3, 'prepare_dw3': prepare_dw3, 'export_dw3': export_dw3, 'export_port_mod': export_port_mod,
+    'open_dw3': open_dw3, 'prepare_dw3': prepare_dw3, 'dw3_thumb_save': dw3_thumb_save, 'dw3_find': dw3_find, 'export_dw3': export_dw3, 'export_port_mod': export_port_mod,
     'port_mod_status': port_mod_status, 'port_mod_disable': port_mod_disable, 'port_mod_enable': port_mod_enable,
     'configure': configure, 'open_image': open_image, 'catalog': catalog_list,
     'name_info': name_info, 'rename': rename, 'type_info': type_info, 'set_type': set_type,

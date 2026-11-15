@@ -2,6 +2,7 @@
 from dataclasses import asdict
 import hashlib
 import json
+import struct
 import os
 from pathlib import Path
 import re
@@ -45,11 +46,46 @@ class Dw3Disc:
             self.entries = sorted([e for e in entries if MODEL_NAME.fullmatch(Path(e.path).name)], key=lambda e: e.path)
             if not self.entries:
                 raise ValueError('Keine DW3-Modelleinträge gefunden.')
+            # names from the game's DIGNAM text (read only; cached next to the index)
+            from . import dw3_names
+            try:
+                self.names = dw3_names.load_or_build(self.cache, 'v1', disc, self.entries)
+            except (OSError, ValueError, KeyError, struct.error) as e:
+                self.names = {'version': 1, 'note': f'Namen nicht lesbar: {e}', 'models': []}
         finally:
             disc.close()
 
     def catalog(self):
-        return [{'id': i, 'name': Path(e.path).stem, 'size': e.size} for i, e in enumerate(self.entries)]
+        rows = {m['id']: m for m in (getattr(self, 'names', None) or {}).get('models', [])}
+        out = []
+        for i, e in enumerate(self.entries):
+            item = {'id': i, 'name': Path(e.path).stem, 'size': e.size}
+            m = rows.get(i)
+            if m and m.get('path') == e.path:
+                item.update({'digimon': m['name'], 'code': m['code'], 'file': m['file'], 'file_number': m['file_number'],
+                             'fighter_ids': m['fighter_ids'], 'name_index': m['name_index'], 'aliases': m['aliases'],
+                             'variant': m['variant'], 'status': m['status'], 'status_text': m['status_text']})
+            else:
+                item.update({'digimon': Path(e.path).stem, 'code': Path(e.path).stem, 'aliases': [], 'variant': '',
+                             'status': 'unreadable', 'status_text': 'Namenstext nicht lesbar'})
+            thumb = self.cache / 'thumbs' / f'{i}.png'
+            if thumb.is_file():
+                item['thumb'] = thumb.relative_to(self.cache.parents[1]).as_posix() + f'?v={thumb.stat().st_mtime_ns}'
+            out.append(item)
+        return out
+
+    def save_thumb(self, identifier, png):
+        """A small preview the viewer rendered of model IDENTIFIER (PNG bytes, at most 256 KB)."""
+        if type(identifier) is not int or not 0 <= identifier < len(self.entries):
+            raise ValueError('Unknown DW3 model')
+        if not png.startswith(b'\x89PNG\r\n\x1a\n') or len(png) > 256 * 1024:
+            raise ValueError('Vorschaubild muss ein PNG bis 256 KB sein.')
+        folder = self.cache / 'thumbs'
+        folder.mkdir(parents=True, exist_ok=True)
+        tmp = folder / f'{identifier}.tmp'
+        tmp.write_bytes(png)
+        tmp.replace(folder / f'{identifier}.png')
+        return True
 
     def prepare(self, identifier):
         if type(identifier) is not int or not 0 <= identifier < len(self.entries):

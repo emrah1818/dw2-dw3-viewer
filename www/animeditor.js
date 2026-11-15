@@ -74,7 +74,8 @@ export function initAnimEditor(env) {
     const a = p.action;
     const statusLegend = Object.entries(ed.data.status).map(([k, v]) => `<span class="st ${STATUS_CLASS[k]}">${esc(t(v))}</span>`).join(' ');
     body.innerHTML = `
-      <p class="hint">${esc(t('Quelle'))}: <b>${esc(ed.data.source)}</b> · ${ed.data.motions.length} ${esc(t('DW3-Motions'))} · ${statusLegend}</p>
+      <p><b>${esc(ed.data.digimon || ed.data.source)}</b>${ed.data.variant ? ` <span class="hint">(${esc(t(ed.data.variant))})</span>` : ''}</p>
+      <p class="hint">${esc(t('Modell-ID'))} ${ed.data.model_id ?? '–'} · ${esc(t('Dateikürzel'))} ${esc(ed.data.code || ed.data.source)} · ${esc(ed.data.source)} · ${ed.data.motions.filter(m => m.frames > 1).length} ${esc(t('DW3-Motions'))} · ${statusLegend}</p>
       <table class="ae-places">${ed.places.map((q, i) => `<tr data-i="${i}" class="${i === ed.sel ? 'sel' : ''}">
         <td><b>${key(q)}</b></td><td>${esc(t(q.role))}</td>
         <td><span class="st ${STATUS_CLASS[q.action.status] || ''}">${esc(t(ed.data.status[q.action.status] || q.action.status))}</span>${ed.dirty.has(i) ? ' ✎' : ''}</td>

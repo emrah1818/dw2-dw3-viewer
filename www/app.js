@@ -489,7 +489,7 @@ if (window.DW2_DESKTOP) {
     try {
       const info = await busy('DW3-Dateien werden gesucht …', () => native('pick_dw3'));
       if (!info) return;
-      const id = await pickBox(`${info.name} · ${info.models.length} Modelle`, info.models.map(m => ({ value: m.id, label: `${m.name} · ${m.size} B` })), null);
+      const id = await pickBox(`${info.name} · ${info.models.length} Modelle`, info.models.map(m => ({ value: m.id, label: dw3Label(m) })), null);
       if (id == null) return;
       const action = await modal((box, close) => {
         box.innerHTML = '<h3>DW3-Modell</h3><div class="btns"><button data-c="open">Ansehen / bisherige Knochenzuordnung</button><button data-c="native">DW2-Slot mit DW3-Skelett und Bewegungen ersetzen</button><button data-c="export">GLB mit Texturen und Animationen exportieren (ZIP)</button><button data-c="cancel">Abbrechen</button></div>';
@@ -1349,18 +1349,56 @@ async function renderDw3Page() {
     drawDw3();
   } catch (e) { await fail(e); }
 }
+/** Suche wie dw3_names.matches: Name, Teilname, alternative Schreibweise, Dateikürzel, Datei, IDs. */
+const normName = x => String(x ?? '').normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+function dw3Matches(m, query) {
+  const q = String(query || '').trim();
+  if (!q) return true;
+  const nq = normName(q);
+  if (nq && [m.digimon, m.code, m.file, m.name, ...(m.aliases || [])].some(h => normName(h).includes(nq))) return true;
+  const num = q.replace(/^#/, '');
+  if (/^\d+$/.test(num)) return (m.fighter_ids || []).includes(Number(num));   // Modell-ID
+  return false;
+}
+function dw3Rank(m, q) {
+  const nq = normName(q), names = [m.digimon, ...(m.aliases || [])].map(normName);
+  return !nq ? 0 : names.includes(nq) ? 0 : names.some(n => n.startsWith(nq)) ? 1 : 2;
+}
+const dw3Label = m => `${m.digimon || m.name} · ${m.code || m.name} · ID ${(m.fighter_ids || [])[0] ?? '–'}`;
+async function viewDw3(m) {
+  try {
+    const r = await busy(t('DW3-Modell wird konvertiert …'), () => native('prepare_dw3', m.id));
+    show('page-view');
+    const v = await view.load(BASE + r.url);
+    $('#v-name').textContent = `${m.digimon || m.name} (DW3 ${m.code || m.name})`;
+    $('#anim').innerHTML = v.animations.length ? v.animations.map((n, i) => `<option value="${i}">${esc(n)}</option>`).join('') : `<option>${t('Keine Animationen')}</option>`;
+    if (v.animations.length) view.play(0);
+    // Vorschaubild für die Liste (einmal je Modell, nur gelesen aus der Ansicht)
+    if (!m.thumb) setTimeout(async () => {
+      try { const url = view.snapshot(160); if (url) { await native('dw3_thumb_save', m.id, url); dw3Cache = null; } } catch (_) { /* Vorschau ist optional */ }
+    }, 900);
+  } catch (e) { await fail(e); }
+}
 function drawDw3() {
   if (!dw3Cache?.open) { $('#dw3-list').innerHTML = ''; drawBatch(); return; }
-  const q = $('#dw3-q').value.toLowerCase().trim();
-  $('#dw3-list').innerHTML = '<table>' + dw3Cache.models.filter(m => !q || m.name.toLowerCase().includes(q)).map(m =>
-    `<tr><td>${esc(m.name)}</td><td><button class="small" data-one="${m.id}">Einzeln importieren</button> <button class="small" data-add="${m.id}">zum Stapel</button></td></tr>`).join('') + '</table>';
+  const q = $('#dw3-q').value;
+  const rows = dw3Cache.models.filter(m => dw3Matches(m, q)).map((m, i) => [dw3Rank(m, q), i, m]).sort((a, b) => a[0] - b[0] || a[1] - b[1]).map(x => x[2]);
+  $('#dw3-count').textContent = t('{n} von {m} Modellen', { n: rows.length, m: dw3Cache.models.length }) + (dw3Cache.names_note ? ' · ' + dw3Cache.names_note : '');
+  $('#dw3-list').innerHTML = rows.map(m => `<div class="dw3-item" data-view="${m.id}">
+      ${m.thumb ? `<img src="${BASE + m.thumb}" alt="">` : `<div class="dw3-noimg">${esc((m.code || m.name).slice(0, 4))}</div>`}
+      <div class="dw3-text"><b>${esc(m.digimon || m.name)}</b>${m.variant ? ` <span class="hint">${esc(t(m.variant))}</span>` : ''}
+        <div class="hint">${t('Dateikürzel')}: ${esc(m.code || m.name)} · ${t('Modell-ID')}: ${(m.fighter_ids || [])[0] ?? '–'} · ${esc(m.file || m.name)}${m.file_number != null ? ` · ${t('Datei-Nr.')} ${m.file_number}` : ''}</div>
+        ${(m.aliases || []).length ? `<div class="hint">${t('Auch')}: ${m.aliases.map(esc).join(', ')}</div>` : ''}
+        ${m.status !== 'unique' ? `<div class="hint warn">${esc(t(m.status_text || ''))}</div>` : ''}</div>
+      <div class="dw3-btns"><button class="small" data-one="${m.id}">${t('Einzeln importieren')}</button><button class="small" data-add="${m.id}">${t('zum Stapel')}</button></div></div>`).join('');
+  $$('#dw3-list .dw3-item').forEach(row => { row.onclick = e => { if (e.target.closest('button')) return; viewDw3(dw3Cache.models[Number(row.dataset.view)]); }; });
   $$('#dw3-list [data-one]').forEach(b => { b.onclick = () => (state.id == null ? toast('Zuerst Ziel-Digimon wählen.') : nativeDw3Flow(Number(b.dataset.one))); });
   $$('#dw3-list [data-add]').forEach(b => { b.onclick = async () => {
     const target = await pickBox('Welcher DW2-Slot wird ersetzt?', state.catalog.map(c => ({ value: c.id, label: `#${pad3(c.id)} ${c.name}` })), state.id);
     if (target == null) return;
     const src = dw3Cache.models.find(m => m.id === Number(b.dataset.add));
     const name = await promptBox('Neuer Name im Spiel (leer = unverändert)', '');
-    dw3Batch.push({ source: src.id, sourceName: src.name, target, name: name || null }); drawBatch();
+    dw3Batch.push({ source: src.id, sourceName: dw3Label(src), target, name: name || null }); drawBatch();
   }; });
   drawBatch();
 }
