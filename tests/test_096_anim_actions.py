@@ -34,7 +34,8 @@ def test_timeline_follows_jumps_and_waits():
     assert parts[-1][1] is None and len(hits) == 1
 
 
-def test_defaults_status_and_no_silent_guess():
+def test_defaults_status_and_no_silent_guess(monkeypatch):
+    monkeypatch.setattr(A, 'joints', lambda *a: 0.)          # synthetische Motions ohne Posen
     source = {'motions': [{'id': i, 'end': v['end'], 'loop_key': 2 * v['loop_frame'] + 1, 'frames': [None] * v['frames']}
                           for i, v in TABLE.items()]}
     d = A.defaults(source, SCRIPTS, PLACES)
@@ -71,3 +72,27 @@ def test_validate_rejects_bad_ranges():
     ok = dict(bad, segments=[{'motion': 15, 'start': 0, 'end': 11, 'repeat': 1}], loop_frame=20)
     with pytest.raises(ValueError, match='Loop'):
         A.validate(ok, TABLE)
+
+
+def test_dw3_opening_blend_starts_from_shown_pose():
+    t = A.motion_table({'motions': [{'id': 1, 'end': 'loop', 'loop_key': 1, 'lead_blend': 0, 'frames': [None] * 10},
+                                    {'id': 15, 'end': 'hold', 'loop_key': -1, 'lead_blend': 10, 'frames': [None] * 20}]})
+    assert t[15]['lead'] == 5 and t[1]['lead'] == 0
+    act = {'segments': [{'motion': 1, 'start': 0, 'end': 9, 'repeat': 1}, {'motion': 15, 'start': 0, 'end': 19, 'repeat': 1}],
+           'end': 'hold', 'loop_segment': 0, 'loop_frame': 0}
+    rows, _ = A.frames_of(act, t)
+    assert rows[10][:3] == (15, 5, ('row', 9))          # blendet aus dem zuletzt gezeigten Bild
+    assert [round(r[3], 3) for r in rows[10:15]] == [round((2 * f + 2) / 11, 3) for f in range(5)]
+    assert rows[15] == (15, 5, None, 1.0)
+    first, _ = A.frames_of(dict(act, segments=act['segments'][1:]), t)
+    assert first[0][2] == ('idle', None)                # Aktionsbeginn: aus dem Standby
+    assert A.frames_of(act)[0][10] == (15, 0, None, 1.0)  # ohne Tabelle: wie bisher
+
+
+def test_hard_cut_gets_marked_blend(monkeypatch):
+    monkeypatch.setattr(A, 'joints', lambda *a: 86.)
+    act = {'segments': [{'motion': 15, 'start': 0, 'end': 11, 'repeat': 1}, {'motion': 1, 'start': 0, 'end': 30, 'repeat': 1}],
+           'end': 'loop', 'loop_segment': 1, 'loop_frame': 0, 'status': 'data', 'reason': 'Technik'}
+    src = {'motions': [{'id': 15}, {'id': 1}]}
+    A._smooth_cuts(src, TABLE, act)
+    assert act['segments'][1]['blend'] == A.CUT_BLEND and 'hart' in act['reason']

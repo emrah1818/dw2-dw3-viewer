@@ -57,12 +57,15 @@ static bool export_native_source(Model &m, const std::string &dir) {
         {
             const std::vector<MotionStep> &st = m.motions[motion];
             int term = 0, target = 0; bool toIdle = false;
+            /* a motion that opens with a blend step blends from whatever pose shows when it starts
+               (FIGHTSTG_setMotion: no source frame); those first keyframes are not data of their own */
+            int lead = (!st.empty() && st[0].index != 0x7FFF && st[0].count > 0 && st[0].endFrame == 0) ? st[0].count : 0;
             for (size_t s = 0; s < st.size() && st[s].index != 0x7FFF; s++) {
                 if (st[s].count == 0) { term = (uint16_t)st[s].frame; target = (uint16_t)st[s].endFrame;
                     if (s > 0 && st[s-1].endFrame == 0 && term == 0xFFFF) toIdle = true; break; }
             }
             out << (motion ? "," : "") << "{\"id\":" << motion+1 << ",\"end\":\""
-                << (term == 0x8000 ? "loop" : toIdle ? "idle" : "hold") << "\",\"loop_key\":" << (term == 0x8000 ? target : -1)
+                << (term == 0x8000 ? "loop" : toIdle ? "idle" : "hold") << "\",\"loop_key\":" << (term == 0x8000 ? target : -1) << ",\"lead_blend\":" << lead
                 << ",\"keys\":" << m.keyframeCount << ",\"frames\":[";
         }
         bool comma = false;

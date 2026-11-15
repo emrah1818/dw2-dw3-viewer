@@ -65,7 +65,7 @@ class Dw3Disc:
         target = self.cache / f'model_{identifier:04d}'
         result = target / 'model.glb'
         source_json = target / 'native_source.json'
-        if result.is_file() and source_json.is_file() and b'"loop_key"' not in source_json.read_bytes():
+        if result.is_file() and source_json.is_file() and b'"lead_blend"' not in source_json.read_bytes():
             # converted before 0.96: no page data (1.0) or no motion end / loop point, convert again
             shutil.rmtree(target, ignore_errors=True)
         if not result.is_file():

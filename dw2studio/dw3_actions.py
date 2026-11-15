@@ -54,7 +54,11 @@ def motion_table(source):
         lf = 0
         if end == 'loop':
             lf = min(n - 1, max(0, round((m.get('loop_key', 1) - 1) / 2)))
-        out[m['id']] = {'frames': n, 'end': end, 'loop_frame': lf}
+        # DW3 opens most motions with a blend from whatever pose shows (lead_blend keyframes, no source
+        # frame of their own); frame i shows keyframe 1 + 2 i, so the first LEAD frames are that blend
+        lead_keys = int(m.get('lead_blend', 0) or 0)
+        lead = min(n - 1, lead_keys // 2) if lead_keys >= 2 else 0
+        out[m['id']] = {'frames': n, 'end': end, 'loop_frame': lf, 'lead': lead, 'lead_keys': lead_keys}
     return out
 
 
@@ -225,13 +229,16 @@ def defaults(source, scripts, places):
                                           f'Technik: DW3-Skript {i} (alle Motions mit ihren Zeiten, danach wie in DW3)')
         missing = [p for p in 'FGH' if (p, 0) not in out]
         if missing and any(st[0] == 'm' for st in _steps(scripts, 9)):
-            for place in missing:
-                out[(place, 0)] = from_script(_steps(scripts, 9), table, 'auto',
-                                              'Keine weitere DW3-Technik: Standardangriff (DW3-Skript 9)')
+            # only one place gets the basic attack: two places with the same motions would merge attacks
+            out[(missing[0], 0)] = from_script(_steps(scripts, 9), table, 'auto',
+                                               'Keine weitere DW3-Technik: Standardangriff (DW3-Skript 9)')
     # I: the victory motion (DW3 menu.c sets motion 13 when the battle is won)
     if VICTORY_MOTION in table and table[VICTORY_MOTION]['frames'] > 1:
         out[('I', 0)] = single(table, VICTORY_MOTION, 'data', 'Sieg: DW3 spielt Motion 13 nach einem gewonnenen Kampf '
                                '(danach wie in DW3 wiederholt)')
+    for act in out.values():
+        if act:
+            _smooth_cuts(source, table, act)
     result = {}
     for place in places:
         act = out.get(place)
@@ -240,6 +247,27 @@ def defaults(source, scripts, places):
                        reason=f'Noch ungeklärt: {ROLES.get(place, "Feld-Animation, nicht im Kampf")}. Vorläufig Standby')
         result[place] = act
     return result
+
+
+CUT_DEGREES, CUT_BLEND = 45., 4
+
+
+def _smooth_cuts(source, table, act):
+    """Where a script switches motions without DW3's own opening blend and the pose jumps by
+    CUT_DEGREES or more (a camera cut in DW3, a visible jump in DW2's fixed view), ease over
+    CUT_BLEND frames. Marked in the reason; the editor can take it out."""
+    index = {m['id']: i for i, m in enumerate(source['motions'])}
+    segs, added = act['segments'], []
+    for i in range(1, len(segs)):
+        a, b = segs[i - 1], segs[i]
+        if b.get('blend') or b['start'] < table[b['motion']].get('lead', 0) or a['motion'] == b['motion']:
+            continue
+        d = joints(source, (index[a['motion']], a['end']), (index[b['motion']], b['start']))
+        if d >= CUT_DEGREES:
+            b['blend'] = CUT_BLEND
+            added.append(f'{i}→{i + 1} ({round(d)}°)')
+    if added:
+        act['reason'] += f'. Übergang {CUT_BLEND} Bilder ergänzt, wo DW3 hart schneidet: ' + ', '.join(added)
 
 
 def legacy(table, motion, loop):
@@ -279,23 +307,30 @@ def validate(action, table):
             raise ValueError(f'Loop-Beginn {lf} liegt nicht im Abschnitt {li + 1} ({s["start"]}–{s["end"]}).')
 
 
-def frames_of(action):
+def frames_of(action, table=None):
     """[(motion, frame, blend_from or None, weight)] in play order, and the row the loop goes back to
-    (None = hold). A segment's BLEND frames ease from the previous segment's last pose into its first."""
+    (None = hold). A segment's BLEND frames ease from the previous segment's last pose into its first.
+    With TABLE, the opening blend DW3 gives a motion (motion_table 'lead') starts from the pose that
+    actually shows when the segment starts: blend_from is then ('row', index of that row) or
+    ('idle', None) at the start of the action (DW2 enters every action from standby)."""
     rows, loop_row = [], None
     for i, s in enumerate(action['segments']):
         bl = s.get('blend', 0)
+        info = (table or {}).get(s['motion']) or {}
+        lead, keys = info.get('lead', 0), info.get('lead_keys', 0)
         if bl and rows:
             prev = rows[-1][:2]
             for k in range(bl):
                 rows.append((s['motion'], s['start'], prev, (k + 1) / (bl + 1)))
         for rep in range(s.get('repeat', 1)):
-            if action['end'] == 'loop' and i == action['loop_segment'] and rep == 0:
-                start_row = len(rows)
+            anchor = ('row', len(rows) - 1) if rows else ('idle', None)
             for f in range(s['start'], s['end'] + 1):
                 if action['end'] == 'loop' and i == action['loop_segment'] and rep == 0 and f == action['loop_frame']:
                     loop_row = len(rows)
-                rows.append((s['motion'], f, None, 1.0))
+                if f < lead and not bl:
+                    rows.append((s['motion'], lead, anchor, (2 * f + 2) / (keys + 1)))
+                else:
+                    rows.append((s['motion'], f, None, 1.0))
     if action['end'] == 'loop' and loop_row is None:
         loop_row = 0
     return rows, loop_row
@@ -320,11 +355,14 @@ def joints(source, a, b):
 def transitions(source, action, threshold=25.):
     """Pose jumps of an action: between its segments and at the loop. [{'at', 'degrees', 'where'}]."""
     index = {m['id']: i for i, m in enumerate(source['motions'])}
+    table = motion_table(source)
     segs, out = action['segments'], []
     for i in range(1, len(segs)):
         if segs[i].get('blend'):
             continue
         a, b = segs[i - 1], segs[i]
+        if b['start'] < table.get(b['motion'], {}).get('lead', 0):
+            continue                      # DW3 blends into it from the pose that shows
         d = joints(source, (index[a['motion']], a['end']), (index[b['motion']], b['start']))
         if d >= threshold:
             out.append({'at': i, 'degrees': round(d), 'where': f'Abschnitt {i} → {i + 1}'})
@@ -336,6 +374,6 @@ def transitions(source, action, threshold=25.):
     if action['end'] == 'loop':
         last, s = segs[-1], segs[action['loop_segment']]
         d = joints(source, (index[last['motion']], last['end']), (index[s['motion']], action['loop_frame']))
-        if d >= threshold:
+        if d >= threshold and action['loop_frame'] >= table.get(s['motion'], {}).get('lead', 0):
             out.append({'at': len(segs), 'degrees': round(d), 'where': 'Loop-Rücksprung'})
     return out

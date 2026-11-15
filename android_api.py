@@ -21,7 +21,7 @@ import traceback
 CACHE = None          # Arbeitsordner der App (filesDir/viewer)
 NATIVE_DIR = None     # nativeLibraryDir (enthält libdw2conv.so)
 _lock = threading.RLock()
-CONVERTER_VERSION = 'v8'   # erhöhen, wenn sich die Konvertierung ändert (alter Cache wird ignoriert)
+CONVERTER_VERSION = 'v9'   # erhöhen, wenn sich die Konvertierung ändert (alter Cache wird ignoriert)
 
 
 class State:
@@ -1194,8 +1194,9 @@ def anim_check(target, action):
     from dw2studio import dw3_actions
     ident, job, source_id = _dw3_job(target)
     prepared = prepare(sys.modules[__name__], source_id, ident)
-    dw3_actions.validate(action, dw3_actions.motion_table(prepared['source']))
-    rows, loop_row = dw3_actions.frames_of(action)
+    table = dw3_actions.motion_table(prepared['source'])
+    dw3_actions.validate(action, table)
+    rows, loop_row = dw3_actions.frames_of(action, table)
     return {'frames': len(rows), 'loop_row': loop_row, 'transitions': dw3_actions.transitions(prepared['source'], action)}
 
 

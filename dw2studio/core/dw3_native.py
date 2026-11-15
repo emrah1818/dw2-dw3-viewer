@@ -887,17 +887,26 @@ def encode_animation(source, mapping, scale=1., loops=(), step=1):
         if isinstance(motion,dict):
             from ..dw3_actions import frames_of, validate, motion_table
             validate(motion,motion_table(source))
-            seq,loop_row=frames_of(motion)
-            rows=[]
+            table=motion_table(source)
+            seq,loop_row=frames_of(motion,table)
+            idle=1 if 1 in table else min(table)
+            rows=[];shown=[]
             for k,(mid,f,prev,w) in enumerate(seq):
                 if step>1 and k%step:      # PS1 reduction: hold every STEP-th pose
-                    rows.append(rows[-1]);continue
+                    rows.append(rows[-1]);shown.append(shown[-1]);continue
                 frame=matrices(index_of[mid])[f]
                 mats=[node_matrix(frame,b) for b in range(n)]
                 if prev is not None:
-                    pf=matrices(index_of[prev[0]])[prev[1]]
-                    mats=[_blend_matrix(node_matrix(pf,b),mats[b],w) for b in range(n)]
-                rows.append(row_of(mats))
+                    if prev[0]=='row':      # DW3's opening blend: from the pose that shows
+                        start=shown[prev[1]]
+                    elif prev[0]=='idle':
+                        start=None if mid==idle else [node_matrix(matrices(index_of[idle])[table[idle]['lead']],b) for b in range(n)]
+                    else:
+                        pf=matrices(index_of[prev[0]])[prev[1]]
+                        start=[node_matrix(pf,b) for b in range(n)]
+                    if start is not None:
+                        mats=[_blend_matrix(start[b],mats[b],w) for b in range(n)]
+                rows.append(row_of(mats));shown.append(mats)
             if loop_row is not None:
                 if loop_row*n>0xFFFF:
                     raise ValueError('Loop-Beginn zu weit hinten (DW2: 16-Bit-Zeilenversatz).')
