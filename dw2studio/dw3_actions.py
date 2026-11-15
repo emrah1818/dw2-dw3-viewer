@@ -1,7 +1,7 @@
 """DW3 motions -> DW2 battle actions: multi-part clips with loop ranges.
 
 How DW2 plays its battle animations (dw2-pc-port, src/main/anim.c, src/stag3000/fighter.c, measured on
-all 202 Digimon of the US game, see ANIMATION_ANALYSE.md):
+all 202 Digimon of the US game, see ANIMATIONSSYSTEM_0.96.md):
   one clip = rows of key indices (one row = one frame = 2 VBlanks, 30 per second), ended by 0xFF
   (hold the last frame) or 0xFE + a 16-bit row offset (jump back there: a loop). Either end sets
   animDone once; the game never waits for anything else, so a loop cannot block a battle.
@@ -239,6 +239,16 @@ def defaults(source, scripts, places):
     for act in out.values():
         if act:
             _smooth_cuts(source, table, act)
+    # DW2 plays C0 → C1 → C2 → J0 / K0 one after the other: their opening blend starts from the
+    # pose the clip before ends on (the others start from standby)
+    def last_pose(place):
+        a = out.get(place)
+        if a:
+            s = a['segments'][-1]
+            return [s['motion'], s['end']]
+    for place, before in ((('C', 1), ('C', 0)), (('C', 2), ('C', 1)), (('J', 0), ('C', 2)), (('K', 0), ('C', 2))):
+        if out.get(place) and last_pose(before):
+            out[place]['enter'] = last_pose(before)
     result = {}
     for place in places:
         act = out.get(place)
@@ -296,6 +306,10 @@ def validate(action, table):
         bl = s.get('blend', 0)
         if type(bl) is not int or not 0 <= bl <= 30:
             raise ValueError(f'Abschnitt {i + 1}: Übergang 0–30 Bilder.')
+    en = action.get('enter')
+    if en is not None and not (isinstance(en, (list, tuple)) and len(en) == 2 and en[0] in table
+                               and type(en[1]) is int and 0 <= en[1] < table[en[0]]['frames']):
+        raise ValueError('Einstiegspose ungültig.')
     if action.get('end') not in ('hold', 'loop'):
         raise ValueError('Ende: halten oder wiederholen.')
     if action['end'] == 'loop':
@@ -323,7 +337,9 @@ def frames_of(action, table=None):
             for k in range(bl):
                 rows.append((s['motion'], s['start'], prev, (k + 1) / (bl + 1)))
         for rep in range(s.get('repeat', 1)):
-            anchor = ('row', len(rows) - 1) if rows else ('idle', None)
+            enter = action.get('enter')
+            anchor = (('row', len(rows) - 1) if rows else
+                      (int(enter[0]), int(enter[1])) if enter else ('idle', None))
             for f in range(s['start'], s['end'] + 1):
                 if action['end'] == 'loop' and i == action['loop_segment'] and rep == 0 and f == action['loop_frame']:
                     loop_row = len(rows)

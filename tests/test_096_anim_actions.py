@@ -96,3 +96,14 @@ def test_hard_cut_gets_marked_blend(monkeypatch):
     src = {'motions': [{'id': 15}, {'id': 1}]}
     A._smooth_cuts(src, TABLE, act)
     assert act['segments'][1]['blend'] == A.CUT_BLEND and 'hart' in act['reason']
+
+
+def test_getup_enters_from_lying_pose(monkeypatch):
+    monkeypatch.setattr(A, 'joints', lambda *a: 0.)
+    source = {'motions': [{'id': i, 'end': v['end'], 'loop_key': 2 * v['loop_frame'] + 1, 'lead_blend': 10,
+                           'frames': [None] * v['frames']} for i, v in TABLE.items()]}
+    d = A.defaults(source, SCRIPTS, PLACES)
+    assert d[('J', 0)]['enter'] == [7, 33] and d[('K', 0)]['enter'] == [7, 33]
+    rows, _ = A.frames_of(d[('J', 0)], A.motion_table(source))
+    assert rows[0][2] == (7, 33)
+    A.validate(d[('J', 0)], A.motion_table(source))
