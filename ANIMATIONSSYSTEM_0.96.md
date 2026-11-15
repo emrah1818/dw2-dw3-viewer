@@ -84,7 +84,7 @@ Ergebnis über alle 248 DW3-Modelle: alle 247 Modelle werden fehlerfrei kodiert.
     * bei allen anderen beim Standby.
   * Vorher wurde sie aus einer zufälligen Pose eingeblendet. Bei WarGreymon war das ein Sprung von 34°.
   * Wo DW3 selbst hart schneidet (≥ 45°), werden 4 Bilder Übergang ergänzt. Das steht im Grundtext,
-    und im Editor lässt es sich entfernen. Beispiele: Birdramon 86° → 34°, Meramon 83° → 31°.
+    und im Editor lässt es sich entfernen. Beispiele: Airdramon (`M007AIRD`) 86° → 34°, Meramon 83° → 31°.
 * **Editor im Studio** (Karte „Animationen (DW3-Import)“, Knopf „Animationen bearbeiten“):
   * Plätze mit Status.
   * Zeitleiste: Abschnitte farbig, Loop-Bereich gelb, Abspielposition rot, mit Klick springen.
@@ -110,9 +110,11 @@ Ergebnis über alle 248 DW3-Modelle: alle 247 Modelle werden fehlerfrei kodiert.
   * Bekannte Grenze: DW2 wechselt alle 8 VBlanks, DW3 alle 6. Die Flammen laufen in DW2 also etwa ein
     Drittel langsamer. Eine Einstellung je Digimon im Port wäre möglich, ist aber nicht gebaut.
   * Der Körper bewegt sich über Knochen (10 von 17 Knochen > 10° im Standby).
-* **Birdramon**: Die Flügel sind **Knochenanimation**: 8 von 16 Knochen bewegen sich im Standby um
-  40–48°. Es gibt keine Texturanimation außer den Augen. In DW3 hat es nur ein Technikskript; Attacke 2
-  ist der Standardangriff, Attacke 3 ist ungeklärt (Standby).
+* **Birdramon gibt es in DW3 nicht** (Korrektur nach der Namensdatenbank aus DIGNAM). Das hier früher als
+  Birdramon geführte Modell `M007AIRD` ist laut Spieldaten **Airdramon** (Modell-ID 7). Die Messwerte gelten für
+  Airdramon: Die Flügel sind **Knochenanimation** (8 von 16 Knochen bewegen sich im Standby um 40–48°), außer den
+  Augen gibt es keine Texturanimation. In DW3 hat es nur ein Technikskript; Attacke 2 ist der Standardangriff,
+  Attacke 3 ist ungeklärt (Standby).
 * **Bewegungsquellen**:
   * Bewegung kommt bei allen geprüften Digimon aus Knochen. Bei Meramon kommen zusätzlich die Flammen
     aus der Textur.
@@ -128,7 +130,7 @@ einer Schleife. Die Zahlen sind DW3-Motions; 1 ist das Standby, das DW3 nach ein
 | Digimon | A0 | B0 | C0 | C1 | C2 | F0 | G0 | H0 | I0 | J0 | K0 | Augen / Zyklen | Knochen in Bewegung | Größter Sprung |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | Meramon (M009MERA → #009) | D 1 ⟲ | A 4 | A 5 | A 6 | A 6 | D 1/15/16/17/18/19 ⟲ | A 1/39 ⟲ | ? 1 ⟲ | D 13 ⟲ | D 12 | D 11 | 1 / 5 | 10/17 | 63.9° (J0) |
-| Birdramon (M007AIRD → #021) | D 1 ⟲ | A 4 | A 5 | A 6 | A 6 | D 1/15 ⟲ | A 1/39 ⟲ | ? 1 ⟲ | D 13 ⟲ | D 12 | D 11 | 1 / 0 | 8/16 | 34.4° (F0) |
+| Airdramon (M007AIRD → #021) | D 1 ⟲ | A 4 | A 5 | A 6 | A 6 | D 1/15 ⟲ | A 1/39 ⟲ | ? 1 ⟲ | D 13 ⟲ | D 12 | D 11 | 1 / 0 | 8/16 | 34.4° (F0) |
 | Greymon (M005GREY → #005) | D 1 ⟲ | A 4 | D 5 ⟲ | D 6 ⟲ | D 7 | D 1/15/16/17/18/19/20 ⟲ | D 1/21/22/23/24/25/26 ⟲ | D 1/27/28/29/30/31/32 ⟲ | D 13 ⟲ | D 12 | D 11 | 1 / 0 | 10/22 | 25.6° (H0) |
 | WarGreymon (M213WGRE → #213) | D 1 ⟲ | A 4 | A 5 | A 5 | A 5 | D 1/15/16/17/18/19 ⟲ | D 1/21/22/23/24/25 ⟲ | D 1/27/28/29/30/31 ⟲ | D 13 ⟲ | D 12 | D 11 | 1 / 0 | 9/23 | 27.2° (H0) |
 | Imperialdramon FM (M359IPDF → #150) | D 1 ⟲ | A 4 | A 5 | A 5 | A 5 | D 1/15 ⟲ | D 1/15 ⟲ | D 1/27 ⟲ | D 13 ⟲ | D 12 | D 11 | 1 / 0 | 9/26 | 53.6° (H0) |
