@@ -444,6 +444,102 @@ def _load_pages(source, folder):
     return pages
 
 
+def chart_triangles(source, owner, chart):
+    """(source UV corners, face) of every fan triangle drawn from CHART, as the encoder emits them."""
+    out = []
+    for b in source['bones']:
+        for f in b['faces']:
+            if owner.get(id(f)) != chart:
+                continue
+            uv = f['uv']
+            for fan in range(1, len(uv) - 1):
+                out.append(((uv[0], uv[fan], uv[fan + 1]), f))
+    return out
+
+
+def render_tile(page, tile, tris, k, dilate=True):
+    """The HD picture of one chart (tile w*K x h*K, RGBA) as the game samples it.
+
+    The game's UVs are the source UVs rounded to the 1x atlas grid (tile_uv): a polygon corner moves
+    by up to half an atlas texel. A plain upscale of the source would then show the polygon a strip of
+    its neighbour texels (the bright edge lines) and shift its picture. Here every HD pixel under a
+    triangle is mapped back through that triangle (atlas corners -> exact source corners, barycentric)
+    to the source texel the original polygon shows there, so the game's sample positions read the
+    original texels. Pixels under no triangle (gaps between polygons, the margin) take the colour of
+    the nearest covered pixel (DILATE), so filtering at an edge never reaches unrelated texels."""
+    x, y, tw, th, cx, cy, cw, ch, rot = tile
+    W, H = tw * k, th * k
+    src = np.asarray(page).astype(np.uint8)
+    region = page.crop((cx, cy, cx + cw, cy + ch))
+    if rot:
+        region = region.transpose(Image.Transpose.TRANSPOSE)
+    base = np.asarray(region.resize((W, H), Image.Resampling.NEAREST)).copy()
+    out = base.copy()
+    best = np.full((H, W), -np.inf)
+    for (s0, s1, s2), _ in tris:
+        S = np.asarray([s0, s1, s2], float)
+        A = np.asarray([tile_uv(tile, *s0), tile_uv(tile, *s1), tile_uv(tile, *s2)], float)
+        A = (A - (x, y)) * k                                  # HD pixel units, tile origin
+        m = np.array([[A[1, 0] - A[0, 0], A[2, 0] - A[0, 0]], [A[1, 1] - A[0, 1], A[2, 1] - A[0, 1]]])
+        det = np.linalg.det(m)
+        x0, x1 = int(max(0, np.floor(A[:, 0].min()) - 1)), int(min(W, np.ceil(A[:, 0].max()) + 1))
+        y0, y1 = int(max(0, np.floor(A[:, 1].min()) - 1)), int(min(H, np.ceil(A[:, 1].max()) + 1))
+        if x1 <= x0 or y1 <= y0:
+            continue
+        gx, gy = np.meshgrid(np.arange(x0, x1) + .5, np.arange(y0, y1) + .5)
+        lo_u, hi_u = S[:, 0].min(), S[:, 0].max()
+        lo_v, hi_v = S[:, 1].min(), S[:, 1].max()
+        if abs(det) < 1e-9:      # degenerate in the atlas (a sliver): the source triangle's centre colour
+            t = S.mean(0)
+            col = src[int(min(max(t[1], lo_v), max(lo_v, hi_v - 1e-3))), int(min(max(t[0], lo_u), max(lo_u, hi_u - 1e-3)))]
+            near = (np.abs(gx - A[:, 0].mean()) <= max(1, np.ptp(A[:, 0]) / 2 + .5)) & \
+                   (np.abs(gy - A[:, 1].mean()) <= max(1, np.ptp(A[:, 1]) / 2 + .5))
+            sel = near & (best[y0:y1, x0:x1] < -1)
+            out[y0:y1, x0:x1][sel] = col
+            best[y0:y1, x0:x1][sel] = -1
+            continue
+        inv = np.linalg.inv(m)
+        dx, dy = gx - A[0, 0], gy - A[0, 1]
+        b1 = inv[0, 0] * dx + inv[0, 1] * dy
+        b2 = inv[1, 0] * dx + inv[1, 1] * dy
+        b0 = 1 - b1 - b2
+        inside = np.minimum(np.minimum(b0, b1), b2)            # > 0: inside, edge = 0
+        # a pixel half outside an edge still counts (the GPU covers it): within 0.75 px of the triangle
+        slack = 0.75 / max(np.sqrt(abs(det)), 1e-9)
+        sel = (inside > -slack) & (inside > best[y0:y1, x0:x1])
+        if not sel.any():
+            continue
+        tu = b0 * S[0, 0] + b1 * S[1, 0] + b2 * S[2, 0]
+        tv = b0 * S[0, 1] + b1 * S[1, 1] + b2 * S[2, 1]
+        # the texels the original polygon shows: [min, max) of its UVs (PS1: the far edge excluded)
+        tu = np.clip(tu, lo_u, max(lo_u, hi_u - 1e-3)).astype(int)
+        tv = np.clip(tv, lo_v, max(lo_v, hi_v - 1e-3)).astype(int)
+        tu = np.clip(tu, 0, src.shape[1] - 1)
+        tv = np.clip(tv, 0, src.shape[0] - 1)
+        block = out[y0:y1, x0:x1]
+        block[sel] = src[tv[sel], tu[sel]]
+        best[y0:y1, x0:x1][sel] = inside[sel]
+    if dilate:
+        covered = best > -np.inf
+        if covered.any() and not covered.all():
+            for _ in range(2 * k + 2):           # grow the covered area into the gaps, 1 px a step
+                if covered.all():
+                    break
+                grown = covered.copy()
+                for dy, dx in ((0, 1), (0, -1), (1, 0), (-1, 0)):
+                    sh = np.roll(covered, (dy, dx), (0, 1))
+                    shp = np.roll(out, (dy, dx), (0, 1))
+                    if dy == 1: sh[0] = False
+                    if dy == -1: sh[-1] = False
+                    if dx == 1: sh[:, 0] = False
+                    if dx == -1: sh[:, -1] = False
+                    take = sh & ~grown
+                    out[take] = shp[take]
+                    grown |= take
+                covered = grown
+    return Image.fromarray(out, 'RGBA')
+
+
 def atlas(source, folder, hd_scale=4, face=None):
     """The used parts (charts) of all source pages in one atlas, with independent native
     16-colour CLUTs per page.
@@ -482,19 +578,16 @@ def atlas(source, folder, hd_scale=4, face=None):
         here = [c for c, ch_ in enumerate(chart_list) if ch_['image'] == i]
         if not here:
             continue
-        thumbs = {}
+        thumbs, tris_of = {}, {}
+        kw = max(hd_scale, 4)                   # the 1x tile is the average of this picture
         for c in here:
             t = tiles[c]
-            region = region_of(rgba, t)
+            tris_of[c] = chart_triangles(source, owner, c)
+            tile_img = render_tile(rgba, t, tris_of[c], kw)
             size = (t[2]*hd_scale, t[3]*hd_scale)
-            # upscaling keeps every source texel as it is (a block of HD pixels, NEAREST): the HD
-            # texture is the original page, not a filtered guess; the port's sampler filters it
-            # (or not: pixel look). Only a smaller tile (scale below 1) is filtered (LANCZOS).
-            up = size[0] >= region.width and size[1] >= region.height
-            hd.paste(region if region.size == size else
-                     region.resize(size, Image.Resampling.NEAREST if up else Image.Resampling.LANCZOS),
+            hd.paste(tile_img if tile_img.size == size else tile_img.resize(size, Image.Resampling.BOX),
                      (t[0]*hd_scale, t[1]*hd_scale))
-            thumbs[c] = region.resize(t[2:4], Image.Resampling.BOX) if region.size != t[2:4] else region
+            thumbs[c] = tile_img.resize(t[2:4], Image.Resampling.BOX)
         # one palette for the page: quantize the opaque texels of all its charts together
         texels = np.concatenate([np.asarray(im).reshape(-1, 4) for im in thumbs.values()])
         texels = texels[texels[:, 3] >= 128] if np.any(texels[:, 3] >= 128) else texels
@@ -546,16 +639,13 @@ def atlas(source, folder, hd_scale=4, face=None):
                 continue
             c = slots[p_i][0]
             t = tiles[c]
-            variants[p_i] = [index_pixels(region_of(with_frame(rgba, part, k), t).resize(t[2:4], Image.Resampling.BOX))
-                             for k in range(3)]
-            hd_frames[p_i] = []
+            variants[p_i], hd_frames[p_i] = [], []
             for k in range(3):        # the whole HD atlas as it looks with frame k in this tile
+                tile_img = render_tile(with_frame(rgba, part, k), t, tris_of[c], kw)
+                variants[p_i].append(index_pixels(tile_img.resize(t[2:4], Image.Resampling.BOX)))
                 frame_hd = hd.copy()
-                region = region_of(with_frame(rgba, part, k), t)
                 size = (t[2]*hd_scale, t[3]*hd_scale)
-                up = size[0] >= region.width and size[1] >= region.height
-                frame_hd.paste(region if region.size == size else
-                               region.resize(size, Image.Resampling.NEAREST if up else Image.Resampling.LANCZOS),
+                frame_hd.paste(tile_img if tile_img.size == size else tile_img.resize(size, Image.Resampling.BOX),
                                (t[0]*hd_scale, t[1]*hd_scale))
                 hd_frames[p_i].append(frame_hd)
         palettes[i] = pal
@@ -863,44 +953,59 @@ def quality_report(source, folder, native, hd, face=None, original=None):
     hda = np.asarray(hd.convert('RGBA') if hd is not None else hd_check).astype(np.int32)
     pages = _load_pages(source, folder)
     chart_list, _ = charts(source, [p.size for p in pages], parts)
-    faces_of = {}
-    for b in source['bones']:
-        for f in b['faces']:
-            faces_of.setdefault(owner[id(f)], []).append(f)
     err1 = errh = 0.
     n = diff1 = diffh = 0
-    pages_out = []
+    seen = set()
+    # every source texel whose centre lies in a polygon, read where the game reads it: the source
+    # point mapped through that triangle onto the rounded atlas UVs (as the GPU interpolates them)
     for c, t in enumerate(tiles):
         x, y, tw, th, cx, cy, cw, ch, rot = t
         img = chart_list[c]['image']
         page = np.asarray(pages[img]).astype(np.int32)
-        mask = np.zeros((ch, cw), bool)
-        for f in faces_of.get(c, ()):
-            us, vs = [u for u, _ in f['uv']], [v for _, v in f['uv']]
-            mask[max(0, min(vs) - cy):max(vs) - cy + 1, max(0, min(us) - cx):max(us) - cx + 1] = True
-        vv, uu = np.nonzero(mask)
-        ref = page[vv + cy, uu + cx]
-        keep = ref[:, 3] >= 128
-        vv, uu, ref = vv[keep], uu[keep], ref[keep]
-        if not len(ref):
-            continue
-        fu, fv = (uu + .5) / cw, (vv + .5) / ch
-        if rot:
-            fu, fv = fv, fu
-        ax = x + np.clip((fu * tw).astype(int), 0, tw - 1)
-        ay = y + np.clip((fv * th).astype(int), 0, th - 1)
         words = np.frombuffer(raw[224 + img // 2].tobytes()[(img % 2) * 32:(img % 2) * 32 + 32], '<u2')
         pal = np.stack([(words & 31) << 3, (words >> 5 & 31) << 3, (words >> 10 & 31) << 3], 1).astype(np.int32)
-        c1 = pal[idx[ay, ax]]
-        hx = np.clip(((x + fu * tw) * k).astype(int), 0, hda.shape[1] - 1)
-        hy = np.clip(((y + fv * th) * k).astype(int), 0, hda.shape[0] - 1)
-        c2 = hda[hy, hx, :3]
-        r = ref[:, :3] & ~7                     # 15-bit colour (the PS1's): what 1x can hold at best
-        err1 += float(((c1 - r) ** 2).sum()) / 3
-        errh += float(((c2 - ref[:, :3]) ** 2).sum()) / 3
-        diff1 += int(np.any(c1 != r, 1).sum())
-        diffh += int(np.any(c2 != ref[:, :3], 1).sum())
-        n += len(ref)
+        for (s0, s1, s2), f in chart_triangles(source, owner, c):
+            S = np.asarray([s0, s1, s2], float)
+            A = np.asarray([tile_uv(t, *s0), tile_uv(t, *s1), tile_uv(t, *s2)], float)
+            mt = np.array([[S[1, 0] - S[0, 0], S[2, 0] - S[0, 0]], [S[1, 1] - S[0, 1], S[2, 1] - S[0, 1]]])
+            if abs(np.linalg.det(mt)) < 1e-9:
+                continue
+            u0, u1 = int(S[:, 0].min()), int(np.ceil(S[:, 0].max()))
+            v0, v1 = int(S[:, 1].min()), int(np.ceil(S[:, 1].max()))
+            gu, gv = np.meshgrid(np.arange(u0, u1) + .5, np.arange(v0, v1) + .5)
+            inv = np.linalg.inv(mt)
+            du, dv = gu - S[0, 0], gv - S[0, 1]
+            b1 = inv[0, 0] * du + inv[0, 1] * dv
+            b2 = inv[1, 0] * du + inv[1, 1] * dv
+            b0 = 1 - b1 - b2
+            sel = (np.minimum(np.minimum(b0, b1), b2) >= 0)
+            if not sel.any():
+                continue
+            tu, tv = gu[sel].astype(int), gv[sel].astype(int)
+            ok = (tu < page.shape[1]) & (tv < page.shape[0])
+            tu, tv = tu[ok], tv[ok]
+            B = np.stack([b0[sel][ok], b1[sel][ok], b2[sel][ok]], 1)
+            P = B @ A                                     # atlas texel units, interpolated
+            key = [(img, a_, b_) for a_, b_ in zip(tu.tolist(), tv.tolist())]
+            fresh = np.array([kk not in seen for kk in key], bool)
+            seen.update(key)
+            ref = page[tv, tu]
+            keep = (ref[:, 3] >= 128) & fresh
+            if not keep.any():
+                continue
+            ref, P = ref[keep], P[keep]
+            ax = np.clip(P[:, 0].astype(int), x, x + tw - 1)
+            ay = np.clip(P[:, 1].astype(int), y, y + th - 1)
+            c1 = pal[idx[ay, ax]]
+            hx = np.clip((P[:, 0] * k).astype(int), x * k, (x + tw) * k - 1)
+            hy = np.clip((P[:, 1] * k).astype(int), y * k, (y + th) * k - 1)
+            c2 = hda[np.clip(hy, 0, hda.shape[0] - 1), np.clip(hx, 0, hda.shape[1] - 1), :3]
+            r = ref[:, :3] & ~7                     # 15-bit colour (the PS1's): what 1x can hold at best
+            err1 += float(((c1 - r) ** 2).sum()) / 3
+            errh += float(((c2 - ref[:, :3]) ** 2).sum()) / 3
+            diff1 += int(np.any(c1 != r, 1).sum())
+            diffh += int(np.any(c2 != ref[:, :3], 1).sum())
+            n += len(ref)
     psnr = lambda e: 99.0 if e == 0 else round(10 * math.log10(255 ** 2 / e), 1)
     uv = []
     for b in source['bones']:

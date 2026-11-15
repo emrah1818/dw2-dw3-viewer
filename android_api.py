@@ -65,9 +65,11 @@ def dw3_native_plan(source_id, target_id):
     return prepare(__import__(__name__),source_id,target_id)['info']
 
 
-def dw3_native_apply(source_id, target_id, assignments, scale_factor=1., hd_scale=0, camera=None, size_mode='dw2'):
+def dw3_native_apply(source_id, target_id, assignments, scale_factor=1., hd_scale=0, camera=None, size_mode='dw2',
+                     allow_reduce=False):
     from dw2studio.dw3_import import apply
-    return apply(__import__(__name__),source_id,target_id,assignments,scale_factor,hd_scale,camera,size_mode or 'dw2')
+    return apply(__import__(__name__),source_id,target_id,assignments,scale_factor,hd_scale,camera,size_mode or 'dw2',
+                 bool(allow_reduce))
 
 
 def export_hd_pack(identifier, png, port_dir):
@@ -1180,7 +1182,7 @@ def dw3_batch_apply(jobs):
             assignments = job.get('assignments') or dw3_native_plan(int(job['source']), int(job['target']))['assignments']
             r = native_apply(__import__(__name__), int(job['source']), int(job['target']), assignments,
                              float(job.get('scale', 1.)), int(job.get('hd', 0)), job.get('camera'),
-                             job.get('size_mode', 'dw2'))
+                             job.get('size_mode', 'dw2'), bool(job.get('allow_reduce', False)))
             if job.get('name'):
                 rename(int(job['target']), job['name'])
             reports.append({'target': int(job['target']), **r})

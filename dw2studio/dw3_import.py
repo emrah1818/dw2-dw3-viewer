@@ -105,8 +105,11 @@ def prepare(api, source_id, target_id):
                     'face':{'parts':len(face_parts),'eyes':sum(f['slot'] < 2 for f in face_parts),'notes':face_notes}}}
 
 
-def apply(api, source_id, target_id, assignments, scale_factor=1., hd_scale=0, camera=None, size_mode='dw2'):
-    """CAMERA: None = automatic (battle_camera.suggest), or {'field_1E': int, 'hit_fx_y': int}."""
+def apply(api, source_id, target_id, assignments, scale_factor=1., hd_scale=0, camera=None, size_mode='dw2',
+          allow_reduce=False):
+    """CAMERA: None = automatic (battle_camera.suggest), or {'field_1E': int, 'hit_fx_y': int}.
+    ALLOW_REDUCE (PS1 image only): the user's explicit consent to fewer triangles / poses when a file
+    cannot be moved to a larger place on the disc. Without it nothing is reduced."""
     prepared = prepare(api, source_id, target_id)
     source,session = prepared['source'],api._need_session()
     if size_mode not in ('dw2','dw3'):
@@ -126,42 +129,64 @@ def apply(api, source_id, target_id, assignments, scale_factor=1., hd_scale=0, c
         if row['loop']:loops.setdefault(key[0],[]).append(key[1])
     ps1 = not isinstance(session, PakSession)
     optimized={}
+    relocated={}   # entry key -> (original bytes, new bytes): moved to the end of the disc image
+    def place(entry, data, what):
+        """A file larger than its place on the PS1 disc moves to the end of the image (the game's
+        file table in SLUS_011.93 gets the new sector and length; the game allocates its buffer from
+        that length). Returns None when it fits or was moved, else the reason it cannot move."""
+        limit=_ps1_limit(session,entry)
+        if len(data)<=limit:
+            return None
+        try:
+            can_relocate(session,entry)
+        except (ValueError, OSError) as exc:
+            return f'{what}: {len(data)} Bytes, Platz auf der Disc {limit} Bytes; Verlagern nicht möglich: {exc}'
+        relocated[(entry.path,entry.lba)]=(limit,len(data))
+        return None
     if ps1:
-        # PlayStation image: the game loads each file into a buffer sized for the original, so no
-        # file may grow (the PC port's interface 2 raises that limit, the PS1 does not). Too large:
-        # controlled optimisation, nearby vertices merged in growing steps (simplify_source).
+        from .core.native_relocation import can_relocate
         from .core.dw3_native import simplify_source, triangle_total
-        limit=_ps1_limit(session,prepared['model'])
-        before_tris=triangle_total(source)
-        cell=0.
-        size_of_model=float(prepare_size(source))
-        while len(native)>limit:
-            cell=cell*1.15 if cell else size_of_model/200
-            if cell>size_of_model/3:
-                raise ValueError(f'PS1-Image: das DW3-Modell braucht {len(native)} Bytes, die Originaldatei '
-                                 f'{prepared["model"].path} hat {limit}; auch vereinfacht zu groß. PC-Port-Modus verwenden.')
-            reduced=simplify_source(source,cell)
-            native,hd,report=encode_model(reduced,prepared['folder'],scale,int(hd_scale),prepared.get('face'))
-        if cell:
+        why=place(prepared['model'],native,'Modell')
+        if why and not allow_reduce:
+            raise ValueError('PS1-Image: '+why+'. Nichts wurde verkleinert. Modus A (PC-Port) verwenden oder '
+                             'die Verkleinerung für das PS1-Image ausdrücklich erlauben.')
+        if why:
+            # explicit consent only: nearby vertices merged in growing steps (simplify_source)
+            limit=_ps1_limit(session,prepared['model'])
+            before_tris=triangle_total(source)
+            cell=0.
+            size_of_model=float(prepare_size(source))
+            while len(native)>limit:
+                cell=cell*1.15 if cell else size_of_model/200
+                if cell>size_of_model/3:
+                    raise ValueError(f'PS1-Image: das DW3-Modell braucht {len(native)} Bytes, die Originaldatei '
+                                     f'{prepared["model"].path} hat {limit}; auch vereinfacht zu groß. PC-Port-Modus verwenden.')
+                reduced=simplify_source(source,cell)
+                native,hd,report=encode_model(reduced,prepared['folder'],scale,int(hd_scale),prepared.get('face'))
             source=reduced
-            optimized['Modell']=f'{before_tris} → {triangle_total(reduced)} Dreiecke'
+            optimized['Modell']=f'{before_tris} → {triangle_total(reduced)} Dreiecke (mit Zustimmung; Grund: {why})'
     changes=[(prepared['model'],native,'DW3-Modell mit eigenem Skelett'+(f" (vereinfacht: {optimized['Modell']})" if 'Modell' in optimized else ''))]
     for slot,mapping in groups.items():
         entry,_=prepared['animations'][slot]
         data=encode_animation(source,mapping,scale,loops.get(slot,[]))
         if ps1:
-            limit=_ps1_limit(session,entry)
-            step=1
-            while len(data)>limit and step<8:
-                # controlled optimisation: fewer distinct poses, every motion keeps its length
-                step+=1
-                data=encode_animation(source,mapping,scale,loops.get(slot,[]),step)
-            if len(data)>limit:
-                raise ValueError(f'PS1-Image: Bewegungen für {slot} brauchen auch mit jedem 8. Bild {len(data)} '
-                                 f'Bytes, das Original hat {limit}. Weniger Motions zuweisen.')
-            if step>1:
-                optimized[slot]=f'jedes {step}. Bild'
+            why=place(entry,data,f'Bewegungen {slot}')
+            if why and not allow_reduce:
+                raise ValueError('PS1-Image: '+why+'. Nichts wurde verkleinert.')
+            if why:
+                limit=_ps1_limit(session,entry)
+                step=1
+                while len(data)>limit and step<8:
+                    step+=1   # with consent: fewer distinct poses, every motion keeps its length
+                    data=encode_animation(source,mapping,scale,loops.get(slot,[]),step)
+                if len(data)>limit:
+                    raise ValueError(f'PS1-Image: Bewegungen für {slot} brauchen auch mit jedem 8. Bild {len(data)} '
+                                     f'Bytes, das Original hat {limit}. Weniger Motions zuweisen.')
+                if step>1:
+                    optimized[slot]=f'jedes {step}. Bild (mit Zustimmung; Grund: {why})'
         changes.append((entry,data,f'DW3-Bewegungen → {slot}'+(f' ({optimized[slot]})' if slot in optimized else '')))
+    if relocated:
+        report['relocated']=[{'file':k[0],'original':a_,'new':b_} for k,(a_,b_) in relocated.items()]
     report['ps1']=ps1
     from .core.dw3_native import quality_report
     try:
@@ -180,6 +205,10 @@ def apply(api, source_id, target_id, assignments, scale_factor=1., hd_scale=0, c
     before=session.edits.copy()
     try:
         for entry,payload,label in changes:
+            key=(entry.path,entry.lba)
+            if ps1 and key in relocated:   # moved to the end of the image, its own length
+                session.stage(entry,payload,label+' (auf der Disc verlagert, größer als das Original)',relocate=True)
+                continue
             if ps1:   # same size as the original file on the disc (the rest of its sectors stays zero)
                 payload=payload+bytes(_ps1_limit(session,entry)-len(payload))
             session.stage(entry,payload,label)
