@@ -166,7 +166,7 @@ def matches(row, query):
         return True
     num = q.lstrip('#')
     if num.isdigit():           # a number is the model id (DW3 fighter id = the number in the file name)
-        return int(num) in row['fighter_ids']
+        return int(num) == row['id'] or int(num) == row.get('file_number') or int(num) in row['fighter_ids']
     return False
 
 
