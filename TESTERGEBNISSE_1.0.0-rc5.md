@@ -15,8 +15,13 @@ PS1-Image (Modus B, echte US-BIN): Greymon 952 → 479 Dreiecke (Größenlimit d
 - Gleiche Bilder mit/ohne HD-Paket. HD ändert nur die Modellbereiche.
 - Greymon blinzelt mit HD: 6 Kopie-Bilder erzeugt, **0** Rückfälle auf 1x („HD summary“).
 
-## Windows / Vulkan
-Ausstehend in diesem Stand (wird nachgetragen).
+## GPU-Renderer (Vulkan) ohne echte Grafikkarte
+Linux, Mesa lavapipe (Software-Vulkan), SDL_GPU vulkan, Battle Mode 4×, gleicher Ablauf: „HD summary: 6 copy
+picture(s) made, 0 primitive draw(s) fell back to 1x“, keine `[gpu] ... limit`-Zeile. `hd_test --require-gpu
+--scale 4`: 0 Fehler. Fensterbilder wurden mit dem Offscreen-Videotreiber nicht gespeichert (kein Bildvergleich).
+
+## Windows / Vulkan (GTX 1070)
+Ausstehend: Der PC war während dieses Stands nicht erreichbar. Testordner `Test_p0` liegt bereit.
 
 ## Automatische Tests
 pytest: alle grün (siehe CI-Artefakt).
