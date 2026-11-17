@@ -1,4 +1,4 @@
-# DW2 Mod Studio 0.98.4
+# DW2 Mod Studio 0.98.5
 
 **English** (Deutsch below)
 
@@ -8,13 +8,15 @@
 
 | System | Mod Studio | Matching DW2 PC port |
 |---|---|---|
-| Windows 10/11, 64-bit | `DW2_Mod_Studio_0.98.4_Windows_x64.zip` | `DW2_PC_Port_API2_0.98.4_Windows_x64.zip` |
-| Linux x64 (glibc 2.35+) | `DW2_Mod_Studio_0.98.4_Linux_x64.tar.gz` | `DW2_PC_Port_API2_0.98.4_Linux_x64.tar.gz` |
+| Windows 10/11, 64-bit | `DW2_Mod_Studio_0.98.5_Windows_x64.zip` | `DW2_PC_Port_API2_0.98.5_Windows_x64.zip` |
+| Linux x64 (glibc 2.35+) | `DW2_Mod_Studio_0.98.5_Linux_x64.tar.gz` | `DW2_PC_Port_API2_0.98.5_Linux_x64.tar.gz` |
 
 Unpack both packages. Put your own `dw2.pak` and `dw2.pak.slus` next to the port. No game data is included.
 Pre-release series: not 1.0 yet.
 
 ## New
+- **0.98.5 fixes the Linux Studio package of 0.98.4:** it brought the build machine's X11/C++ libraries along and
+  stopped with “Could not initialize GLX” on newer Linux systems. It now uses the system's libraries.
 - **Automatic language:** the Studio starts in German on a German system and in English on every other system.
   Switching in the app still works and is remembered. Menus and file dialogs of the desktop window follow too.
 - **English interface completed:** about 240 texts that were still German in English mode are translated.
@@ -26,7 +28,9 @@ Pre-release series: not 1.0 yet.
   choice and the new language test (German, English, French browser language; switching both ways).
 - Desktop window on Linux with German, English and French system language: interface and menu follow the system.
 - Linux packages: built and smoke-tested automatically (WebGL, bridge, native extensions; PC-port API and engine
-  tests). Not yet tried by hand on a Linux desktop.
+  tests). The released Linux packages were also started on a newer Linux system (Ubuntu 24.04 container, Xvfb):
+  Studio in German and English, PC port with own game data up to the title screen. Not yet tried by hand on a
+  Linux desktop with a graphics card.
 
 ---
 
@@ -36,13 +40,15 @@ Pre-release series: not 1.0 yet.
 
 | System | Mod Studio | Passender DW2-PC-Port |
 |---|---|---|
-| Windows 10/11, 64 Bit | `DW2_Mod_Studio_0.98.4_Windows_x64.zip` | `DW2_PC_Port_API2_0.98.4_Windows_x64.zip` |
-| Linux x64 (glibc 2.35+) | `DW2_Mod_Studio_0.98.4_Linux_x64.tar.gz` | `DW2_PC_Port_API2_0.98.4_Linux_x64.tar.gz` |
+| Windows 10/11, 64 Bit | `DW2_Mod_Studio_0.98.5_Windows_x64.zip` | `DW2_PC_Port_API2_0.98.5_Windows_x64.zip` |
+| Linux x64 (glibc 2.35+) | `DW2_Mod_Studio_0.98.5_Linux_x64.tar.gz` | `DW2_PC_Port_API2_0.98.5_Linux_x64.tar.gz` |
 
 Beide Pakete entpacken. Zum Port die eigenen `dw2.pak` und `dw2.pak.slus` legen. Spieldaten sind nicht enthalten.
 Vorabversion: noch keine 1.0.
 
 ## Neu
+- **0.98.5 behebt das Linux-Studio-Paket von 0.98.4:** Es brachte X11-/C++-Bibliotheken des Build-Rechners mit und
+  brach auf neueren Linux-Systemen mit „Could not initialize GLX“ ab. Jetzt werden die Bibliotheken des Systems benutzt.
 - **Automatische Sprache:** Das Studio startet auf einem deutschen System auf Deutsch, auf allen anderen auf
   Englisch. Umschalten in der App geht weiterhin und bleibt gespeichert. Menüs und Dateidialoge des Fensters folgen mit.
 - **Englische Oberfläche vervollständigt:** rund 240 Texte, die im englischen Modus noch deutsch waren, sind übersetzt.
@@ -55,4 +61,6 @@ Vorabversion: noch keine 1.0.
   beide Richtungen).
 - Desktop-Fenster unter Linux mit deutscher, englischer und französischer Systemsprache: Oberfläche und Menü folgen dem System.
 - Linux-Pakete: automatisch gebaut und mit Starttest geprüft (WebGL, Brücke, native Erweiterungen; Port-API und
-  Engine-Tests). Von Hand auf einem Linux-Desktop noch nicht ausprobiert.
+  Engine-Tests). Die veröffentlichten Linux-Pakete wurden außerdem auf einem neueren Linux (Ubuntu-24.04-Container,
+  Xvfb) gestartet: Studio auf Deutsch und Englisch, PC-Port mit eigenen Spieldaten bis zum Titelbild. Von Hand auf
+  einem Linux-Desktop mit Grafikkarte noch nicht ausprobiert.

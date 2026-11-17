@@ -1,5 +1,11 @@
 # Änderungsprotokoll
 
+## 0.98.5 – 17.11.2026 (Korrektur Linux-Paket, Vorabversion)
+
+- Linux-Studio-Paket: Systembibliotheken des Build-Rechners (libX11, libxcb, libxcb-glx, libstdc++, libexpat, libgbm
+  u. a.) werden nicht mehr mitgeliefert. Sie ließen das Paket 0.98.4 auf neueren Systemen mit „Could not initialize
+  GLX“ abbrechen.
+
 ## 0.98.4 – 17.11.2026 (Sprache und Linux, Vorabversion)
 
 - Oberfläche folgt der Systemsprache: Deutsch auf deutschen Systemen, sonst Englisch. Eine eigene Wahl in der App

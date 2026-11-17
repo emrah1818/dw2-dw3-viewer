@@ -1,6 +1,6 @@
-name: Test, build and (on request) publish DW2 Mod Studio 0.98.4
+name: Test, build and (on request) publish DW2 Mod Studio 0.98.5
 # Windows x64 and Linux x64 builds of the Studio and the PC port.
-# The dedicated release branch publishes v0.98.4 after every required check succeeds.
+# The dedicated release branch publishes v0.98.5 after every required check succeeds.
 # Other development branches only test/build; manual publishing remains available.
 on:
   push:
@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       publish:
-        description: 'Als Version v0.98.4 veröffentlichen'
+        description: 'Als Version v0.98.5 veröffentlichen'
         type: boolean
         default: false
 permissions:
@@ -38,7 +38,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: test-results-0984
+          name: test-results-0985
           path: |
             test-results.xml
             test-summary.txt
@@ -62,20 +62,20 @@ jobs:
         shell: pwsh
         run: |
           $v = (Get-Item 'dist/DW2_3D_Viewer_Studio/DW2_3D_Viewer_Studio.exe').VersionInfo
-          if ($v.FileVersion -ne '0.98.4.0' -or $v.ProductVersion -ne '0.98.4') { throw 'Wrong Windows version resource' }
+          if ($v.FileVersion -ne '0.98.5.0' -or $v.ProductVersion -ne '0.98.5') { throw 'Wrong Windows version resource' }
       - name: Package viewer
         shell: pwsh
         run: |
-          $pkg = 'dist/DW2_Mod_Studio_0.98.4'
+          $pkg = 'dist/DW2_Mod_Studio_0.98.5'
           Move-Item dist/DW2_3D_Viewer_Studio $pkg
-          Copy-Item README.md, CHANGELOG.md, ANLEITUNG.md, RELEASE_NOTES_0.98.4.md, TESTERGEBNISSE_0.98.4.md, ANIMATIONSSYSTEM_0.96.md, EINSCHRAENKUNGEN_0.95.md, GRENZEN_ANALYSE_0.95.md, DIGITATIONSLEVEL_SCHNITTSTELLE.md, DW3_EFFEKTE_ANALYSE.md $pkg/
+          Copy-Item README.md, CHANGELOG.md, ANLEITUNG.md, RELEASE_NOTES_0.98.5.md, TESTERGEBNISSE_0.98.5.md, ANIMATIONSSYSTEM_0.96.md, EINSCHRAENKUNGEN_0.95.md, GRENZEN_ANALYSE_0.95.md, DIGITATIONSLEVEL_SCHNITTSTELLE.md, DW3_EFFEKTE_ANALYSE.md $pkg/
           Remove-Item "$pkg/_internal/tools/dw3_converter/*.obj" -ErrorAction SilentlyContinue
-          Compress-Archive -Path $pkg -DestinationPath DW2_Mod_Studio_0.98.4_Windows_x64.zip
+          Compress-Archive -Path $pkg -DestinationPath DW2_Mod_Studio_0.98.5_Windows_x64.zip
       - uses: actions/upload-artifact@v4
         with:
-          name: viewer-0984
+          name: viewer-0985
           path: |
-            DW2_Mod_Studio_0.98.4_Windows_x64.zip
+            DW2_Mod_Studio_0.98.5_Windows_x64.zip
             windows-smoke.json
   port:
     needs: tests
@@ -129,7 +129,7 @@ jobs:
       - name: Package PC port
         shell: pwsh
         run: |
-          $pkg = 'DW2_PC_Port_API2_0.98.4'
+          $pkg = 'DW2_PC_Port_API2_0.98.5'
           New-Item -ItemType Directory -Force $pkg | Out-Null
           Copy-Item pc-port/build/native64_rel_nodisc/dw2.exe, pc-port/build/native64_rel_nodisc/SDL3.dll, dw2_mod_api.json $pkg/
           Copy-Item pc-port/LICENSE "$pkg/LICENSE.txt"
@@ -137,14 +137,14 @@ jobs:
           Copy-Item pc-port/doc/MOD_API2.md "$pkg/MOD_API2.md"
           Copy-Item -Recurse pc-port/Languages $pkg/
           Copy-Item -Recurse pc-port/misc/fonts "$pkg/FontLicenses"
-          Compress-Archive -Path $pkg -DestinationPath DW2_PC_Port_API2_0.98.4_Windows_x64.zip
+          Compress-Archive -Path $pkg -DestinationPath DW2_PC_Port_API2_0.98.5_Windows_x64.zip
       - uses: actions/upload-artifact@v4
         with:
-          name: pc-port-0984
-          path: DW2_PC_Port_API2_0.98.4_Windows_x64.zip
+          name: pc-port-0985
+          path: DW2_PC_Port_API2_0.98.5_Windows_x64.zip
       - uses: actions/upload-artifact@v4
         with:
-          name: port-tests-0984
+          name: port-tests-0985
           path: |
             pc-port/build/native64_rel_nodisc/hd_test.exe
             pc-port/build/native64_rel_nodisc/modconf_test.exe
@@ -167,6 +167,18 @@ jobs:
       - run: python -m PyInstaller --noconfirm --clean DW2_3D_Viewer_Studio.spec
         env:
           QT_QPA_PLATFORM: offscreen
+      - name: Use the system's X11, GL and C++ libraries instead of the build machine's
+        # PyInstaller copies libX11/libxcb/libstdc++/libexpat/libgbm from the runner. Next to a
+        # newer Mesa on the user's system they make GLX fail ("Could not initialize GLX"), so they are
+        # removed and the system's copies are used. The xcb-util libraries (libxcb-cursor and its helpers) stay,
+        # they are often not installed.
+        run: |
+          cd dist/DW2_3D_Viewer_Studio/_internal
+          for f in libX11.so.6 libX11-xcb.so.1 libxcb-[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f].so* libxcb.so.1 libxcb-glx.so.0 libxcb-randr.so.0 libxcb-render.so.0 \
+                   libxcb-shape.so.0 libxcb-shm.so.0 libxcb-sync.so.1 libxcb-xfixes.so.0 libxcb-xkb.so.1 \
+                   libexpat.so.1 libgbm.so.1 libstdc++.so.6 libgcc_s.so.1 libdrm.so.2; do
+            rm -fv $f
+          done
       - name: Smoke test of the frozen Linux build (WebGL, bridge, native extensions)
         env:
           SMOKE_REPORT: linux-smoke.json
@@ -174,18 +186,18 @@ jobs:
         run: xvfb-run -a -s '-screen 0 1600x1000x24' python tools/smoke_windows.py dist/DW2_3D_Viewer_Studio/DW2_3D_Viewer_Studio
       - name: Package viewer
         run: |
-          pkg=DW2_Mod_Studio_0.98.4_Linux
+          pkg=DW2_Mod_Studio_0.98.5_Linux
           mv dist/DW2_3D_Viewer_Studio "dist/$pkg"
-          cp README.md CHANGELOG.md ANLEITUNG.md RELEASE_NOTES_0.98.4.md TESTERGEBNISSE_0.98.4.md ANIMATIONSSYSTEM_0.96.md "dist/$pkg/"
+          cp README.md CHANGELOG.md ANLEITUNG.md RELEASE_NOTES_0.98.5.md TESTERGEBNISSE_0.98.5.md ANIMATIONSSYSTEM_0.96.md "dist/$pkg/"
           cp integration/linux/DW2_Mod_Studio.sh "dist/$pkg/"
           chmod +x "dist/$pkg/DW2_Mod_Studio.sh" "dist/$pkg/DW2_3D_Viewer_Studio"
           rm -f dist/$pkg/_internal/tools/dw3_converter/*.o
-          tar -C dist -czf DW2_Mod_Studio_0.98.4_Linux_x64.tar.gz "$pkg"
+          tar -C dist -czf DW2_Mod_Studio_0.98.5_Linux_x64.tar.gz "$pkg"
       - uses: actions/upload-artifact@v4
         with:
-          name: viewer-linux-0984
+          name: viewer-linux-0985
           path: |
-            DW2_Mod_Studio_0.98.4_Linux_x64.tar.gz
+            DW2_Mod_Studio_0.98.5_Linux_x64.tar.gz
             linux-smoke.json
   port-linux:
     needs: tests
@@ -223,7 +235,7 @@ jobs:
       - name: Package PC port
         run: |
           b=pc-port/build/linux64_rel_nodisc
-          pkg=DW2_PC_Port_API2_0.98.4_Linux
+          pkg=DW2_PC_Port_API2_0.98.5_Linux
           mkdir -p $pkg
           cp $b/dw2 $b/libSDL3.so.0 dw2_mod_api.json $pkg/
           cp pc-port/LICENSE $pkg/LICENSE.txt
@@ -232,38 +244,38 @@ jobs:
           cp -r pc-port/Languages $pkg/
           cp -r pc-port/misc/fonts $pkg/FontLicenses
           chmod +x $pkg/dw2
-          tar -czf DW2_PC_Port_API2_0.98.4_Linux_x64.tar.gz $pkg
+          tar -czf DW2_PC_Port_API2_0.98.5_Linux_x64.tar.gz $pkg
       - uses: actions/upload-artifact@v4
         with:
-          name: pc-port-linux-0984
-          path: DW2_PC_Port_API2_0.98.4_Linux_x64.tar.gz
+          name: pc-port-linux-0985
+          path: DW2_PC_Port_API2_0.98.5_Linux_x64.tar.gz
   publish:
     needs: [viewer, port, viewer-linux, port-linux]
-    if: (github.event_name == 'workflow_dispatch' && inputs.publish) || (github.event_name == 'push' && github.ref == 'refs/heads/development/release-0.98.4')
+    if: (github.event_name == 'workflow_dispatch' && inputs.publish) || (github.event_name == 'push' && github.ref == 'refs/heads/development/release-0.98.5')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
-          name: viewer-0984
+          name: viewer-0985
           path: release-assets
       - uses: actions/download-artifact@v4
         with:
-          name: pc-port-0984
+          name: pc-port-0985
           path: release-assets
       - uses: actions/download-artifact@v4
         with:
-          name: viewer-linux-0984
+          name: viewer-linux-0985
           path: release-assets
       - uses: actions/download-artifact@v4
         with:
-          name: pc-port-linux-0984
+          name: pc-port-linux-0985
           path: release-assets
       - uses: actions/download-artifact@v4
         with:
-          name: test-results-0984
+          name: test-results-0985
           path: release-assets
-      - name: Publish 0.98.4 preview after build checks
+      - name: Publish 0.98.5 preview after build checks
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -271,8 +283,8 @@ jobs:
           sha256sum *.zip *.tar.gz windows-smoke.json linux-smoke.json test-results.xml test-summary.txt ui-manual-selection.txt > SHA256SUMS.txt
           files="*.zip *.tar.gz windows-smoke.json linux-smoke.json test-results.xml test-summary.txt ui-manual-selection.txt SHA256SUMS.txt"
           # Never retag or replace an existing published build.
-          if gh release view v0.98.4 --repo '${{ github.repository }}' >/dev/null 2>&1; then
-            echo 'v0.98.4 already exists; refusing to overwrite it.' >&2
+          if gh release view v0.98.5 --repo '${{ github.repository }}' >/dev/null 2>&1; then
+            echo 'v0.98.5 already exists; refusing to overwrite it.' >&2
             exit 1
           fi
-          gh release create v0.98.4 $files --target '${{ github.sha }}' --repo '${{ github.repository }}' --title 'DW2 Mod Studio 0.98.4' --latest --notes-file ../RELEASE_NOTES_0.98.4.md
+          gh release create v0.98.5 $files --target '${{ github.sha }}' --repo '${{ github.repository }}' --title 'DW2 Mod Studio 0.98.5' --latest --notes-file ../RELEASE_NOTES_0.98.5.md

@@ -1,4 +1,4 @@
-# DW2 Mod Studio 0.98.4
+# DW2 Mod Studio 0.98.5
 
 **English** · [Deutsch](#deutsch)
 
@@ -13,17 +13,17 @@ Digimon World 3.*
 
 ## Download
 
-**[Latest release: version 0.98.4](https://github.com/emrah1818/dw2-dw3-viewer/releases/tag/v0.98.4)** · [all releases](https://github.com/emrah1818/dw2-dw3-viewer/releases)
+**[Latest release: version 0.98.5](https://github.com/emrah1818/dw2-dw3-viewer/releases/tag/v0.98.5)** · [all releases](https://github.com/emrah1818/dw2-dw3-viewer/releases)
 (pre-release series: not 1.0 yet, see “Still open” below)
 
 | System | Mod Studio (viewer and editor) | Matching DW2 PC port |
 |---|---|---|
-| Windows 10/11, 64-bit | [DW2_Mod_Studio_0.98.4_Windows_x64.zip](https://github.com/emrah1818/dw2-dw3-viewer/releases/download/v0.98.4/DW2_Mod_Studio_0.98.4_Windows_x64.zip) | [DW2_PC_Port_API2_0.98.4_Windows_x64.zip](https://github.com/emrah1818/dw2-dw3-viewer/releases/download/v0.98.4/DW2_PC_Port_API2_0.98.4_Windows_x64.zip) |
-| Linux, 64-bit (x86_64) | [DW2_Mod_Studio_0.98.4_Linux_x64.tar.gz](https://github.com/emrah1818/dw2-dw3-viewer/releases/download/v0.98.4/DW2_Mod_Studio_0.98.4_Linux_x64.tar.gz) | [DW2_PC_Port_API2_0.98.4_Linux_x64.tar.gz](https://github.com/emrah1818/dw2-dw3-viewer/releases/download/v0.98.4/DW2_PC_Port_API2_0.98.4_Linux_x64.tar.gz) |
+| Windows 10/11, 64-bit | [DW2_Mod_Studio_0.98.5_Windows_x64.zip](https://github.com/emrah1818/dw2-dw3-viewer/releases/download/v0.98.5/DW2_Mod_Studio_0.98.5_Windows_x64.zip) | [DW2_PC_Port_API2_0.98.5_Windows_x64.zip](https://github.com/emrah1818/dw2-dw3-viewer/releases/download/v0.98.5/DW2_PC_Port_API2_0.98.5_Windows_x64.zip) |
+| Linux, 64-bit (x86_64) | [DW2_Mod_Studio_0.98.5_Linux_x64.tar.gz](https://github.com/emrah1818/dw2-dw3-viewer/releases/download/v0.98.5/DW2_Mod_Studio_0.98.5_Linux_x64.tar.gz) | [DW2_PC_Port_API2_0.98.5_Linux_x64.tar.gz](https://github.com/emrah1818/dw2-dw3-viewer/releases/download/v0.98.5/DW2_PC_Port_API2_0.98.5_Linux_x64.tar.gz) |
 
-Checksums: [SHA256SUMS.txt](https://github.com/emrah1818/dw2-dw3-viewer/releases/download/v0.98.4/SHA256SUMS.txt).
+Checksums: [SHA256SUMS.txt](https://github.com/emrah1818/dw2-dw3-viewer/releases/download/v0.98.5/SHA256SUMS.txt).
 
-## New in 0.98.4
+## New in 0.98.4/0.98.5
 
 - **Language follows your system.** On a German system the Studio starts in German, on every other system in English.
   You can still switch in the app; your choice is kept. The PC port already picks the menu language from the
@@ -66,8 +66,8 @@ If the 3D view stays black on an old graphics driver, start with `DW2_SOFTWARE_G
 
 - **Tested:** 420 tests with real game data; UI tests for the animation editor and the name search; Windows with a
   GTX 1070 (two full battles with seven DW3 Digimon); own save file with own settings; field model in the real game.
-  0.98.4: automatic language checked with German, English and French system settings; the Linux packages are built
-  and smoke-tested automatically. Details: [TESTERGEBNISSE_0.98.4.md](TESTERGEBNISSE_0.98.4.md).
+  0.98.4/0.98.5: automatic language checked with German, English and French system settings; the Linux packages are built
+  and smoke-tested automatically. Details: [TESTERGEBNISSE_0.98.5.md](TESTERGEBNISSE_0.98.5.md).
 - **Still open for 1.0:** KO, victory, fall and get-up seen on screen; own choice of attack 1–3 in the game; PS1
   emulator; walking field models; the Linux packages on a real desktop by hand.
 - **Limits:** DW3 effects, sounds and camera moves are not transferred. Missing techniques or walk motions stay open
@@ -86,7 +86,7 @@ published. Origin/licences: `SOURCES_v4_0.json`, `THIRD_PARTY_v4_0.md`, `license
 
 ## Deutsch
 
-[English](#dw2-mod-studio-0984) · **Deutsch**
+[English](#dw2-mod-studio-0985) · **Deutsch**
 
 Digimon World 2 modden: Digimon, Techniken, Digitationslinien, Domains und Gegnergruppen bearbeiten, Digimon aus
 Digimon World 3 in vorhandene Plätze importieren und alles als Mod für den DW2-PC-Port exportieren.
@@ -94,17 +94,17 @@ Spieldaten sind nicht enthalten: Du brauchst deine eigenen Abbilder von Digimon 
 
 ### Download
 
-**[Neueste Version: 0.98.4](https://github.com/emrah1818/dw2-dw3-viewer/releases/tag/v0.98.4)** · [alle Versionen](https://github.com/emrah1818/dw2-dw3-viewer/releases)
+**[Neueste Version: 0.98.5](https://github.com/emrah1818/dw2-dw3-viewer/releases/tag/v0.98.5)** · [alle Versionen](https://github.com/emrah1818/dw2-dw3-viewer/releases)
 (Vorabversion: noch keine 1.0, siehe „Noch offen“ unten)
 
 | System | Mod Studio (Viewer und Editor) | Passender DW2-PC-Port |
 |---|---|---|
-| Windows 10/11, 64 Bit | [DW2_Mod_Studio_0.98.4_Windows_x64.zip](https://github.com/emrah1818/dw2-dw3-viewer/releases/download/v0.98.4/DW2_Mod_Studio_0.98.4_Windows_x64.zip) | [DW2_PC_Port_API2_0.98.4_Windows_x64.zip](https://github.com/emrah1818/dw2-dw3-viewer/releases/download/v0.98.4/DW2_PC_Port_API2_0.98.4_Windows_x64.zip) |
-| Linux, 64 Bit (x86_64) | [DW2_Mod_Studio_0.98.4_Linux_x64.tar.gz](https://github.com/emrah1818/dw2-dw3-viewer/releases/download/v0.98.4/DW2_Mod_Studio_0.98.4_Linux_x64.tar.gz) | [DW2_PC_Port_API2_0.98.4_Linux_x64.tar.gz](https://github.com/emrah1818/dw2-dw3-viewer/releases/download/v0.98.4/DW2_PC_Port_API2_0.98.4_Linux_x64.tar.gz) |
+| Windows 10/11, 64 Bit | [DW2_Mod_Studio_0.98.5_Windows_x64.zip](https://github.com/emrah1818/dw2-dw3-viewer/releases/download/v0.98.5/DW2_Mod_Studio_0.98.5_Windows_x64.zip) | [DW2_PC_Port_API2_0.98.5_Windows_x64.zip](https://github.com/emrah1818/dw2-dw3-viewer/releases/download/v0.98.5/DW2_PC_Port_API2_0.98.5_Windows_x64.zip) |
+| Linux, 64 Bit (x86_64) | [DW2_Mod_Studio_0.98.5_Linux_x64.tar.gz](https://github.com/emrah1818/dw2-dw3-viewer/releases/download/v0.98.5/DW2_Mod_Studio_0.98.5_Linux_x64.tar.gz) | [DW2_PC_Port_API2_0.98.5_Linux_x64.tar.gz](https://github.com/emrah1818/dw2-dw3-viewer/releases/download/v0.98.5/DW2_PC_Port_API2_0.98.5_Linux_x64.tar.gz) |
 
-Prüfsummen: [SHA256SUMS.txt](https://github.com/emrah1818/dw2-dw3-viewer/releases/download/v0.98.4/SHA256SUMS.txt).
+Prüfsummen: [SHA256SUMS.txt](https://github.com/emrah1818/dw2-dw3-viewer/releases/download/v0.98.5/SHA256SUMS.txt).
 
-### Neu in 0.98.4
+### Neu in 0.98.4/0.98.5
 
 - **Sprache folgt dem System.** Auf einem deutschen System startet das Studio auf Deutsch, auf allen anderen auf
   Englisch. Umstellen geht weiterhin in der App; die eigene Wahl bleibt gespeichert. Der PC-Port wählt die
@@ -176,9 +176,9 @@ startet den Kampf.
 
 #### Geprüft und noch offen
 - **Geprüft:**
-  - 0.98.4: automatische Sprache mit deutscher, englischer und französischer Systemsprache geprüft; die
+  - 0.98.4/0.98.5: automatische Sprache mit deutscher, englischer und französischer Systemsprache geprüft; die
     Linux-Pakete werden automatisch gebaut und mit einem Starttest geprüft
-    ([TESTERGEBNISSE_0.98.4.md](TESTERGEBNISSE_0.98.4.md)).
+    ([TESTERGEBNISSE_0.98.5.md](TESTERGEBNISSE_0.98.5.md)).
   - 420 Tests mit echten Spieldaten.
   - Oberflächentests für Animationseditor und Namenssuche.
   - Windows mit GTX 1070: zwei vollständige Kämpfe mit sieben DW3-Digimon, ohne Fehler.
@@ -255,7 +255,7 @@ Nicht übertragen werden DW3-Effekte, -Töne und -Kamerafahrten ([DW3_EFFEKTE_AN
 
 ### Dokumente
 
-- Neu in dieser Version: [RELEASE_NOTES_0.98.4.md](RELEASE_NOTES_0.98.4.md), [CHANGELOG.md](CHANGELOG.md)
+- Neu in dieser Version: [RELEASE_NOTES_0.98.5.md](RELEASE_NOTES_0.98.5.md), [CHANGELOG.md](CHANGELOG.md)
 - Einschränkungen: [EINSCHRAENKUNGEN_0.95.md](EINSCHRAENKUNGEN_0.95.md), technische Grenzen: [GRENZEN_ANALYSE_0.95.md](GRENZEN_ANALYSE_0.95.md)
 - Digitationslevel im Port: [DIGITATIONSLEVEL_SCHNITTSTELLE.md](DIGITATIONSLEVEL_SCHNITTSTELLE.md)
 

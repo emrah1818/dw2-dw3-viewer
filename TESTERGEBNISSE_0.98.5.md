@@ -1,4 +1,4 @@
-# Testergebnisse 0.98.4 (17.11.2026)
+# Testergebnisse 0.98.5 (17.11.2026, enthält 0.98.4)
 
 Alle Läufe unter Linux mit eigenen Spielabbildern (DW2-USA `dw2.pak`, DW3-USA-BIN). Was nicht geprüft wurde, steht unten.
 
@@ -35,5 +35,20 @@ Werden im Release-Workflow auf `ubuntu-22.04` gebaut:
 - PC-Port aus dem festen Commit (`integration/pc_port_base.txt`), Prüfung von Mod-API 2, Schrift-, Text- und
   Cache-Tests.
 
-**Nicht geprüft:** Start auf einem echten Linux-Desktop von Hand; ein Spiel mit dem Linux-Port und eigenem
+## Fehler in 0.98.4 gefunden und in 0.98.5 behoben
+
+Das veröffentlichte Linux-Studio-Paket 0.98.4 wurde heruntergeladen und auf einem neueren System (Ubuntu-24.04-Container,
+Xvfb) gestartet: Abbruch mit „Could not initialize GLX“. Ursache: PyInstaller hatte libX11, libxcb, libxcb-glx,
+libstdc++, libexpat, libgbm und weitere Systembibliotheken des Build-Rechners (Ubuntu 22.04) eingepackt; neben dem
+neueren Mesa des Systems schlägt GLX fehl. Ohne diese Bibliotheken (die kleinen xcb-util- und Schriftbibliotheken
+bleiben drin) startet dasselbe Paket mit deutscher und englischer Systemsprache und besteht den Starttest
+(`{"ok": true}`). 0.98.5 entfernt diese Bibliotheken im Release-Workflow.
+
+Linux-PC-Port 0.98.4 aus dem Release mit eigenem `dw2.pak`: `--mod-api` meldet API 2 mit Digitationslevel und
+Kampfkamera; ohne Fenster 900 VBlanks bis zum Titelbild, Sprachebene geladen (24 von 24 Wortbildern, 207 von 207
+Attackennamen).
+
+Ohne Grafikkarte (Xvfb) braucht die 3D-Ansicht Software-WebGL: `DW2_SOFTWARE_GL=1 ./DW2_Mod_Studio.sh` (geprüft).
+
+**Nicht geprüft:** Start auf einem echten Linux-Desktop mit Grafikkarte von Hand; ein Spiel mit dem Linux-Port und eigenem
 `dw2.pak` unter dem Release-Paket. Windows-Pakete sind gegenüber 0.98.3 nur in Sprache und Versionsnummer geändert.
