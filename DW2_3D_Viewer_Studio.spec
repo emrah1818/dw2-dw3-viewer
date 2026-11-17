@@ -1,5 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
-"""Windows PyInstaller spec. Build on Windows with EXE_ERSTELLEN.bat."""
+"""PyInstaller spec for Windows (EXE_ERSTELLEN.bat) and Linux (release workflow)."""
+import sys
 from pathlib import Path
 from PyInstaller.utils.hooks import collect_all, collect_submodules
 
@@ -41,8 +42,7 @@ exe = EXE(
     exclude_binaries=True,
     name='DW2_3D_Viewer_Studio',
     console=False,
-    icon=str(root / 'assets' / 'DW2_3D_Viewer.ico'),
-    version=str(root / 'windows_version_info.txt'),
+    **({'icon': str(root / 'assets' / 'DW2_3D_Viewer.ico'), 'version': str(root / 'windows_version_info.txt')} if sys.platform == 'win32' else {}),
     disable_windowed_traceback=False,
 )
 coll = COLLECT(

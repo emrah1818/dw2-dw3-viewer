@@ -39,7 +39,7 @@ class ImageWriter(QThread):
 
 class Main(QMainWindow):
     def __init__(self):
-        super().__init__();self.resize(1480,860);self.settings=QSettings('DW2 3D Viewer Studio','Preferences');self.language=str(self.settings.value('language','de'))
+        super().__init__();self.resize(1480,860);self.settings=QSettings('DW2 3D Viewer Studio','Preferences');self.language=str(self.settings.value('language',__import__('dw2studio.uilang',fromlist=['lang']).lang()))
         if self.language not in ('de','en'):self.language='de'
         if icon_file().is_file():self.setWindowIcon(QIcon(str(icon_file())))
         self.image=None;self.image_path=None;self.entries=[];self.catalog=[];self.visible=[];self.current=None;self.loaded_digimon=None;self.active_digimon_key=None;self.active_native=False;self.project_model=None;self.display_model=None;self.session=None;self.index_key=None;self.name_repository=None;self._source_names={};self.rgb_namespace=None

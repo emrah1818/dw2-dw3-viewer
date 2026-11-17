@@ -1,5 +1,6 @@
 import { Viewer } from './viewer.js';
-import { EN } from './i18n.js';
+import { EN, EN_PATTERNS } from './i18n.js';
+import { makeTranslator, installDomTranslator } from './domtr.js';
 import { initAnimEditor } from './animeditor.js';
 import { dw3Matches, dw3Rank } from './dw3_search.js';
 import { chooseMotion, motionEndText } from './dw3_assignment.js';
@@ -15,6 +16,8 @@ const t = (key, p = {}) => {
   for (const [k, v] of Object.entries(p)) s = s.replaceAll(`{${k}}`, v);
   return s;
 };
+const trDom = makeTranslator(EN, EN_PATTERNS);
+let retranslate = () => {};
 function applyLang() {
   document.documentElement.lang = lang;
   $$('[data-i18n]').forEach(e => {
@@ -26,6 +29,8 @@ function applyLang() {
   renderList();
   if (state.id != null && currentPage === 'page-edit') renderEdit();
   renderPending();
+  retranslate();
+  if (window.DW2_DESKTOP && window.__desktopReady) window.__desktopReady.then(() => native('set_language', lang)).catch(() => {});
 }
 
 // ---------------------------------------------------------------- Brücke zu Kotlin/Python
@@ -928,6 +933,7 @@ $('#b-clear').onclick = async () => {
 };
 
 (async function init() {
+  retranslate = installDomTranslator(document.body, () => lang, trDom);
   applyLang();
   try {
     const a = await native('app_info');
@@ -1081,7 +1087,7 @@ async function renderBattleCam(id, setting) {
     box.innerHTML =
       `<div class="row">Angriff/Ziel: Abstand ${f('distance', s.distance, 25, 400)} % Höhe ${f('height', s.height, -20000, 20000)} Blickpunkt ${f('target', s.target, -20000, 20000)} Winkel ${f('angle', s.angle, -4095, 4095)}</div>` +
       `<div class="row">Nahaufnahme: Abstand ${f('c.distance', cl.distance, 25, 400)} % Höhe ${f('c.height', cl.height, -20000, 20000)} Blickpunkt ${f('c.target', cl.target, -20000, 20000)} Winkel ${f('c.angle', cl.angle, -4095, 4095)}</div>` +
-      `<p class="${bad.length ? 'warn' : 'hint'}">${bad.length ? `In ${bad.length} von ${info.checks.length} Einstellungen ragt das Digimon aus dem Bild (${[...new Set(bad.map(r => SHOT_NAMES[r.shot]))].join(', ')}).` : `In allen ${info.checks.length} Einstellungen (6 Kampfplätze) ganz im Bild.`} Größe: ${info.box[1] - info.box[0]} hoch, Radius ${info.box[2]}.</p>` +
+      `<p class="${bad.length ? 'warn' : 'hint'}">${bad.length ? t('In {n} von {m} Einstellungen ragt das Digimon aus dem Bild ({s}).', { n: bad.length, m: info.checks.length, s: [...new Set(bad.map(r => t(SHOT_NAMES[r.shot])))].join(', ') }) : t('In allen {m} Einstellungen (6 Kampfplätze) ganz im Bild.', { m: info.checks.length })} ${t('Größe: {h} hoch, Radius {r}.', { h: info.box[1] - info.box[0], r: info.box[2] })}</p>` +
       `<div class="btns"><button id="bc-auto" class="small">Automatisch (ganz im Bild)</button><button id="bc-game" class="small">Kamera des Spiels</button><button id="bc-view" class="small">Vorschau wie im Kampf</button><button id="bc-save" class="primary">Übernehmen</button></div>`;
     const read = () => {
       const o = {}, c2 = {};

@@ -1,5 +1,15 @@
 # Änderungsprotokoll
 
+## 0.98.4 – 17.11.2026 (Sprache und Linux, Vorabversion)
+
+- Oberfläche folgt der Systemsprache: Deutsch auf deutschen Systemen, sonst Englisch. Eine eigene Wahl in der App
+  bleibt gespeichert. Menüs, Dateidialoge und Meldungen des Desktop-Fensters folgen mit (`dw2studio/uilang.py`,
+  Brückenmethode `set_language`); das Mod-Studio-Fenster startet ebenfalls in der Systemsprache.
+- Englische Oberfläche: Übersetzer für Texte ohne `data-i18n` (zur Laufzeit gebaute Texte, Tooltips, Platzhalter,
+  `www/domtr.js`), rund 240 neue Einträge und Muster für Texte mit Zahlen. Umschalten stellt die deutschen Texte wieder her.
+- Linux x64: Studio (PyInstaller) und PC-Port werden im Release-Workflow gebaut, geprüft und als `.tar.gz` veröffentlicht.
+- Neuer Oberflächentest `integration/uitest/language.py`; UI-Tests prüfen sprachunabhängig.
+
 ## 0.98.3 – 15.11.2026 (Domain-/Feldmodelle, Vorabversion)
 
 - Öffnen ab #300: physische Animationsdateien werden nur einmal gelesen und für alle

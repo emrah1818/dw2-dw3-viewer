@@ -71,7 +71,7 @@ def test_every_ui_call_is_registered():
     js = (ROOT / 'www/app.js').read_text(encoding='utf-8')
     desktop_only = {'pick_image', 'pick_dw3', 'pick_file', 'pick_project', 'pick_roster', 'save_export', 'port_mods_dialog',
                     'export_port_dialog', 'export_hd_dialog', 'overwrite_original', 'pick_png', 'adopt_dialog',
-                    'app_info', 'open_studio'}  # answered by desktop.py itself
+                    'app_info', 'open_studio', 'set_language'}  # answered by desktop.py itself
     called = set(re.findall(r"native\('([a-z0-9_]+)'", js))
     api._register_edit()
     missing = {m for m in called if m not in api._METHODS and m not in desktop_only}

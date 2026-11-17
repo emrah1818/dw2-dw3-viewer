@@ -66,7 +66,7 @@ with sync_playwright() as p:
     # DW3-Original ansehen
     pg.evaluate('() => { document.querySelector(".ae-motions").open = true; }')
     pg.locator('[data-view]').first.click()
-    pg.wait_for_function('() => /DW3-Motion/.test(document.querySelector("#ae-pos").textContent)', timeout=120000)
+    pg.wait_for_function('() => /DW3-Motion|DW3 motion/.test(document.querySelector("#ae-pos").textContent)', timeout=120000)
     pg.click('#ae-next'); pg.click('#ae-next')
     check('DW3-Motion Bild für Bild', any(w + ' 2 ' in pg.inner_text('#ae-pos') for w in ('Bild', 'Frame', 'frame')), pg.inner_text('#ae-pos'))
     # Kampfaktion simulieren (Treffer: Fallen und Aufstehen)

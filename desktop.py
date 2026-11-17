@@ -19,6 +19,7 @@ from PyQt6.QtWebEngineCore import (QWebEnginePage, QWebEngineProfile, QWebEngine
                                    QWebEngineUrlRequestInterceptor)
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 import android_api as api
+from dw2studio.uilang import tr, set_language
 
 ROOT = Path(getattr(sys, '_MEIPASS', Path(__file__).resolve().parent))
 
@@ -74,9 +75,9 @@ def copy_export(source, target):
     """Prepare and fsync before publication; dialog owns overwrite authorization."""
     source, target = Path(source).resolve(), Path(target).resolve()
     if source == target:
-        raise ValueError('Bitte einen anderen Zielpfad wählen.')
+        raise ValueError(tr('Bitte einen anderen Zielpfad wählen.'))
     if api.S.image_path and target == api.S.image_path.resolve():
-        raise ValueError('Für das Original-Image bitte „Original überschreiben“ verwenden.')
+        raise ValueError(tr('Für das Original-Image bitte „Original überschreiben“ verwenden.'))
     stamp = target.stat() if target.exists() else None
     temp = target.with_name('.' + target.name + '.' + uuid.uuid4().hex + '.tmp')
     try:
@@ -89,7 +90,7 @@ def copy_export(source, target):
         else:
             now = target.stat()
             if (now.st_size, now.st_mtime_ns, now.st_ino) != (stamp.st_size, stamp.st_mtime_ns, stamp.st_ino):
-                raise ValueError('Zieldatei wurde inzwischen verändert.')
+                raise ValueError(tr('Zieldatei wurde inzwischen verändert.'))
             os.replace(temp, target)
     finally:
         temp.unlink(missing_ok=True)
@@ -166,25 +167,28 @@ class Bridge(QObject):
             args = json.loads(raw)
             if method == 'app_info':
                 self.reply(call_id, {'version': VERSION + ' PC', 'free_mb': shutil.disk_usage(self.storage).free >> 20})
+            elif method == 'set_language':
+                self.reply(call_id, set_language(args[0] if args else None))
+                self.window.retranslate()
             elif method == 'open_studio':
                 self.window.open_studio()
                 self.reply(call_id, True)
             elif method == 'export_hd_dialog':
                 identifier=args[0]
-                name,_=QFileDialog.getOpenFileName(self.window,'HD-PNG wählen (z. B. 512×1024)','','PNG (*.png)')
+                name,_=QFileDialog.getOpenFileName(self.window,tr('HD-PNG wählen (z. B. 512×1024)'),'','PNG (*.png)')
                 if not name:self.reply(call_id);return
-                port=QFileDialog.getExistingDirectory(self.window,'PC-Port-Ordner wählen')
+                port=QFileDialog.getExistingDirectory(self.window,tr('PC-Port-Ordner wählen'))
                 if not port:self.reply(call_id);return
                 self.queue(call_id,'export_hd_pack',[identifier,name,port])
             elif method == 'export_port_dialog':
                 if not api._need_session().edits:
-                    raise ValueError('Keine Änderungen vorgemerkt.')
+                    raise ValueError(tr('Keine Änderungen vorgemerkt.'))
                 pak_path = None
                 if not hasattr(api.S.session, 'pak'):
-                    pak_path, _ = QFileDialog.getOpenFileName(self.window, 'Passende dw2.pak wählen', '', 'DW2 PAK (*.pak)')
+                    pak_path, _ = QFileDialog.getOpenFileName(self.window, tr('Passende dw2.pak wählen'), '', 'DW2 PAK (*.pak)')
                     if not pak_path:
                         self.reply(call_id); return
-                port = QFileDialog.getExistingDirectory(self.window, 'PC-Port-Ordner mit dw2.exe wählen')
+                port = QFileDialog.getExistingDirectory(self.window, tr('PC-Port-Ordner mit dw2.exe wählen'))
                 if not port:
                     self.reply(call_id); return
                 self.queue(call_id, 'export_port_mod', [port, pak_path])
@@ -195,29 +199,30 @@ class Bridge(QObject):
                            'check': 'mod_check', 'export': 'mod_export', 'replace': 'mod_export_replace', 'import': 'mod_import',
                            'import_force': 'mod_import_force'}
                 if action not in actions:
-                    raise ValueError('Unbekannte Mod-Aktion.')
+                    raise ValueError(tr('Unbekannte Mod-Aktion.'))
                 if action in ('check', 'export', 'replace') and not api._need_session().edits \
                         and not api.S.digivolve_levels and not api.S.battle_camera:
-                    raise ValueError('Keine Änderungen vorgemerkt.')
+                    raise ValueError(tr('Keine Änderungen vorgemerkt.'))
                 port = self.last_port if action in ('export', 'replace', 'import_force') and args[1:] == ['last'] and getattr(self, 'last_port', None) \
-                    else QFileDialog.getExistingDirectory(self.window, 'PC-Port-Ordner mit dw2.exe wählen')
+                    else QFileDialog.getExistingDirectory(self.window, tr('PC-Port-Ordner mit dw2.exe wählen'))
                 if not port:
                     self.reply(call_id); return
                 self.last_port = port
                 self.queue(call_id, actions[action], [port])
             elif method.startswith('pick_'):
+                every = tr('Alle Dateien') + ' (*)'
                 filters = {
-                    'pick_image': 'DW2 Image / PAK (*.pak *.bin *.iso *.img *.cue);;Alle Dateien (*)',
-                    'pick_dw3': 'DW3 / DW2003 Image (*.bin *.iso *.img *.cue);;Alle Dateien (*)',
-                    'pick_file': 'Modelle / Texturen (*.glb *.gltf *.obj *.bin *.png);;Alle Dateien (*)',
-                    'pick_project': 'DW2 Mod-Projekt (*.dw2mod);;Alle Dateien (*)',
-                    'pick_roster': 'Spielstand / Memory Card (*.mcr *.mcd *.bin *.sav);;Alle Dateien (*)'}
+                    'pick_image': 'DW2 Image / PAK (*.pak *.bin *.iso *.img *.cue);;' + every,
+                    'pick_dw3': 'DW3 / DW2003 Image (*.bin *.iso *.img *.cue);;' + every,
+                    'pick_file': tr('Modelle / Texturen') + ' (*.glb *.gltf *.obj *.bin *.png);;' + every,
+                    'pick_project': tr('DW2 Mod-Projekt') + ' (*.dw2mod);;' + every,
+                    'pick_roster': tr('Spielstand / Memory Card') + ' (*.mcr *.mcd *.bin *.sav);;' + every}
                 if method not in filters:
-                    raise ValueError('Unbekannter Dateidialog.')
+                    raise ValueError(tr('Unbekannter Dateidialog.'))
                 if method == 'pick_image' and api.S.session and api.S.session.edits:
-                    if QMessageBox.question(self.window, 'Image wechseln', 'Vorgemerkte Änderungen verwerfen und ein anderes Image öffnen?') != QMessageBox.StandardButton.Yes:
+                    if QMessageBox.question(self.window, tr('Image wechseln'), tr('Vorgemerkte Änderungen verwerfen und ein anderes Image öffnen?')) != QMessageBox.StandardButton.Yes:
                         self.reply(call_id); return
-                name, _ = QFileDialog.getOpenFileName(self.window, 'Datei öffnen', '', filters[method])
+                name, _ = QFileDialog.getOpenFileName(self.window, tr('Datei öffnen'), '', filters[method])
                 if not name:
                     self.reply(call_id); return
                 if method == 'pick_file':
@@ -227,7 +232,7 @@ class Bridge(QObject):
                     self.queue(call_id, action, [name])
             elif method == 'save_export':
                 source, suggested = args
-                name, _ = QFileDialog.getSaveFileName(self.window, 'Datei speichern', str(Path.home() / Path(suggested).name))
+                name, _ = QFileDialog.getSaveFileName(self.window, tr('Datei speichern'), str(Path.home() / Path(suggested).name))
                 if not name:
                     self.reply(call_id, False); return
                 self.queue(call_id, '_save_export', [source, name])
@@ -316,15 +321,20 @@ class Desktop(QMainWindow):
         script.setWorldId(QWebEngineScript.ScriptWorldId.MainWorld)
         script.setSourceCode(javascript)
         self.page.scripts().insert(script)
-        menu = self.menuBar().addMenu('PC-Werkzeuge')
-        action = QAction('Mod Studio · 3D-Import / Rigging / Vollfarben', self)
+        self.tools_menu = menu = self.menuBar().addMenu(tr('PC-Werkzeuge'))
+        self.studio_action = action = QAction(tr('Mod Studio · 3D-Import / Rigging / Vollfarben'), self)
         action.triggered.connect(self.open_studio); menu.addAction(action)
-        fullscreen = QAction('Vollbild', self)
+        self.fullscreen_action = fullscreen = QAction(tr('Vollbild'), self)
         fullscreen.setShortcut('F11')
         fullscreen.triggered.connect(lambda: self.showNormal() if self.isFullScreen() else self.showFullScreen())
         menu.addAction(fullscreen)
         self.studios = []
         self.view.setUrl(QUrl(self.server.base + 'www/index.html'))
+
+    def retranslate(self):
+        self.tools_menu.setTitle(tr('PC-Werkzeuge'))
+        self.studio_action.setText(tr('Mod Studio · 3D-Import / Rigging / Vollfarben'))
+        self.fullscreen_action.setText(tr('Vollbild'))
 
     def open_studio(self):
         from studio import Main
@@ -337,11 +347,11 @@ class Desktop(QMainWindow):
 
     def closeEvent(self, event):
         if self.bridge.pending:
-            QMessageBox.information(self, 'Vorgang läuft', 'Bitte den laufenden Vorgang abschließen lassen.')
+            QMessageBox.information(self, tr('Vorgang läuft'), tr('Bitte den laufenden Vorgang abschließen lassen.'))
             event.ignore(); return
         dirty = (api.S.session and api.S.session.edits) or (api.S.roster and api.S.roster.dirty) \
             or api.S.digivolve_levels or api.S.battle_camera
-        if dirty and QMessageBox.question(self, 'Ungespeicherte Änderungen', 'Schließen und vorgemerkte Änderungen verwerfen? Zum Sichern abbrechen und ein Mod-Projekt speichern.') != QMessageBox.StandardButton.Yes:
+        if dirty and QMessageBox.question(self, tr('Ungespeicherte Änderungen'), tr('Schließen und vorgemerkte Änderungen verwerfen? Zum Sichern abbrechen und ein Mod-Projekt speichern.')) != QMessageBox.StandardButton.Yes:
             event.ignore(); return
         for studio in list(self.studios):
             if not studio.close():

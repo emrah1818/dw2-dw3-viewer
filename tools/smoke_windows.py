@@ -6,7 +6,7 @@ import subprocess
 import sys
 
 exe = Path(sys.argv[1]).resolve()
-report = Path('windows-smoke.json').resolve()
+report = Path(os.environ.get('SMOKE_REPORT', 'windows-smoke.json')).resolve()
 env = dict(os.environ)
 env['QTWEBENGINE_CHROMIUM_FLAGS'] = '--use-gl=angle --use-angle=swiftshader --enable-unsafe-swiftshader'
 proc = subprocess.run([str(exe), '--smoke-test', '--smoke-report=' + str(report)], env=env, timeout=60)

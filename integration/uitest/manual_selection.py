@@ -85,7 +85,7 @@ try:
         page.wait_for_function('window.__dw2.state.id===304 && window.__dw2.state.loaded===null')
         assert page.evaluate('window.__dw2.view.model===null')
         assert page.locator('#anim option').count()==0
-        assert 'nicht geladen' in page.locator('#stage-msg').inner_text()
+        msg=page.locator('#stage-msg').inner_text(); assert 'nicht geladen' in msg or 'could not be loaded' in msg, msg
         assert not errors, errors
         print('PASS: import dialog, independent F/G/H, loop defaults/override, same-motion choice, reset, untouched chains; failed field load clears stale model; no JS errors')
         browser.close()
