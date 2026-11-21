@@ -16,7 +16,13 @@ Digimon World 3.*
 **[Latest release: version 0.98.5](https://github.com/emrah1818/dw2-dw3-viewer/releases/tag/v0.98.5)** · [all releases](https://github.com/emrah1818/dw2-dw3-viewer/releases)
 (pre-release series: not 1.0 yet, see “Still open” below)
 
-| System | Mod Studio (viewer and editor) | Matching DW2 PC port |
+You need three downloads:
+
+1. **DW2 PC port:** [download it here](https://github.com/emrah1818/dw2-pc-port/releases/latest)
+2. **Mod Studio:** from the table below
+3. **PC port API:** from the table below. Unpack it into the PC port folder and replace the existing files.
+
+| System | Mod Studio (viewer and editor) | PC port API (replaces files in the PC port) |
 |---|---|---|
 | Windows 10/11, 64-bit | [DW2_Mod_Studio_0.98.5_Windows_x64.zip](https://github.com/emrah1818/dw2-dw3-viewer/releases/download/v0.98.5/DW2_Mod_Studio_0.98.5_Windows_x64.zip) | [DW2_PC_Port_API2_0.98.5_Windows_x64.zip](https://github.com/emrah1818/dw2-dw3-viewer/releases/download/v0.98.5/DW2_PC_Port_API2_0.98.5_Windows_x64.zip) |
 | Linux, 64-bit (x86_64) | [DW2_Mod_Studio_0.98.5_Linux_x64.tar.gz](https://github.com/emrah1818/dw2-dw3-viewer/releases/download/v0.98.5/DW2_Mod_Studio_0.98.5_Linux_x64.tar.gz) | [DW2_PC_Port_API2_0.98.5_Linux_x64.tar.gz](https://github.com/emrah1818/dw2-dw3-viewer/releases/download/v0.98.5/DW2_PC_Port_API2_0.98.5_Linux_x64.tar.gz) |
@@ -100,7 +106,13 @@ Spieldaten sind nicht enthalten: Du brauchst deine eigenen Abbilder von Digimon 
 **[Neueste Version: 0.98.5](https://github.com/emrah1818/dw2-dw3-viewer/releases/tag/v0.98.5)** · [alle Versionen](https://github.com/emrah1818/dw2-dw3-viewer/releases)
 (Vorabversion: noch keine 1.0, siehe „Noch offen“ unten)
 
-| System | Mod Studio (Viewer und Editor) | Passender DW2-PC-Port |
+Du brauchst drei Downloads:
+
+1. **DW2-PC-Port:** [hier herunterladen](https://github.com/emrah1818/dw2-pc-port/releases/latest)
+2. **Mod Studio:** aus der Tabelle unten
+3. **PC-Port-API:** aus der Tabelle unten. In den PC-Port-Ordner entpacken und die vorhandenen Dateien ersetzen.
+
+| System | Mod Studio (Viewer und Editor) | PC-Port-API (ersetzt Dateien im PC-Port) |
 |---|---|---|
 | Windows 10/11, 64 Bit | [DW2_Mod_Studio_0.98.5_Windows_x64.zip](https://github.com/emrah1818/dw2-dw3-viewer/releases/download/v0.98.5/DW2_Mod_Studio_0.98.5_Windows_x64.zip) | [DW2_PC_Port_API2_0.98.5_Windows_x64.zip](https://github.com/emrah1818/dw2-dw3-viewer/releases/download/v0.98.5/DW2_PC_Port_API2_0.98.5_Windows_x64.zip) |
 | Linux, 64 Bit (x86_64) | [DW2_Mod_Studio_0.98.5_Linux_x64.tar.gz](https://github.com/emrah1818/dw2-dw3-viewer/releases/download/v0.98.5/DW2_Mod_Studio_0.98.5_Linux_x64.tar.gz) | [DW2_PC_Port_API2_0.98.5_Linux_x64.tar.gz](https://github.com/emrah1818/dw2-dw3-viewer/releases/download/v0.98.5/DW2_PC_Port_API2_0.98.5_Linux_x64.tar.gz) |
