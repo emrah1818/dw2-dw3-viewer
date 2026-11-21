@@ -54,10 +54,13 @@ Checksums: [SHA256SUMS.txt](https://github.com/emrah1818/dw2-dw3-viewer/releases
 
 1. Unpack the Studio package completely and start it: on Windows `DW2_3D_Viewer_Studio.exe` (not from inside the
    ZIP), on Linux `DW2_Mod_Studio.sh`.
-2. Unpack the port package into its own folder and add your own `dw2.pak` and `dw2.pak.slus`.
-3. In the Studio open `dw2.pak` (mode A, PC port), make changes, and under “Changes” export them as a mod into the
+2. Download the DW2 PC port here: [DW2 PC port releases](https://github.com/emrah1818/dw2-pc-port/releases/latest).
+   Unpack it into its own folder and add your own `dw2.pak` and `dw2.pak.slus`.
+3. Then unpack the API download from the table above (`DW2_PC_Port_API2_…`) into the same folder and replace the
+   existing files when asked.
+4. In the Studio open `dw2.pak` (mode A, PC port), make changes, and under “Changes” export them as a mod into the
    port folder.
-4. Start `dw2.exe` (Windows) or `./dw2` (Linux) in the port folder.
+5. Start `dw2.exe` (Windows) or `./dw2` (Linux) in the port folder.
 
 Linux: the packages are built for x86_64 with glibc 2.35 or newer (Ubuntu 22.04, Debian 12, Fedora 36 and later).
 If the 3D view stays black on an old graphics driver, start with `DW2_SOFTWARE_GL=1 ./DW2_Mod_Studio.sh`.
@@ -202,9 +205,12 @@ startet den Kampf.
 ### Installation
 
 1. Studio-Paket vollständig entpacken und starten: unter Windows `DW2_3D_Viewer_Studio.exe` (nicht aus dem ZIP heraus), unter Linux `DW2_Mod_Studio.sh`.
-2. Port-Paket in einen eigenen Ordner entpacken und deine eigenen `dw2.pak` und `dw2.pak.slus` dazulegen.
-3. Im Studio `dw2.pak` öffnen (Modus A, PC-Port), ändern, unter „Änderungen“ als Mod in den Port-Ordner exportieren.
-4. Im Port-Ordner `dw2.exe` (Windows) oder `./dw2` (Linux) starten.
+2. Den DW2-PC-Port bitte hier herunterladen: [DW2-PC-Port Releases](https://github.com/emrah1818/dw2-pc-port/releases/latest).
+   In einen eigenen Ordner entpacken und deine eigenen `dw2.pak` und `dw2.pak.slus` dazulegen.
+3. Danach den API-Download aus der Tabelle oben (`DW2_PC_Port_API2_…`) in denselben Ordner entpacken und die
+   vorhandenen Dateien ersetzen, wenn gefragt wird.
+4. Im Studio `dw2.pak` öffnen (Modus A, PC-Port), ändern, unter „Änderungen“ als Mod in den Port-Ordner exportieren.
+5. Im Port-Ordner `dw2.exe` (Windows) oder `./dw2` (Linux) starten.
 
 Ausführlich: [ANLEITUNG.md](ANLEITUNG.md).
 
