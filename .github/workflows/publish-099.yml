@@ -1,0 +1,68 @@
+name: Publish verified DW2 Mod Studio 0.99
+on:
+  push:
+    branches: ['release/v0.99']
+    paths: ['.github/workflows/publish-099.yml']
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: publish-v0.99
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      BUILD_RUN: '44963267008'
+      SOURCE_SHA: b092c51de6ca024392d670b51cdb6c19da25d74b
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+      - name: Require every build and test from the exact source commit
+        run: |
+          gh run watch "$BUILD_RUN" --exit-status --interval 15
+          gh run view "$BUILD_RUN" --json headSha,conclusion,jobs > build-verification.json
+          python - <<'PY'
+          import json, os
+          run = json.load(open('build-verification.json'))
+          assert run['headSha'] == os.environ['SOURCE_SHA'], run
+          assert run['conclusion'] == 'success', run
+          jobs = {job['name']: job['conclusion'] for job in run['jobs']}
+          for required in ('tests', 'viewer', 'port', 'viewer-linux', 'port-linux'):
+              assert jobs.get(required) == 'success', (required, jobs)
+          print('All required tests and Windows/Linux builds succeeded for', run['headSha'])
+          PY
+      - name: Download the verified build artifacts
+        run: |
+          mkdir release-assets
+          for name in viewer-099 pc-port-099 viewer-linux-099 pc-port-linux-099 test-results-099; do
+            gh run download "$BUILD_RUN" --name "$name" --dir release-assets
+          done
+          cp build-verification.json release-assets/
+      - name: Prepare release notes and checksums
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import os
+          notes = Path('RELEASE_NOTES_0.99.md').read_text()
+          notes = notes.replace('Der Windows-Build und\nder Klicktest der Studio-Oberfläche sind noch nicht bestätigt.',
+                                'Die Windows-/Linux-Builds, Startprüfungen und der Klicktest des DNA-Editors haben bestanden.')
+          notes += '\n\nBuild- und Testnachweis: https://github.com/' + os.environ['GH_REPO'] + '/actions/runs/' + os.environ['BUILD_RUN'] + '\n'
+          notes += '\nDownloads: Für Windows das Studio-ZIP und den zugehörigen PC-Port herunterladen. Eigene dw2.pak und dw2.pak.slus bleiben erforderlich.\n'
+          Path('release-notes-final.md').write_text(notes)
+          PY
+          cd release-assets
+          sha256sum *.zip *.tar.gz windows-smoke.json linux-smoke.json test-results.xml test-summary.txt ui-manual-selection.txt ui-dna-editor.txt build-verification.json > SHA256SUMS.txt
+      - name: Publish version 0.99 without replacing an existing release
+        run: |
+          if gh release view v0.99 >/dev/null 2>&1; then
+            echo 'v0.99 already exists; refusing to replace it.' >&2
+            exit 1
+          fi
+          cd release-assets
+          gh release create v0.99 *.zip *.tar.gz windows-smoke.json linux-smoke.json test-results.xml test-summary.txt ui-manual-selection.txt ui-dna-editor.txt build-verification.json SHA256SUMS.txt --target "$SOURCE_SHA" --title 'DW2 Mod Studio 0.99' --latest --notes-file ../release-notes-final.md
+          gh release view v0.99 --json tagName,url,isDraft,isPrerelease,assets
