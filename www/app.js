@@ -361,7 +361,7 @@ async function afterChange(message) {
   if (message) toast(message);
 }
 async function historyStep(kind) {
-  try { await native(kind); await afterChange(t(kind === 'undo' ? 'Rückgängig gemacht' : 'Wiederhergestellt')); }
+  try { await native(kind); await afterChange(t(kind === 'undo' ? 'Rückgängig gemacht' : 'Wiederhergestellt')); if (currentPage === 'page-evo') renderDna(); }
   catch (e) { await fail(e); }
 }
 $('#b-undo').onclick = () => historyStep('undo');
@@ -851,6 +851,7 @@ function renderPending() {
         await native('discard', p.kind, p.path ?? null, p.lba ?? null);
         state.catalog = await native('catalog'); state.prefetch.clear(); renderList(); await refreshPending();
         if (state.id != null) loadModel(state.id);
+        if (currentPage === 'page-evo') renderDna();
       } catch (e) { await fail(e); }
     };
   });
@@ -873,6 +874,7 @@ $('#b-loadproj').onclick = async () => {
   try {
     const r = await native('pick_project');
     if (r) {
+      if (currentPage === 'page-evo') await renderDna();
       state.catalog = await native('catalog'); state.prefetch.clear(); renderList(); await refreshPending();
       toast(`${r.edits} ${t('vorgemerkt')}`);
       if (state.id != null) loadModel(state.id);
@@ -1222,8 +1224,42 @@ async function techDialog(sourceId, editId) {
 }
 
 // ---------------------------------------------------------------- 5 Digitations-Editor (Linie)
+async function renderDna() {
+  try {
+    const data = await native('dna_info');
+    const choices = [...data.choices].sort((a,b) => a.id-b.id);
+    for (const field of ['a', 'b', 'result']) {
+      const el = $('#dna-' + field), old = el.value;
+      el.innerHTML = choices.map(c => `<option value="${c.id}">#${pad3(c.id)} ${esc(c.name)}</option>`).join('');
+      if (choices.some(c => String(c.id) === old)) el.value = old;
+      else if (field === 'a' && choices.some(c => c.id === state.id)) el.value = String(state.id);
+      else if (field === 'b' && choices.length > 1) el.value = String(choices[1].id);
+    }
+    const label = id => `#${pad3(id)} ${choices.find(c => c.id === id)?.name || ''}`;
+    $('#dna-list').innerHTML = data.rules.map((r, i) => `<div class="row"><span>${esc(label(r.a))} + ${esc(label(r.b))} → ${esc(label(r.result))} (${['Rookie','Champion','Ultra','Mega'][r.rank]})</span><button data-dna-edit="${i}">Bearbeiten</button><button data-dna-delete="${i}">Löschen</button></div>`).join('');
+    $$('[data-dna-edit]').forEach(el => el.onclick = () => {
+      const r = data.rules[Number(el.dataset.dnaEdit)];
+      for (const key of ['a','b','result','rank']) $('#dna-' + key).value = String(r[key]);
+    });
+    $$('[data-dna-delete]').forEach(el => el.onclick = async () => {
+      try {
+        const r = data.rules[Number(el.dataset.dnaDelete)];
+        await native('dna_remove', r.a, r.b); await afterChange('DNA-Regel entfernt'); await renderDna();
+      } catch (e) { await fail(e); }
+    });
+    $('#dna-note').textContent = data.rules.length ? `${data.rules.length} DNA-Regeln vorgemerkt. Als Projekt speichern oder über „Mod installieren“ in den PC-Port übernehmen.` : 'Keine eigenen DNA-Regeln: Das Spiel verwendet seine normalen Kombinationen.';
+  } catch (e) { $('#dna-note').textContent = e.message; }
+}
+$('#dna-save').onclick = async () => {
+  try {
+    await native('dna_set', ...['a','b','result','rank'].map(k => Number($('#dna-' + k).value)));
+    await afterChange('DNA-Regel gespeichert'); await renderDna();
+  } catch (e) { await fail(e); }
+};
+
 let evoLine = [];
 async function renderEvoPage() {
+  renderDna();
   renderLevels();
   if (state.id == null) { $('#evo-sub').textContent = '· zuerst ein Digimon wählen'; $('#evo-line').innerHTML = ''; return; }
   $('#evo-sub').textContent = `· ab #${pad3(state.id)} ${digiName(state.id)}`;
@@ -1432,7 +1468,7 @@ $('#dw3-run').onclick = async () => {
 // ---------------------------------------------------------------- 9 Mod-Export: prüfen, ersetzen, einlesen
 function drawModReport(r) {
   const list = (title, items, cls) => items.length ? `<p class="${cls}"><b>${title}</b><br>${items.map(esc).join('<br>')}</p>` : '';
-  $('#mod-report').innerHTML = `<p>${r.files.length} Datei(en), Schnittstelle des Ports: ${r.api}${r.textures?.length ? `, ${r.textures.length} HD-Textur(en)` : ''}</p>` +
+  $('#mod-report').innerHTML = `<p>${r.files.length} Datei(en), Schnittstelle des Ports: ${r.api}${r.dna != null ? `, ${r.dna} DNA-Regel(n)` : ''}${r.textures?.length ? `, ${r.textures.length} HD-Textur(en)` : ''}</p>` +
     list('Fehler', r.errors, 'err') + list('Konflikte', r.conflicts, 'warn') + list('Hinweise', r.warnings, 'hint') +
     (r.files.length ? '<table><tr><th>Datei</th><th>Inhalt</th><th>Bytes</th><th></th></tr>' + r.files.map(f => `<tr><td>${f.file}</td><td>${esc(f.name)} · ${esc(f.label)}</td><td>${f.size}</td><td>${f.needs_api2 ? 'braucht Schnittstelle 2' : ''}</td></tr>`).join('') + '</table>' : '');
 }
@@ -1441,7 +1477,7 @@ $('#b-mod-check').onclick = async () => {
 };
 $('#b-mod-replace').onclick = async () => {
   if (!(await confirmBox('Vorhandenen Mod im gewählten Ordner nach Mods\\disabled verschieben und diesen Mod exportieren?'))) return;
-  try { const r = await busy('Mod wird exportiert …', () => native('port_mods_dialog', 'replace')); if (r) { log(`Mod exportiert: ${r.count} Dateien${r.replaced ? `, vorheriger Mod → Mods\\disabled\\${r.replaced.set}` : ''}`); toast(`${r.count} Mod-Dateien exportiert`); } }
+  try { const r = await busy('Mod wird exportiert …', () => native('port_mods_dialog', 'replace')); if (r) { log(`Mod exportiert: ${r.count} Dateien${r.replaced ? `, vorheriger Mod → Mods\\disabled\\${r.replaced.set}` : ''}`); toast(`${r.count} Mod-Dateien${r.dna_overrides != null ? `, ${r.dna_overrides} DNA-Regel(n)` : ''} exportiert`); } }
   catch (e) { await fail(e); }
 };
 $('#b-mod-import').onclick = async () => {

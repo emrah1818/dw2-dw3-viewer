@@ -1,3 +1,12 @@
+## 0.99 (Entwicklung, 22.11.2026)
+
+DNA-Digitationseditor mit frei wählbarem Partnerpaar, Ergebnis und Ergebnisstufe;
+Projektspeicherung und Undo/Redo; DNA-Mod-Installation und -Verwaltung;
+Laufzeitanbindung im begleitenden PC-Port. Stufen gelten je Ergebnisart global.
+Linux-Build, synthetische Laufzeittests und Ingame-DNA inklusive Speichern/Laden
+geprüft; Windows-Build und Browser-Klicktest offen.
+Siehe RELEASE_NOTES_0.99.md und TESTERGEBNISSE_0.99.md.
+
 # Änderungsprotokoll
 
 ## 0.98.5 – 17.11.2026 (Korrektur Linux-Paket, Vorabversion)

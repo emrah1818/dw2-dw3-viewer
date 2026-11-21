@@ -1,12 +1,13 @@
 """Portable, versioned DNA combination overrides for DW2 Studio mods.
 
-This module handles authoring/validation/serialization only. Applying overrides
-in the game's DNA runtime requires a separate integration in the PC port.
+The companion PC port reads Mods/dna_overrides.json and applies pair results and
+species ranks through its dna_overrides interface (version 1).
 """
 import json
 
 FORMAT = 'dw2-dna-overrides'
 SCHEMA_VERSION = 1
+FILENAME = "dna_overrides.json"
 RANKS = ('Rookie', 'Champion', 'Ultimate', 'Mega')
 
 
@@ -48,6 +49,8 @@ class DnaOverrides:
         key = pair_key(a, b)
         if key in self.rules:
             raise ValueError('Für dieses DNA-Paar existiert bereits eine Regel.')
+        if any(target == result and other_rank != rank for target, other_rank in self.rules.values()):
+            raise ValueError('Die Stufe eines Ergebnis-Digimon muss in allen DNA-Regeln gleich sein.')
         self.rules[key] = (result, rank)
 
     def set(self, a, b, result, rank):
