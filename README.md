@@ -1,4 +1,4 @@
-# DW2 Mod Studio 0.98.5
+# DW2 Mod Studio
 
 **English** · [Deutsch](#deutsch)
 
