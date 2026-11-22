@@ -1,0 +1,43 @@
+name: Update v0.99 stable release page
+on:
+  push:
+    branches: ['release/v0.99-readme']
+    paths: ['.github/workflows/update-v099-release-page.yml']
+permissions:
+  contents: write
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: emrah1818/dw2-dw3-viewer
+    steps:
+      - name: Update the existing release metadata
+        shell: bash
+        run: |
+          gh api "repos/$GH_REPO/releases/tags/v0.99" > before.json
+          jq -e '.id == 454071581 and .tag_name == "v0.99" and .target_commitish == "885b251d935b6e721857cc46c7376027dc956594" and (.assets | length) == 12' before.json >/dev/null
+          cat > release-notes.md <<'NOTES'
+          **Aktuelles Hauptrelease · Stable release · 22.11.2026**
+
+          ## Eigene DNA-Digitationen einstellen
+
+          1. Öffne `dw2.pak` im Mod Studio und gehe zu **Digitation → DNA-Digitation**.
+          2. Wähle beide Partner, das Ergebnis-Digimon und die Stufe **Rookie, Champion, Ultra oder Mega**. Klicke auf **DNA-Regel speichern**.
+          3. Exportiere die Regel unter **Änderungen → PC-Port-Mod exportieren** in den Ordner des passenden PC-Ports. Starte das Spiel neu und probiere das Paar im Digi-Labor aus.
+
+          Die Regel gilt für genau dieses Partnerpaar in beiden Reihenfolgen. Andere Paare folgen der normalen Spiellogik, solange sie keine eigene Regel haben. Die Stufe gilt bei aktivem Mod für die Art des Ergebnis-Digimon. Die Club-Beschränkungen im Digi-Labor bleiben bestehen. DNA-Regeln werden über den PC-Port aus diesem Release angewendet. Unterstützung beim Export von PS1-Abbildern steht noch aus.
+
+          **Im Spiel geprüft:** WarGreymon + MetalGarurumon ergeben Omnimon als Mega auf Level 31. Die Kombination, Speichern und erneutes Laden wurden im Linux-PC-Port getestet. Die automatisierten Builds und Startprüfungen für Windows und Linux sowie der Klicktest des DNA-Editors sind bestanden.
+
+          ## Downloads
+
+          Wähle unter **Assets** das Mod Studio und den passenden PC-Port für Windows oder Linux. Lege deine eigenen Dateien `dw2.pak` und `dw2.pak.slus` in den Ordner des PC-Ports.
+
+          [Anleitung und Spielbilder auf Deutsch](https://github.com/emrah1818/dw2-dw3-viewer#neu-in-v099--eigene-dna-digitation-einstellen) · [English instructions](https://github.com/emrah1818/dw2-dw3-viewer#new-in-v099--custom-dna-digivolution) · [Build- und Testnachweis](https://github.com/emrah1818/dw2-dw3-viewer/actions/runs/44963720206)
+          NOTES
+          gh release edit v0.99 --title "DW2 Mod Studio 0.99 – Custom DNA Digivolution" --notes-file release-notes.md --latest --prerelease=false --draft=false
+          gh api "repos/$GH_REPO/releases/latest" > after.json
+          jq -e '.id == 454071581 and .tag_name == "v0.99" and (.draft or .prerelease | not)' after.json >/dev/null
+          jq -en --slurpfile before before.json --slurpfile after after.json '($before[0] | [.target_commitish, ([.assets[].id] | sort)]) == ($after[0] | [.target_commitish, ([.assets[].id] | sort)])' >/dev/null
