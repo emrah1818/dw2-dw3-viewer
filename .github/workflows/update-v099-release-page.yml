@@ -19,7 +19,9 @@ jobs:
           gh api "repos/$GH_REPO/releases/tags/v0.99" > before.json
           jq -e '.id == 454071581 and .tag_name == "v0.99" and .target_commitish == "885b251d935b6e721857cc46c7376027dc956594" and (.assets | length) == 12' before.json >/dev/null
           cat > release-notes.md <<'NOTES'
-          [English](#english) · [Deutsch](#deutsch)
+          [English](#user-content-english) · [Deutsch](#user-content-deutsch)
+
+          <a id="english" name="english"></a>
 
           ## English
 
@@ -40,6 +42,8 @@ jobs:
           Under **Assets**, download Mod Studio and the matching PC port for Windows or Linux. Place your own `dw2.pak` and `dw2.pak.slus` in the PC port folder.
 
           [README instructions and screenshots](https://github.com/emrah1818/dw2-dw3-viewer#new-in-v099--custom-dna-digivolution) · [Build and test results](https://github.com/emrah1818/dw2-dw3-viewer/actions/runs/44963720206)
+
+          <a id="deutsch" name="deutsch"></a>
 
           ## Deutsch
 
@@ -64,5 +68,5 @@ jobs:
           gh release edit v0.99 --notes-file release-notes.md
           gh api "repos/$GH_REPO/releases/latest" > after.json
           jq -e '.id == 454071581 and .tag_name == "v0.99" and (.draft or .prerelease | not)' after.json >/dev/null
-          jq -e '.body | startswith("[English](#english) · [Deutsch](#deutsch)") and (index("## English") < index("## Deutsch"))' after.json >/dev/null
+          jq -e '.body | startswith("[English](#user-content-english) · [Deutsch](#user-content-deutsch)") and (index("## English") < index("## Deutsch"))' after.json >/dev/null
           jq -en --slurpfile before before.json --slurpfile after after.json '($before[0] | [.target_commitish, ([.assets[].id] | sort)]) == ($after[0] | [.target_commitish, ([.assets[].id] | sort)])' >/dev/null
