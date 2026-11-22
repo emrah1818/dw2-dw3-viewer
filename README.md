@@ -13,21 +13,32 @@ Digimon World 3.*
 
 ## Download
 
-**[Latest release: version 0.98.5](https://github.com/emrah1818/dw2-dw3-viewer/releases/tag/v0.98.5)** · [all releases](https://github.com/emrah1818/dw2-dw3-viewer/releases)
-(pre-release series: not 1.0 yet, see “Still open” below)
+**[Latest stable release: v0.99](https://github.com/emrah1818/dw2-dw3-viewer/releases/tag/v0.99)** · [all releases](https://github.com/emrah1818/dw2-dw3-viewer/releases)
 
-You need three downloads:
+For DNA Digivolution, download both packages for your system. If you already have the DW2 PC port, you can update its folder with the matching package below. The port uses your own `dw2.pak` and `dw2.pak.slus`.
 
-1. **DW2 PC port:** [download it here](https://github.com/emrah1818/dw2-pc-port/releases/latest)
-2. **Mod Studio:** from the table below
-3. **PC port API:** from the table below. Unpack it into the PC port folder and replace the existing files.
-
-| System | Mod Studio (viewer and editor) | PC port API (replaces files in the PC port) |
+| System | Mod Studio (viewer and editor) | Compatible PC port |
 |---|---|---|
-| Windows 10/11, 64-bit | [DW2_Mod_Studio_0.98.5_Windows_x64.zip](https://github.com/emrah1818/dw2-dw3-viewer/releases/download/v0.98.5/DW2_Mod_Studio_0.98.5_Windows_x64.zip) | [DW2_PC_Port_API2_0.98.5_Windows_x64.zip](https://github.com/emrah1818/dw2-dw3-viewer/releases/download/v0.98.5/DW2_PC_Port_API2_0.98.5_Windows_x64.zip) |
-| Linux, 64-bit (x86_64) | [DW2_Mod_Studio_0.98.5_Linux_x64.tar.gz](https://github.com/emrah1818/dw2-dw3-viewer/releases/download/v0.98.5/DW2_Mod_Studio_0.98.5_Linux_x64.tar.gz) | [DW2_PC_Port_API2_0.98.5_Linux_x64.tar.gz](https://github.com/emrah1818/dw2-dw3-viewer/releases/download/v0.98.5/DW2_PC_Port_API2_0.98.5_Linux_x64.tar.gz) |
+| Windows 10/11, 64-bit | [DW2_Mod_Studio_0.99_Windows_x64.zip](https://github.com/emrah1818/dw2-dw3-viewer/releases/download/v0.99/DW2_Mod_Studio_0.99_Windows_x64.zip) | [DW2_PC_Port_API2_0.99_Windows_x64.zip](https://github.com/emrah1818/dw2-dw3-viewer/releases/download/v0.99/DW2_PC_Port_API2_0.99_Windows_x64.zip) |
+| Linux, 64-bit (x86_64) | [DW2_Mod_Studio_0.99_Linux_x64.tar.gz](https://github.com/emrah1818/dw2-dw3-viewer/releases/download/v0.99/DW2_Mod_Studio_0.99_Linux_x64.tar.gz) | [DW2_PC_Port_API2_0.99_Linux_x64.tar.gz](https://github.com/emrah1818/dw2-dw3-viewer/releases/download/v0.99/DW2_PC_Port_API2_0.99_Linux_x64.tar.gz) |
 
-Checksums: [SHA256SUMS.txt](https://github.com/emrah1818/dw2-dw3-viewer/releases/download/v0.98.5/SHA256SUMS.txt).
+Checksums: [SHA256SUMS.txt](https://github.com/emrah1818/dw2-dw3-viewer/releases/download/v0.99/SHA256SUMS.txt).
+
+## New in v0.99 – Custom DNA Digivolution
+
+1. Open `dw2.pak` in the Studio and go to **Digivolution → DNA Digivolution**.
+2. Choose both partners, a result Digimon and its stage (Rookie, Champion, Ultimate or Mega). Click **Save DNA rule**.
+3. Under **Changes → Export PC-port mod**, select the folder of the compatible v0.99 PC port. Restart the game and try the combination in the Digi-Lab.
+
+Each rule matches the exact partner pair in either order. Other pairs use the game's standard rules unless you configure them separately. The chosen stage applies to the result species while the mod is active. Custom DNA rules in v0.99 run in the included PC port. Support for PS1 image exports is still open.
+
+**In-game example:** WarGreymon + MetalGarurumon → **Omnimon (Mega, level 31)**. The result was verified in the Linux PC port, including saving and reloading.
+
+| DNA preview in the Digi-Lab | Result in the player roster |
+|---|---|
+| ![Digi-Lab preview offers Omnimon as the DNA result](docs/screenshots/dna_099_preview.jpg) | ![Omnimon at Mega, level 31, with both parents shown](docs/screenshots/dna_099_omnimon_mega.jpg) |
+
+[Release notes and downloads](https://github.com/emrah1818/dw2-dw3-viewer/releases/tag/v0.99) · [Build and test results](https://github.com/emrah1818/dw2-dw3-viewer/actions/runs/44963720206)
 
 ## New in 0.98.4/0.98.5
 
@@ -60,13 +71,9 @@ Checksums: [SHA256SUMS.txt](https://github.com/emrah1818/dw2-dw3-viewer/releases
 
 1. Unpack the Studio package completely and start it: on Windows `DW2_3D_Viewer_Studio.exe` (not from inside the
    ZIP), on Linux `DW2_Mod_Studio.sh`.
-2. Download the DW2 PC port here: [DW2 PC port releases](https://github.com/emrah1818/dw2-pc-port/releases/latest).
-   Unpack it into its own folder and add your own `dw2.pak` and `dw2.pak.slus`.
-3. Then unpack the API download from the table above (`DW2_PC_Port_API2_…`) into the same folder and replace the
-   existing files when asked.
-4. In the Studio open `dw2.pak` (mode A, PC port), make changes, and under “Changes” export them as a mod into the
-   port folder.
-5. Start `dw2.exe` (Windows) or `./dw2` (Linux) in the port folder.
+2. Unpack the matching PC port package from the table above into its own folder and add your own `dw2.pak` and `dw2.pak.slus`.
+3. Open `dw2.pak` in the Studio (mode A, PC port). Make your changes and export them from **Changes** to the port folder.
+4. Start `dw2.exe` (Windows) or `./dw2` (Linux) in the port folder.
 
 Linux: the packages are built for x86_64 with glibc 2.35 or newer (Ubuntu 22.04, Debian 12, Fedora 36 and later).
 If the 3D view stays black on an old graphics driver, start with `DW2_SOFTWARE_GL=1 ./DW2_Mod_Studio.sh`.
@@ -95,7 +102,7 @@ published. Origin/licences: `SOURCES_v4_0.json`, `THIRD_PARTY_v4_0.md`, `license
 
 ## Deutsch
 
-[English](#dw2-mod-studio-0985) · **Deutsch**
+[English](#dw2-mod-studio) · **Deutsch**
 
 Digimon World 2 modden: Digimon, Techniken, Digitationslinien, Domains und Gegnergruppen bearbeiten, Digimon aus
 Digimon World 3 in vorhandene Plätze importieren und alles als Mod für den DW2-PC-Port exportieren.
@@ -103,21 +110,28 @@ Spieldaten sind nicht enthalten: Du brauchst deine eigenen Abbilder von Digimon 
 
 ### Download
 
-**[Neueste Version: 0.98.5](https://github.com/emrah1818/dw2-dw3-viewer/releases/tag/v0.98.5)** · [alle Versionen](https://github.com/emrah1818/dw2-dw3-viewer/releases)
-(Vorabversion: noch keine 1.0, siehe „Noch offen“ unten)
+**[Aktuelles Hauptrelease: v0.99](https://github.com/emrah1818/dw2-dw3-viewer/releases/tag/v0.99)** · [alle Versionen](https://github.com/emrah1818/dw2-dw3-viewer/releases)
 
-Du brauchst drei Downloads:
+Lade für die DNA-Digitation beide Pakete für dein System herunter. Einen vorhandenen PC-Port kannst du mit dem passenden Paket aus der Tabelle aktualisieren. Der Port verwendet deine eigenen Dateien `dw2.pak` und `dw2.pak.slus`.
 
-1. **DW2-PC-Port:** [hier herunterladen](https://github.com/emrah1818/dw2-pc-port/releases/latest)
-2. **Mod Studio:** aus der Tabelle unten
-3. **PC-Port-API:** aus der Tabelle unten. In den PC-Port-Ordner entpacken und die vorhandenen Dateien ersetzen.
-
-| System | Mod Studio (Viewer und Editor) | PC-Port-API (ersetzt Dateien im PC-Port) |
+| System | Mod Studio (Viewer und Editor) | Passender PC-Port |
 |---|---|---|
-| Windows 10/11, 64 Bit | [DW2_Mod_Studio_0.98.5_Windows_x64.zip](https://github.com/emrah1818/dw2-dw3-viewer/releases/download/v0.98.5/DW2_Mod_Studio_0.98.5_Windows_x64.zip) | [DW2_PC_Port_API2_0.98.5_Windows_x64.zip](https://github.com/emrah1818/dw2-dw3-viewer/releases/download/v0.98.5/DW2_PC_Port_API2_0.98.5_Windows_x64.zip) |
-| Linux, 64 Bit (x86_64) | [DW2_Mod_Studio_0.98.5_Linux_x64.tar.gz](https://github.com/emrah1818/dw2-dw3-viewer/releases/download/v0.98.5/DW2_Mod_Studio_0.98.5_Linux_x64.tar.gz) | [DW2_PC_Port_API2_0.98.5_Linux_x64.tar.gz](https://github.com/emrah1818/dw2-dw3-viewer/releases/download/v0.98.5/DW2_PC_Port_API2_0.98.5_Linux_x64.tar.gz) |
+| Windows 10/11, 64 Bit | [DW2_Mod_Studio_0.99_Windows_x64.zip](https://github.com/emrah1818/dw2-dw3-viewer/releases/download/v0.99/DW2_Mod_Studio_0.99_Windows_x64.zip) | [DW2_PC_Port_API2_0.99_Windows_x64.zip](https://github.com/emrah1818/dw2-dw3-viewer/releases/download/v0.99/DW2_PC_Port_API2_0.99_Windows_x64.zip) |
+| Linux, 64 Bit (x86_64) | [DW2_Mod_Studio_0.99_Linux_x64.tar.gz](https://github.com/emrah1818/dw2-dw3-viewer/releases/download/v0.99/DW2_Mod_Studio_0.99_Linux_x64.tar.gz) | [DW2_PC_Port_API2_0.99_Linux_x64.tar.gz](https://github.com/emrah1818/dw2-dw3-viewer/releases/download/v0.99/DW2_PC_Port_API2_0.99_Linux_x64.tar.gz) |
 
-Prüfsummen: [SHA256SUMS.txt](https://github.com/emrah1818/dw2-dw3-viewer/releases/download/v0.98.5/SHA256SUMS.txt).
+Prüfsummen: [SHA256SUMS.txt](https://github.com/emrah1818/dw2-dw3-viewer/releases/download/v0.99/SHA256SUMS.txt).
+
+### Neu in v0.99 – Eigene DNA-Digitation einstellen
+
+1. Öffne `dw2.pak` im Studio und gehe zu **Digitation → DNA-Digitation**.
+2. Wähle beide Partner, das Ergebnis-Digimon und seine Stufe (Rookie, Champion, Ultra oder Mega). Klicke auf **DNA-Regel speichern**.
+3. Wähle unter **Änderungen → PC-Port-Mod exportieren** den Ordner des passenden 0.99-PC-Ports. Starte das Spiel neu und probiere die Kombination im Digi-Labor aus.
+
+Jede Regel gilt genau für das ausgewählte Paar, auch in umgekehrter Reihenfolge. Für andere Paare gilt die normale Spiellogik, solange du sie nicht separat einstellst. Die gewählte Stufe gilt bei aktivem Mod für die Art des Ergebnis-Digimon. Eigene DNA-Regeln in v0.99 laufen im mitgelieferten PC-Port. Die Unterstützung für den PS1-Image-Export ist noch offen.
+
+**Im Spiel getestet:** WarGreymon + MetalGarurumon → **Omnimon (Mega, Level 31)**. Das Ergebnis wurde im Linux-PC-Port inklusive Speichern und erneutem Laden geprüft.
+
+[Spielbilder zur DNA-Digitation](#new-in-v099--custom-dna-digivolution) · [Release und Downloads](https://github.com/emrah1818/dw2-dw3-viewer/releases/tag/v0.99)
 
 ### Neu in 0.98.4/0.98.5
 
@@ -217,12 +231,9 @@ startet den Kampf.
 ### Installation
 
 1. Studio-Paket vollständig entpacken und starten: unter Windows `DW2_3D_Viewer_Studio.exe` (nicht aus dem ZIP heraus), unter Linux `DW2_Mod_Studio.sh`.
-2. Den DW2-PC-Port bitte hier herunterladen: [DW2-PC-Port Releases](https://github.com/emrah1818/dw2-pc-port/releases/latest).
-   In einen eigenen Ordner entpacken und deine eigenen `dw2.pak` und `dw2.pak.slus` dazulegen.
-3. Danach den API-Download aus der Tabelle oben (`DW2_PC_Port_API2_…`) in denselben Ordner entpacken und die
-   vorhandenen Dateien ersetzen, wenn gefragt wird.
-4. Im Studio `dw2.pak` öffnen (Modus A, PC-Port), ändern, unter „Änderungen“ als Mod in den Port-Ordner exportieren.
-5. Im Port-Ordner `dw2.exe` (Windows) oder `./dw2` (Linux) starten.
+2. Passendes PC-Port-Paket aus der Tabelle oben in einen eigenen Ordner entpacken und deine eigenen `dw2.pak` und `dw2.pak.slus` dazulegen.
+3. Im Studio `dw2.pak` öffnen (Modus A, PC-Port), Änderungen vornehmen und unter **Änderungen** als Mod in den Port-Ordner exportieren.
+4. Im Port-Ordner `dw2.exe` (Windows) oder `./dw2` (Linux) starten.
 
 Ausführlich: [ANLEITUNG.md](ANLEITUNG.md).
 
@@ -273,7 +284,7 @@ Nicht übertragen werden DW3-Effekte, -Töne und -Kamerafahrten ([DW3_EFFEKTE_AN
 
 ### Dokumente
 
-- Neu in dieser Version: [RELEASE_NOTES_0.98.5.md](RELEASE_NOTES_0.98.5.md), [CHANGELOG.md](CHANGELOG.md)
+- Neu in dieser Version: [Release-Notes zu v0.99](https://github.com/emrah1818/dw2-dw3-viewer/releases/tag/v0.99), [CHANGELOG.md](CHANGELOG.md)
 - Einschränkungen: [EINSCHRAENKUNGEN_0.95.md](EINSCHRAENKUNGEN_0.95.md), technische Grenzen: [GRENZEN_ANALYSE_0.95.md](GRENZEN_ANALYSE_0.95.md)
 - Digitationslevel im Port: [DIGITATIONSLEVEL_SCHNITTSTELLE.md](DIGITATIONSLEVEL_SCHNITTSTELLE.md)
 
