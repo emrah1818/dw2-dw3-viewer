@@ -19,9 +19,33 @@ jobs:
           gh api "repos/$GH_REPO/releases/tags/v0.99" > before.json
           jq -e '.id == 454071581 and .tag_name == "v0.99" and .target_commitish == "885b251d935b6e721857cc46c7376027dc956594" and (.assets | length) == 12' before.json >/dev/null
           cat > release-notes.md <<'NOTES'
-          **Aktuelles Hauptrelease · Stable release · 22.11.2026**
+          [English](#english) · [Deutsch](#deutsch)
 
-          ## Eigene DNA-Digitationen einstellen
+          ## English
+
+          **Stable release · 22 November 2026**
+
+          ### Set up custom DNA Digivolution
+
+          1. Open `dw2.pak` in Mod Studio and go to **Digivolution → DNA Digivolution**.
+          2. Choose both partners, the resulting Digimon and its stage: **Rookie, Champion, Ultimate or Mega**. Click **Save DNA rule**.
+          3. Go to **Changes → Export PC-port mod** and select the folder of the matching PC port. Restart the game and try your combination in the Digi-Lab.
+
+          Each rule matches the selected partner pair in either order. Other pairs follow the game's original rules unless you configure them separately. While the mod is active, the selected stage applies to the resulting Digimon species. Digi-Lab club restrictions still apply. Custom DNA rules work with the PC port included in this release. PS1 image export support is still pending.
+
+          **Verified in game:** WarGreymon + MetalGarurumon produce Omnimon at Mega stage and level 31. The combination was tested in the Linux PC port, including saving and reloading. Automated Windows and Linux builds and startup checks passed, along with the DNA editor UI test.
+
+          ### Downloads
+
+          Under **Assets**, download Mod Studio and the matching PC port for Windows or Linux. Place your own `dw2.pak` and `dw2.pak.slus` in the PC port folder.
+
+          [README instructions and screenshots](https://github.com/emrah1818/dw2-dw3-viewer#new-in-v099--custom-dna-digivolution) · [Build and test results](https://github.com/emrah1818/dw2-dw3-viewer/actions/runs/44963720206)
+
+          ## Deutsch
+
+          **Aktuelles Hauptrelease · 22.11.2026**
+
+          ### Eigene DNA-Digitationen einstellen
 
           1. Öffne `dw2.pak` im Mod Studio und gehe zu **Digitation → DNA-Digitation**.
           2. Wähle beide Partner, das Ergebnis-Digimon und die Stufe **Rookie, Champion, Ultra oder Mega**. Klicke auf **DNA-Regel speichern**.
@@ -31,13 +55,14 @@ jobs:
 
           **Im Spiel geprüft:** WarGreymon + MetalGarurumon ergeben Omnimon als Mega auf Level 31. Die Kombination, Speichern und erneutes Laden wurden im Linux-PC-Port getestet. Die automatisierten Builds und Startprüfungen für Windows und Linux sowie der Klicktest des DNA-Editors sind bestanden.
 
-          ## Downloads
+          ### Downloads
 
           Wähle unter **Assets** das Mod Studio und den passenden PC-Port für Windows oder Linux. Lege deine eigenen Dateien `dw2.pak` und `dw2.pak.slus` in den Ordner des PC-Ports.
 
           [Anleitung und Spielbilder auf Deutsch](https://github.com/emrah1818/dw2-dw3-viewer#neu-in-v099--eigene-dna-digitation-einstellen) · [English instructions](https://github.com/emrah1818/dw2-dw3-viewer#new-in-v099--custom-dna-digivolution) · [Build- und Testnachweis](https://github.com/emrah1818/dw2-dw3-viewer/actions/runs/44963720206)
           NOTES
-          gh release edit v0.99 --title "DW2 Mod Studio 0.99 – Custom DNA Digivolution" --notes-file release-notes.md --latest --prerelease=false --draft=false
+          gh release edit v0.99 --notes-file release-notes.md
           gh api "repos/$GH_REPO/releases/latest" > after.json
           jq -e '.id == 454071581 and .tag_name == "v0.99" and (.draft or .prerelease | not)' after.json >/dev/null
+          jq -e '.body | startswith("[English](#english) · [Deutsch](#deutsch)") and (index("## English") < index("## Deutsch"))' after.json >/dev/null
           jq -en --slurpfile before before.json --slurpfile after after.json '($before[0] | [.target_commitish, ([.assets[].id] | sort)]) == ($after[0] | [.target_commitish, ([.assets[].id] | sort)])' >/dev/null
