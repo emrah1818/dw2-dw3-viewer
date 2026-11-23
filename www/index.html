@@ -200,6 +200,12 @@
       <div id="evo-line"></div>
       <div class="btns"><button id="evo-add">Digimon zur Linie hinzufügen</button><button id="evo-save" class="primary">Linie übernehmen</button><button id="evo-check">Alle Digitationen prüfen</button></div>
       <div id="evo-report"></div></div>
+    <div class="card"><b>DNA-Digitation</b>
+      <p class="hint">Zwei Partner auswählen und Ergebnis sowie Stufe festlegen. A + B und B + A verwenden dieselbe Regel. Die Ergebnisstufe gilt im PC-Port für diese Digimon-Art überall; alle Regeln mit demselben Ergebnis müssen dieselbe Stufe verwenden. Startlevel: Rookie 1, Champion 11, Ultra 21, Mega 31. Mega übernimmt die Vererbungsfaktoren von Ultra. Die Club-Beschränkungen des Digi-Labors gelten weiter. Benötigt den PC-Port mit DNA-Unterstützung. Nach Mod-Änderungen das Spiel neu starten.</p>
+      <div class="row"><label>Partner A <select id="dna-a"></select></label><label>Partner B <select id="dna-b"></select></label></div>
+      <div class="row"><label>Ergebnis <select id="dna-result"></select></label><label>Stufe <select id="dna-rank"><option value="0">Rookie</option><option value="1">Champion</option><option value="2">Ultra (Ultimate)</option><option value="3">Mega</option></select></label><button id="dna-save" class="primary">DNA-Regel speichern</button></div>
+      <div id="dna-list"></div><p class="hint" id="dna-note"></p>
+    </div>
     <div class="card"><b>Digitationslevel je Digimon (Vorbereitung)</b>
       <p class="hint" id="lv-note"></p>
       <div class="row"><span id="lv-who">–</span> Mindestlevel <input id="lv-val" type="number" min="1" max="99" placeholder="Spielregel"> <button id="lv-set" class="small">Speichern</button><button id="lv-clear" class="small">Spielregel</button></div>

@@ -24,7 +24,7 @@ def _api_level(port):
         return 1
 
 
-def check(session, pak, port_dir, levels=None, cameras=None):
+def check(session, pak, port_dir, levels=None, cameras=None, dna=None):
     """What an export would write and what stands in its way. Writes nothing."""
     port = Path(port_dir)
     report = {'files': [], 'errors': [], 'conflicts': [], 'warnings': [], 'api': _api_level(port)}
@@ -51,7 +51,18 @@ def check(session, pak, port_dir, levels=None, cameras=None):
             report['warnings'].append(f'Kampfkameras für {len(cameras)} Digimon werden als Mods\\battle_camera.json '
                                       'mitgeschrieben. Dieser PC-Port meldet die Schnittstelle nicht und ignoriert sie. '
                                       'Den mitgelieferten Port ab 1.0 verwenden.')
-    if not session.edits and not levels and not cameras:
+    if dna is not None:
+        report['dna'] = len(dna.rules)
+        try:
+            api_doc = json.loads((port / 'dw2_mod_api.json').read_text(encoding='utf-8-sig'))
+        except (OSError, ValueError):
+            api_doc = {}
+        if not isinstance(api_doc, dict) or api_doc.get('dna_overrides') != 1:
+            report['errors'].append('DNA-Regeln benötigen den PC-Port mit "dna_overrides": 1 in dw2_mod_api.json.')
+    for sidecar in ('digivolve_levels.json', 'battle_camera.json', 'dna_overrides.json'):
+        if (port / 'Mods' / sidecar).exists():
+            report['conflicts'].append(f'{sidecar} ist schon als Mod aktiv.')
+    if not session.edits and not levels and not cameras and dna is None:
         report['errors'].append('Es sind keine Änderungen vorgemerkt.')
         return report
     extended = any(e.relocate or len(e.replacement) != len(e.original) for e in session.edits.values())
@@ -84,8 +95,8 @@ def check(session, pak, port_dir, levels=None, cameras=None):
     return report
 
 
-def export_checked(session, pak, port_dir, *, replace=False, name='DW2 Mod Studio', levels=None, cameras=None):
-    report = check(session, pak, port_dir, levels, cameras)
+def export_checked(session, pak, port_dir, *, replace=False, name='DW2 Mod Studio', levels=None, cameras=None, dna=None):
+    report = check(session, pak, port_dir, levels, cameras, dna)
     if report['errors']:
         raise ValueError(' '.join(report['errors']))
     moved = None
@@ -94,7 +105,19 @@ def export_checked(session, pak, port_dir, *, replace=False, name='DW2 Mod Studi
             raise FileExistsError('Konflikt mit vorhandenem Mod: ' + ' '.join(report['conflicts']) +
                                   ' Mit „Vorhandenen Mod ersetzen“ wird er nach Mods\\disabled verschoben.')
         moved = disable(port_dir)
-    result = export(session, pak, port_dir, mod_name=name)
+    if session.edits:
+        result = export(session, pak, port_dir, mod_name=name)
+    else:
+        mods = Path(port_dir) / 'Mods'
+        (mods / 'files').mkdir(parents=True, exist_ok=True)
+        manifest = mods / MANIFEST
+        manifest.write_text(json.dumps({'format': 'DW2 Mod Studio overlay 2', 'mod_api': 2,
+                                       'name': name, 'files': [], 'textures': []}), encoding='utf-8')
+        result = {'manifest': str(manifest), 'count': 0, 'files': []}
+    if dna is not None:
+        from .core.dna_overrides import FILENAME as DNA_FILE
+        (Path(port_dir) / 'Mods' / DNA_FILE).write_text(dna.to_json(), encoding='utf-8')
+        result['dna_overrides'] = len(dna.rules)
     result['replaced'] = moved
     if levels:
         from .digivolve_levels import dumps, FILENAME
@@ -112,7 +135,7 @@ def read_mod(port_dir, pak):
     """Files and textures of the active mod in PORT_DIR, checked against PAK. Changes nothing."""
     mods = Path(port_dir) / 'Mods'
     folder = mods / 'files'
-    if not folder.is_dir():
+    if not folder.is_dir() and not (mods / 'dna_overrides.json').is_file():
         raise ValueError('Im Ordner gibt es kein Mods\\files.')
     try:
         manifest = json.loads((mods / MANIFEST).read_text(encoding='utf-8'))
@@ -121,7 +144,7 @@ def read_mod(port_dir, pak):
     expected = {row.get('id'): row for row in manifest.get('files', []) if isinstance(row, dict)}
     by_id = {e.id: e for e in pak.entries}
     files, problems = {}, []
-    for path in sorted(folder.iterdir()):
+    for path in sorted(folder.iterdir()) if folder.is_dir() else []:
         m = MOD_FILE.match(path.name)
         if not m:
             continue
@@ -205,7 +228,10 @@ def import_into(session, entries, port_dir, force=False):
     found = read_mod(port_dir, pak)
     if found['problems']:
         raise ValueError(' '.join(found['problems']))
-    if not found['files']:
+    from .core.dna_overrides import DnaOverrides, FILENAME as DNA_FILE
+    dna_path = Path(port_dir) / 'Mods' / DNA_FILE
+    dna = DnaOverrides.from_json(dna_path.read_text(encoding='utf-8-sig')) if dna_path.exists() else None
+    if not found['files'] and dna is None:
         raise ValueError('Im Mod-Ordner liegen keine Ersatzdateien.')
     conflicts = import_conflicts(session, entries, found['files'])
     if conflicts and not force:

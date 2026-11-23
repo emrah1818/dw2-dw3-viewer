@@ -201,7 +201,7 @@ class Bridge(QObject):
                 if action not in actions:
                     raise ValueError(tr('Unbekannte Mod-Aktion.'))
                 if action in ('check', 'export', 'replace') and not api._need_session().edits \
-                        and not api.S.digivolve_levels and not api.S.battle_camera:
+                        and not api.S.digivolve_levels and not api.S.battle_camera and not api.S.dna_overrides and not api.S.dna_modified:
                     raise ValueError(tr('Keine Änderungen vorgemerkt.'))
                 port = self.last_port if action in ('export', 'replace', 'import_force') and args[1:] == ['last'] and getattr(self, 'last_port', None) \
                     else QFileDialog.getExistingDirectory(self.window, tr('PC-Port-Ordner mit dw2.exe wählen'))
@@ -350,7 +350,7 @@ class Desktop(QMainWindow):
             QMessageBox.information(self, tr('Vorgang läuft'), tr('Bitte den laufenden Vorgang abschließen lassen.'))
             event.ignore(); return
         dirty = (api.S.session and api.S.session.edits) or (api.S.roster and api.S.roster.dirty) \
-            or api.S.digivolve_levels or api.S.battle_camera
+            or api.S.digivolve_levels or api.S.battle_camera or api.S.dna_overrides or api.S.dna_modified
         if dirty and QMessageBox.question(self, tr('Ungespeicherte Änderungen'), tr('Schließen und vorgemerkte Änderungen verwerfen? Zum Sichern abbrechen und ein Mod-Projekt speichern.')) != QMessageBox.StandardButton.Yes:
             event.ignore(); return
         for studio in list(self.studios):

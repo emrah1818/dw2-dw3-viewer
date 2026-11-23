@@ -41,6 +41,9 @@ def _members(root):
             raise ValueError('Manifest nennt einen Pfad außerhalb von Mods.')
         if (root / rel).is_file() and rel not in found:
             found.append(rel)
+    for name in ('digivolve_levels.json', 'battle_camera.json', 'dna_overrides.json'):
+        if (root / name).is_file():
+            found.append(Path(name))
     if (root / MANIFEST).is_file():
         found.append(Path(MANIFEST))
     return found

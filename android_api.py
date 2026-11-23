@@ -38,6 +38,8 @@ class State:
         self.roster = None
         self.source_names = {}
         self.digivolve_levels = {}   # Mods/digivolve_levels.json (PC port 1.0)
+        self.dna_modified = False
+        self.dna_overrides = {}
         self.battle_camera = {}      # Mods/battle_camera.json (PC port 1.0)
         self.dw3_imports = {}        # target id -> how it was imported (source model, size, HD), for 'Größe ändern'
 
@@ -151,6 +153,8 @@ def open_image(path):
         S.entries, S.catalog, S.index_key = entries, catalog, key
         S.names = S.attacks = S.types = None
         S.digivolve_levels = {}
+        S.dna_modified = False
+        S.dna_overrides = {}
         S.battle_camera = {}
         S.dw3_imports = {}
         S.props, S.roster = {}, None
@@ -168,6 +172,8 @@ def open_image(path):
     S.names = S.attacks = S.types = None
     S.props = {}
     S.roster = None
+    S.dna_overrides = {}
+    S.dna_modified = False
     S.source_names = {c.id: c.name for c in catalog}
     return {'name': S.image_path.name, 'count': len(catalog), 'cached': info['cached'],
             'seconds': round(info['seconds'], 2), 'sector_size': info['sector_size'],
@@ -416,6 +422,9 @@ def pending():
                 label += ' · neuer Dateibereich'
             out.append({'kind': 'file', 'file': Path(e.path).name, 'label': label, 'detail': detail,
                         'path': e.path, 'lba': e.lba, 'shared': basename(e.path) in ATTACK_FILES})
+    if S.dna_modified or S.dna_overrides:
+        out.append({'kind': 'dna', 'file': 'dna_overrides.json', 'label': 'DNA-Digitation',
+                    'detail': f'{len(S.dna_overrides)} Regeln · PC-Port-Mod', 'shared': False})
     if S.roster is not None and S.roster.dirty:
         out.append({'kind': 'roster', 'file': S.roster.path.name, 'label': 'Spielstand/Memorycard',
                     'detail': 'Persönliche Werte, EXP und Parents', 'shared': False})
@@ -423,6 +432,10 @@ def pending():
 
 
 def discard(kind, path=None, lba=None):
+    if kind == 'dna':
+        S.dna_overrides = {}
+        S.dna_modified = False
+        return True
     if kind == 'roster':
         if S.roster is not None:
             S.roster.raw = bytearray(S.roster.original)
@@ -483,11 +496,15 @@ def save_project(name):
     s.export_project(target)
     levels = getattr(S, 'digivolve_levels', {}) or {}
     cams = getattr(S, 'battle_camera', {}) or {}
-    if levels or cams or getattr(S, 'dw3_imports', None):
+    dna = _dna_model().to_dict()['rules']
+    if levels or cams or dna or S.dna_modified or getattr(S, 'dw3_imports', None):
         import zipfile
         from dw2studio.digivolve_levels import dumps, FILENAME
         from dw2studio.core import battle_shots
         with zipfile.ZipFile(target, 'a') as archive:
+            if dna or S.dna_modified:
+                from dw2studio.core.dna_overrides import DnaOverrides, FILENAME as DNA_FILE
+                archive.writestr(DNA_FILE, DnaOverrides(dna).to_json())
             if levels:
                 archive.writestr(FILENAME, dumps(levels))
             if cams:
@@ -503,6 +520,8 @@ def load_project(path):
     from dw2studio.core.battle_skills import FILE_INDEX as ATTACK_FILES, PARSERS
     s = _need_session()
     before = s.edits.copy()
+    before_dna = dict(S.dna_overrides)
+    before_dna_modified = S.dna_modified
     try:
         with zipfile.ZipFile(path) as archive:
             if archive.getinfo('project.json').file_size > 4 * 1024 * 1024:
@@ -518,6 +537,9 @@ def load_project(path):
         s.import_project(path, S.entries)
         from dw2studio.digivolve_levels import loads, FILENAME
         with zipfile.ZipFile(path) as archive:
+            from dw2studio.core.dna_overrides import DnaOverrides, FILENAME as DNA_FILE
+            S.dna_modified = DNA_FILE in archive.namelist()
+            S.dna_overrides = DnaOverrides.from_json(archive.read(DNA_FILE).decode('utf-8'), _dna_choices()).rules if DNA_FILE in archive.namelist() else {}
             if FILENAME in archive.namelist():
                 S.digivolve_levels = loads(archive.read(FILENAME).decode('utf-8'))
             if 'dw3_imports.json' in archive.namelist():
@@ -530,6 +552,8 @@ def load_project(path):
         _refresh_names()
     except Exception:
         s.edits = before
+        S.dna_overrides = before_dna
+        S.dna_modified = before_dna_modified
         raise
     return {'edits': len(s.edits)}
 
@@ -879,32 +903,45 @@ def _pak():
 def mod_check(port_dir):
     from dw2studio.mod_io import check
     s, pak = _pak()
-    return check(s, pak, port_dir, S.digivolve_levels, S.battle_camera)
+    return check(s, pak, port_dir, S.digivolve_levels, S.battle_camera, _dna_model() if S.dna_modified or S.dna_overrides else None)
 
 
 def mod_export(port_dir):
     from dw2studio.mod_io import export_checked
     s, pak = _pak()
-    return export_checked(s, pak, port_dir, replace=False, name='DW2 Mod Studio ' + VERSION, levels=S.digivolve_levels, cameras=S.battle_camera)
+    return export_checked(s, pak, port_dir, replace=False, name='DW2 Mod Studio ' + VERSION, levels=S.digivolve_levels, cameras=S.battle_camera, dna=_dna_model() if S.dna_modified or S.dna_overrides else None)
 
 
 def mod_export_replace(port_dir):
     from dw2studio.mod_io import export_checked
     s, pak = _pak()
-    return export_checked(s, pak, port_dir, replace=True, name='DW2 Mod Studio ' + VERSION, levels=S.digivolve_levels, cameras=S.battle_camera)
+    return export_checked(s, pak, port_dir, replace=True, name='DW2 Mod Studio ' + VERSION, levels=S.digivolve_levels, cameras=S.battle_camera, dna=_dna_model() if S.dna_modified or S.dna_overrides else None)
 
 
 def mod_import(port_dir):
     from dw2studio.mod_io import import_into
     s, _ = _pak()
-    return import_into(s, S.entries, port_dir)
+    dna = _dna_import(port_dir)
+    if S.dna_overrides and S.dna_overrides != dna:
+        from dw2studio.mod_io import ModConflict
+        raise ModConflict([{'text': 'DNA-Regeln weichen von eigenen Änderungen ab.'}])
+    result = import_into(s, S.entries, port_dir)
+    result['dna_overrides'] = len(dna)
+    S.dna_overrides = dna
+    S.dna_modified = (Path(port_dir) / "Mods" / "dna_overrides.json").exists()
+    return result
 
 
 def mod_import_force(port_dir):
     """Import even though the mod replaces files changed here (after the user confirmed)."""
     from dw2studio.mod_io import import_into
     s, _ = _pak()
-    return import_into(s, S.entries, port_dir, force=True)
+    dna = _dna_import(port_dir)
+    result = import_into(s, S.entries, port_dir, force=True)
+    result['dna_overrides'] = len(dna)
+    S.dna_overrides = dna
+    S.dna_modified = (Path(port_dir) / "Mods" / "dna_overrides.json").exists()
+    return result
 
 
 # --------------------------------------------------------------------------- 0.17b: Domains und Gegnergruppen
@@ -1005,6 +1042,50 @@ def technique_assign(technique, digimon_ids):
 def technique_budget():
     from dw2studio.core.techniques import id_budget
     return id_budget(_techniques())
+
+
+def _dna_choices():
+    from dw2studio.core.evolution import EvolutionRepository
+    from dw2studio.core.battle_skills import BaseTable
+    repo = EvolutionRepository(_need_session(), S.entries)
+    return sorted(i for i in BaseTable(repo.session.current(repo.entry)).records if 1 <= i <= 255)
+
+
+def _dna_model():
+    from dw2studio.core.dna_overrides import DnaOverrides
+    model = DnaOverrides(valid_ids=_dna_choices()) if S.dna_overrides else DnaOverrides()
+    for (a, b), (result, rank) in S.dna_overrides.items():
+        model.add(a, b, result, rank)
+    return model
+
+
+def dna_info():
+    model = _dna_model()
+    names = _current_names()
+    return {**model.to_dict(), 'choices': [{'id': i, 'name': names.get(i, str(i))} for i in _dna_choices()]}
+
+
+def dna_set(a, b, result, rank):
+    model = _dna_model()
+    model.valid_ids = frozenset(_dna_choices())
+    model.set(a, b, result, rank)
+    S.dna_overrides = model.rules
+    S.dna_modified = True
+    return dna_info()
+
+
+def dna_remove(a, b):
+    model = _dna_model()
+    model.remove(a, b)
+    S.dna_overrides = model.rules
+    S.dna_modified = True
+    return dna_info()
+
+
+def _dna_import(port_dir):
+    from dw2studio.core.dna_overrides import DnaOverrides, FILENAME
+    path = Path(port_dir) / 'Mods' / FILENAME
+    return DnaOverrides.from_json(path.read_text(encoding='utf-8-sig'), _dna_choices()).rules if path.exists() else {}
 
 
 def digivolve_levels_info():
@@ -1378,7 +1459,7 @@ def hd_active(identifier):
 
 # --------------------------------------------------------------------------- Verlauf (Rückgängig / Wiederherstellen)
 UNDO, REDO = [], []
-MUTATING = {'anim_apply', 'digivolve_level_set', 'battle_camera_set', 'dw3_resize', 'dw3_native_apply', 'dw3_batch_apply', 'mod_import', 'mod_import_force', 'technique_copy_parts', 'technique_assign', 'domain_set_floor', 'group_set', 'group_clone',
+MUTATING = {'dna_set', 'dna_remove', 'anim_apply', 'digivolve_level_set', 'battle_camera_set', 'dw3_resize', 'dw3_native_apply', 'dw3_batch_apply', 'mod_import', 'mod_import_force', 'technique_copy_parts', 'technique_assign', 'domain_set_floor', 'group_set', 'group_clone',
             'technique_create', 'technique_edit', 'camera_set', 'evolution_line', 'set_evolution', 'rename', 'set_type', 'set_specialty', 'set_enemy_values', 'apply_attacks', 'roster_change',
             'roster_restore', 'discard', 'load_project', 'png_apply', 'transfer_apply', 'bin_apply',
             'rig_apply', 'restore_original'}
@@ -1387,13 +1468,16 @@ MUTATING = {'anim_apply', 'digivolve_level_set', 'battle_camera_set', 'dw3_resiz
 def _snapshot():
     return (dict(S.session.edits) if S.session else {},
             bytes(S.roster.raw) if S.roster is not None else None,
+            (dict(getattr(S, 'dna_overrides', {}) or {}), S.dna_modified),
             dict(getattr(S, 'digivolve_levels', {}) or {}),
             {k: dict(v) for k, v in (getattr(S, 'battle_camera', {}) or {}).items()},
             {k: dict(v) for k, v in (getattr(S, 'dw3_imports', {}) or {}).items()})
 
 
 def _restore(snap):
-    edits, roster, levels, cams, imports = snap
+    edits, roster, dna, levels, cams, imports = snap
+    S.dna_overrides = dict(dna[0])
+    S.dna_modified = dna[1]
     S.digivolve_levels = dict(levels)
     S.battle_camera = {k: dict(v) for k, v in cams.items()}
     S.dw3_imports = {k: dict(v) for k, v in imports.items()}
@@ -1463,6 +1547,7 @@ _METHODS = {
     'technique_create': technique_create, 'technique_edit': technique_edit,
     'technique_copy_parts': technique_copy_parts, 'technique_assign': technique_assign,
     'technique_budget': technique_budget, 'evolution_validate': evolution_validate,
+    'dna_info': dna_info, 'dna_set': dna_set, 'dna_remove': dna_remove,
     'digivolve_levels_info': digivolve_levels_info, 'digivolve_level_set': digivolve_level_set,
     'battle_camera_info': battle_camera_info, 'battle_camera_set': battle_camera_set,
     'dw3_resize': dw3_resize, 'size_info': size_info, 'mod_import_force': mod_import_force,

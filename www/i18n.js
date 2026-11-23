@@ -1,5 +1,15 @@
 // Deutsch ist die Quellsprache; hier stehen die englischen Entsprechungen.
 export const EN = {
+  "DNA-Digitation": "DNA digivolution",
+  "Partner A": "Partner A",
+  "Partner B": "Partner B",
+  "Ergebnis": "Result",
+  "DNA-Regel speichern": "Save DNA rule",
+  "DNA-Regel gespeichert": "DNA rule saved",
+  "DNA-Regel entfernt": "DNA rule removed",
+  "Keine eigenen DNA-Regeln: Das Spiel verwendet seine normalen Kombinationen.": "No custom DNA rules: the game uses its original combinations.",
+  "Zwei Partner auswählen und Ergebnis sowie Stufe festlegen. A + B und B + A verwenden dieselbe Regel. Die Ergebnisstufe gilt im PC-Port für diese Digimon-Art überall; alle Regeln mit demselben Ergebnis müssen dieselbe Stufe verwenden. Startlevel: Rookie 1, Champion 11, Ultra 21, Mega 31. Mega übernimmt die Vererbungsfaktoren von Ultra. Die Club-Beschränkungen des Digi-Labors gelten weiter. Benötigt den PC-Port mit DNA-Unterstützung. Nach Mod-Änderungen das Spiel neu starten.": "Choose two partners, a result and its stage. A + B and B + A use the same rule. The result stage applies everywhere to this species in the PC port; all rules with the same result must agree on its stage. Starting level: Rookie 1, Champion 11, Ultimate 21, Mega 31. Mega uses Ultimate stat inheritance. Digi-Lab club restrictions still apply. Requires the PC port with DNA support. Restart the game after changing mods.",
+
   'Dateien werden lokal auf diesem PC verarbeitet.': 'Files are processed locally on this PC.',
   'BIN / ISO öffnen': 'Open BIN / ISO',
   start_text: 'Open your own game image (BIN/ISO). The app contains no game data.',

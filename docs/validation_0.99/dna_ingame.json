@@ -1,0 +1,18 @@
+{
+  "vanilla": {
+    "state": 1,
+    "id": 113,
+    "level": 21
+  },
+  "installed": {
+    "state": 1,
+    "id": 150,
+    "level": 31
+  },
+  "reloaded": {
+    "state": 3,
+    "id": 150,
+    "level": 31
+  },
+  "passed": true
+}
